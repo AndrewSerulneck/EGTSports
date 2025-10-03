@@ -1,0 +1,959 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NFL Betting Pool - Week 5</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+        }
+
+        .header {
+            text-align: center;
+            color: white;
+            margin-bottom: 30px;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .header p {
+            font-size: 1.2em;
+            opacity: 0.9;
+        }
+
+        .games-grid {
+            display: grid;
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .game-card {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .game-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 12px rgba(0,0,0,0.15);
+        }
+
+        .game-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #f0f0f0;
+        }
+
+        .game-time {
+            font-size: 0.9em;
+            color: #666;
+            font-weight: 600;
+        }
+
+        .game-date {
+            font-size: 0.85em;
+            color: #999;
+        }
+
+        .matchup {
+            display: grid;
+            gap: 12px;
+        }
+
+        .team-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .team-row:hover {
+            background: #e9ecef;
+        }
+
+        .team-row.selected {
+            background: #d4edda;
+            border: 2px solid #28a745;
+        }
+
+        .team-info {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex: 1;
+        }
+
+        .checkbox-container input[type="checkbox"] {
+            width: 20px;
+            height: 20px;
+            cursor: pointer;
+        }
+
+        .team-name {
+            font-size: 1.1em;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .spread {
+            font-size: 1em;
+            color: #666;
+            font-weight: 500;
+            min-width: 60px;
+            text-align: right;
+        }
+
+        .vs-divider {
+            text-align: center;
+            color: #999;
+            font-weight: 600;
+            margin: 8px 0;
+        }
+
+        .submit-section {
+            text-align: center;
+            margin-top: 30px;
+        }
+
+        .submit-btn {
+            background: #28a745;
+            color: white;
+            border: none;
+            padding: 16px 48px;
+            font-size: 1.2em;
+            font-weight: 600;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background 0.3s, transform 0.2s;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+
+        .submit-btn:hover {
+            background: #218838;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 12px rgba(0,0,0,0.15);
+        }
+
+        .submit-btn:disabled {
+            background: #6c757d;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .selection-count {
+            color: white;
+            font-size: 1.1em;
+            margin-bottom: 15px;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.7);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: white;
+            padding: 40px;
+            border-radius: 12px;
+            max-width: 500px;
+            width: 90%;
+            text-align: center;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+        }
+
+        .modal-content h2 {
+            color: #28a745;
+            margin-bottom: 20px;
+            font-size: 2em;
+        }
+
+        .ticket-number {
+            font-size: 1.5em;
+            font-weight: 700;
+            color: #333;
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 20px 0;
+            letter-spacing: 2px;
+        }
+
+        .picks-summary {
+            text-align: left;
+            margin: 20px 0;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 8px;
+        }
+
+        .picks-summary h3 {
+            margin-bottom: 10px;
+            color: #333;
+        }
+
+        .picks-summary ul {
+            list-style: none;
+        }
+
+        .picks-summary li {
+            padding: 8px;
+            border-bottom: 1px solid #dee2e6;
+        }
+
+        .picks-summary li:last-child {
+            border-bottom: none;
+        }
+
+        .continue-btn {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 12px 32px;
+            font-size: 1.1em;
+            font-weight: 600;
+            border-radius: 8px;
+            cursor: pointer;
+            margin-top: 20px;
+        }
+
+        .continue-btn:hover {
+            background: #0056b3;
+        }
+
+        .checkout-page {
+            display: none;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        .checkout-page.active {
+            display: block;
+        }
+
+        .checkout-card {
+            background: white;
+            border-radius: 12px;
+            padding: 30px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+
+        .checkout-header {
+            text-align: center;
+            color: white;
+            margin-bottom: 30px;
+        }
+
+        .checkout-header h1 {
+            font-size: 2em;
+            margin-bottom: 10px;
+        }
+
+        .ticket-display {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        .ticket-display h3 {
+            color: #666;
+            font-size: 0.9em;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+        }
+
+        .ticket-display .ticket-num {
+            font-size: 1.5em;
+            font-weight: 700;
+            color: #28a745;
+            letter-spacing: 2px;
+        }
+
+        .picks-display {
+            margin-bottom: 20px;
+        }
+
+        .picks-display h3 {
+            color: #333;
+            margin-bottom: 15px;
+            font-size: 1.2em;
+        }
+
+        .pick-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 12px;
+            background: #f8f9fa;
+            border-radius: 6px;
+            margin-bottom: 8px;
+        }
+
+        .pick-team {
+            font-weight: 600;
+            color: #333;
+        }
+
+        .pick-spread {
+            color: #666;
+        }
+
+        .form-section {
+            margin-top: 30px;
+        }
+
+        .form-section h3 {
+            color: #333;
+            margin-bottom: 20px;
+            font-size: 1.2em;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: #333;
+            font-weight: 600;
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 1em;
+            transition: border-color 0.3s;
+        }
+
+        .form-group input:focus {
+            outline: none;
+            border-color: #007bff;
+        }
+
+        .form-group input.error {
+            border-color: #dc3545;
+        }
+
+        .error-message {
+            color: #dc3545;
+            font-size: 0.85em;
+            margin-top: 5px;
+            display: none;
+        }
+
+        .error-message.show {
+            display: block;
+        }
+
+        .checkout-btn {
+            width: 100%;
+            background: #28a745;
+            color: white;
+            border: none;
+            padding: 16px;
+            font-size: 1.2em;
+            font-weight: 600;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background 0.3s;
+            margin-top: 20px;
+        }
+
+        .checkout-btn:hover {
+            background: #218838;
+        }
+
+        .payment-section {
+            margin-top: 30px;
+            padding-top: 30px;
+            border-top: 2px solid #e0e0e0;
+        }
+
+        .payment-section h3 {
+            color: #333;
+            margin-bottom: 15px;
+            font-size: 1.2em;
+            text-align: center;
+        }
+
+        .payment-info {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .payment-info p {
+            color: #666;
+            margin-bottom: 10px;
+        }
+
+        .payment-amount {
+            font-size: 2em;
+            font-weight: 700;
+            color: #28a745;
+            margin: 10px 0;
+        }
+
+        .venmo-btn {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            width: 100%;
+            background: #008CFF;
+            color: white;
+            border: none;
+            padding: 16px;
+            font-size: 1.2em;
+            font-weight: 600;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background 0.3s;
+            text-decoration: none;
+        }
+
+        .venmo-btn:hover {
+            background: #0077CC;
+        }
+
+        .venmo-logo {
+            font-weight: 700;
+            font-size: 1.3em;
+        }
+
+        .payment-note {
+            background: #fff3cd;
+            border: 1px solid #ffc107;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 15px;
+            font-size: 0.9em;
+            color: #856404;
+        }
+
+        .payment-note strong {
+            display: block;
+            margin-bottom: 5px;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        .back-btn {
+            background: #6c757d;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            margin-bottom: 20px;
+        }
+
+        .back-btn:hover {
+            background: #5a6268;
+        }
+
+        @media (max-width: 600px) {
+            .header h1 {
+                font-size: 1.8em;
+            }
+            
+            .team-name {
+                font-size: 1em;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Main Picks Page -->
+    <div class="container" id="picksPage">
+        <div class="header">
+            <h1>🏈 NFL Betting Pool</h1>
+            <p>Week 5 - October 2024</p>
+        </div>
+
+        <div class="games-grid" id="gamesGrid"></div>
+
+        <div class="submit-section">
+            <div class="selection-count" id="selectionCount">
+                Select your picks (0 selected)
+            </div>
+            <button class="submit-btn" id="submitBtn" onclick="submitPicks()">
+                Submit Picks
+            </button>
+        </div>
+    </div>
+
+    <!-- Checkout Page -->
+    <div class="checkout-page" id="checkoutPage">
+        <div class="checkout-header">
+            <h1>💳 Checkout</h1>
+            <p>Complete your entry</p>
+        </div>
+
+        <button class="back-btn" onclick="goBackToPicks()">← Back to Picks</button>
+
+        <div class="checkout-card">
+            <div class="ticket-display">
+                <h3>Your Ticket Number</h3>
+                <div class="ticket-num" id="checkoutTicketNumber"></div>
+            </div>
+
+            <div class="picks-display">
+                <h3>Your Picks</h3>
+                <div id="checkoutPicksList"></div>
+            </div>
+
+            <div class="form-section">
+                <h3>Contact Information</h3>
+                <form id="checkoutForm" onsubmit="handleCheckoutSubmit(event)">
+                    <div class="form-group">
+                        <label for="fullName">Full Name *</label>
+                        <input type="text" id="fullName" name="fullName" required>
+                        <div class="error-message" id="nameError">Please enter your full name</div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="email">Email Address *</label>
+                        <input type="email" id="email" name="email" required>
+                        <div class="error-message" id="emailError">Please enter a valid email address</div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="phone">Phone Number *</label>
+                        <input type="tel" id="phone" name="phone" placeholder="(555) 123-4567" required>
+                        <div class="error-message" id="phoneError">Please enter a valid phone number</div>
+                    </div>
+
+                    <button type="submit" class="checkout-btn">
+                        Continue to Payment →
+                    </button>
+                </form>
+            </div>
+
+            <div class="payment-section hidden" id="paymentSection">
+                <h3>💰 Payment</h3>
+                
+                <div class="payment-info">
+                    <p>Entry Fee</p>
+                    <div class="payment-amount">$10.00</div>
+                    <p style="font-size: 0.9em;">Pay via Venmo to complete your entry</p>
+                </div>
+
+                <a href="#" id="venmoButton" class="venmo-btn" target="_blank">
+                    <span class="venmo-logo">V</span>
+                    Pay with Venmo
+                </a>
+
+                <div class="payment-note">
+                    <strong>⚠️ Important:</strong>
+                    Your ticket number will be automatically included in the Venmo payment note. Please do not change it. This helps us match your payment to your picks.
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal" id="confirmationModal">
+        <div class="modal-content">
+            <h2>✅ Picks Submitted!</h2>
+            <p>Your ticket number is:</p>
+            <div class="ticket-number" id="ticketNumber"></div>
+            <div class="picks-summary" id="picksSummary"></div>
+            <p style="color: #666; margin-top: 20px;">Save this ticket number for your records</p>
+            <button class="continue-btn" onclick="continueToCheckout()">
+                Continue to Checkout
+            </button>
+        </div>
+    </div>
+
+    <script>
+        // Configuration - CHANGE THESE VALUES
+        const VENMO_USERNAME = 'YourVenmoUsername';
+        const ENTRY_FEE = 10.00;
+
+        // NFL Games data for Week 5
+        const games = [
+            {
+                id: 1,
+                date: "Thursday, Oct 3",
+                time: "8:15 PM ET",
+                awayTeam: "Tampa Bay Buccaneers",
+                homeTeam: "Atlanta Falcons",
+                awaySpread: "+3.5",
+                homeSpread: "-3.5"
+            },
+            {
+                id: 2,
+                date: "Sunday, Oct 6",
+                time: "1:00 PM ET",
+                awayTeam: "Carolina Panthers",
+                homeTeam: "Chicago Bears",
+                awaySpread: "+3",
+                homeSpread: "-3"
+            },
+            {
+                id: 3,
+                date: "Sunday, Oct 6",
+                time: "1:00 PM ET",
+                awayTeam: "Buffalo Bills",
+                homeTeam: "Houston Texans",
+                awaySpread: "-1.5",
+                homeSpread: "+1.5"
+            },
+            {
+                id: 4,
+                date: "Sunday, Oct 6",
+                time: "1:00 PM ET",
+                awayTeam: "Baltimore Ravens",
+                homeTeam: "Cincinnati Bengals",
+                awaySpread: "-2.5",
+                homeSpread: "+2.5"
+            },
+            {
+                id: 5,
+                date: "Sunday, Oct 6",
+                time: "1:00 PM ET",
+                awayTeam: "Indianapolis Colts",
+                homeTeam: "Jacksonville Jaguars",
+                awaySpread: "+1",
+                homeSpread: "-1"
+            },
+            {
+                id: 6,
+                date: "Sunday, Oct 6",
+                time: "1:00 PM ET",
+                awayTeam: "Miami Dolphins",
+                homeTeam: "New England Patriots",
+                awaySpread: "-1",
+                homeSpread: "+1"
+            },
+            {
+                id: 7,
+                date: "Sunday, Oct 6",
+                time: "1:00 PM ET",
+                awayTeam: "Las Vegas Raiders",
+                homeTeam: "Denver Broncos",
+                awaySpread: "+3",
+                homeSpread: "-3"
+            },
+            {
+                id: 8,
+                date: "Sunday, Oct 6",
+                time: "4:05 PM ET",
+                awayTeam: "Arizona Cardinals",
+                homeTeam: "San Francisco 49ers",
+                awaySpread: "+7",
+                homeSpread: "-7"
+            },
+            {
+                id: 9,
+                date: "Sunday, Oct 6",
+                time: "4:25 PM ET",
+                awayTeam: "Green Bay Packers",
+                homeTeam: "LA Rams",
+                awaySpread: "-2.5",
+                homeSpread: "+2.5"
+            },
+            {
+                id: 10,
+                date: "Sunday, Oct 6",
+                time: "4:25 PM ET",
+                awayTeam: "Cleveland Browns",
+                homeTeam: "Washington Commanders",
+                awaySpread: "+3.5",
+                homeSpread: "-3.5"
+            },
+            {
+                id: 11,
+                date: "Sunday, Oct 6",
+                time: "8:20 PM ET",
+                awayTeam: "NY Giants",
+                homeTeam: "Seattle Seahawks",
+                awaySpread: "+6.5",
+                homeSpread: "-6.5"
+            },
+            {
+                id: 12,
+                date: "Monday, Oct 7",
+                time: "8:15 PM ET",
+                awayTeam: "New Orleans Saints",
+                homeTeam: "Kansas City Chiefs",
+                awaySpread: "+5.5",
+                homeSpread: "-5.5"
+            }
+        ];
+
+        let selectedPicks = {};
+        let currentTicketNumber = '';
+        let currentPicksData = [];
+
+        function renderGames() {
+            const grid = document.getElementById('gamesGrid');
+            grid.innerHTML = games.map(game => `
+                <div class="game-card">
+                    <div class="game-header">
+                        <span class="game-date">${game.date}</span>
+                        <span class="game-time">${game.time}</span>
+                    </div>
+                    <div class="matchup">
+                        <div class="team-row" id="team-${game.id}-away" onclick="toggleTeam(${game.id}, 'away')">
+                            <div class="team-info">
+                                <div class="checkbox-container">
+                                    <input type="checkbox" id="check-${game.id}-away" onclick="event.stopPropagation(); toggleTeam(${game.id}, 'away')">
+                                </div>
+                                <span class="team-name">${game.awayTeam}</span>
+                            </div>
+                            <span class="spread">${game.awaySpread}</span>
+                        </div>
+                        <div class="vs-divider">@</div>
+                        <div class="team-row" id="team-${game.id}-home" onclick="toggleTeam(${game.id}, 'home')">
+                            <div class="team-info">
+                                <div class="checkbox-container">
+                                    <input type="checkbox" id="check-${game.id}-home" onclick="event.stopPropagation(); toggleTeam(${game.id}, 'home')">
+                                </div>
+                                <span class="team-name">${game.homeTeam}</span>
+                            </div>
+                            <span class="spread">${game.homeSpread}</span>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function toggleTeam(gameId, teamType) {
+            const otherType = teamType === 'away' ? 'home' : 'away';
+            const checkbox = document.getElementById(`check-${gameId}-${teamType}`);
+            const otherCheckbox = document.getElementById(`check-${gameId}-${otherType}`);
+            const row = document.getElementById(`team-${gameId}-${teamType}`);
+            const otherRow = document.getElementById(`team-${gameId}-${otherType}`);
+
+            if (selectedPicks[gameId] === teamType) {
+                delete selectedPicks[gameId];
+                checkbox.checked = false;
+                row.classList.remove('selected');
+            } else {
+                selectedPicks[gameId] = teamType;
+                checkbox.checked = true;
+                row.classList.add('selected');
+                otherCheckbox.checked = false;
+                otherRow.classList.remove('selected');
+            }
+
+            updateSelectionCount();
+        }
+
+        function updateSelectionCount() {
+            const count = Object.keys(selectedPicks).length;
+            document.getElementById('selectionCount').textContent = 
+                `Select your picks (${count} selected)`;
+            document.getElementById('submitBtn').disabled = count === 0;
+        }
+
+        function generateTicketNumber() {
+            const timestamp = Date.now().toString(36).toUpperCase();
+            const random = Math.random().toString(36).substring(2, 8).toUpperCase();
+            return `TKT-${timestamp}-${random}`;
+        }
+
+        function submitPicks() {
+            if (Object.keys(selectedPicks).length === 0) {
+                alert('Please select at least one pick!');
+                return;
+            }
+
+            const ticketNumber = generateTicketNumber();
+            document.getElementById('ticketNumber').textContent = ticketNumber;
+
+            const picksHtml = Object.entries(selectedPicks).map(([gameId, teamType]) => {
+                const game = games.find(g => g.id == gameId);
+                const teamName = teamType === 'away' ? game.awayTeam : game.homeTeam;
+                const spread = teamType === 'away' ? game.awaySpread : game.homeSpread;
+                return `<li><strong>${teamName}</strong> (${spread})</li>`;
+            }).join('');
+
+            document.getElementById('picksSummary').innerHTML = `
+                <h3>Your Picks:</h3>
+                <ul>${picksHtml}</ul>
+            `;
+
+            document.getElementById('confirmationModal').classList.add('active');
+        }
+
+        function continueToCheckout() {
+            currentTicketNumber = document.getElementById('ticketNumber').textContent;
+            currentPicksData = Object.entries(selectedPicks).map(([gameId, teamType]) => {
+                const game = games.find(g => g.id == gameId);
+                return {
+                    gameId: gameId,
+                    team: teamType === 'away' ? game.awayTeam : game.homeTeam,
+                    spread: teamType === 'away' ? game.awaySpread : game.homeSpread
+                };
+            });
+
+            document.getElementById('checkoutTicketNumber').textContent = currentTicketNumber;
+            
+            const picksHtml = currentPicksData.map(pick => `
+                <div class="pick-item">
+                    <span class="pick-team">${pick.team}</span>
+                    <span class="pick-spread">${pick.spread}</span>
+                </div>
+            `).join('');
+            document.getElementById('checkoutPicksList').innerHTML = picksHtml;
+
+            document.getElementById('confirmationModal').classList.remove('active');
+            document.getElementById('picksPage').style.display = 'none';
+            document.getElementById('checkoutPage').classList.add('active');
+            window.scrollTo(0, 0);
+        }
+
+        function goBackToPicks() {
+            document.getElementById('checkoutPage').classList.remove('active');
+            document.getElementById('picksPage').style.display = 'block';
+            window.scrollTo(0, 0);
+        }
+
+        function handleCheckoutSubmit(event) {
+            event.preventDefault();
+
+            const fullName = document.getElementById('fullName').value.trim();
+            const email = document.getElementById('email').value.trim();
+            const phone = document.getElementById('phone').value.trim();
+
+            let isValid = true;
+
+            if (fullName.length < 2) {
+                document.getElementById('nameError').classList.add('show');
+                document.getElementById('fullName').classList.add('error');
+                isValid = false;
+            } else {
+                document.getElementById('nameError').classList.remove('show');
+                document.getElementById('fullName').classList.remove('error');
+            }
+
+            if (!email.includes('@') || !email.includes('.')) {
+                document.getElementById('emailError').classList.add('show');
+                document.getElementById('email').classList.add('error');
+                isValid = false;
+            } else {
+                document.getElementById('emailError').classList.remove('show');
+                document.getElementById('email').classList.remove('error');
+            }
+
+            if (phone.length < 10) {
+                document.getElementById('phoneError').classList.add('show');
+                document.getElementById('phone').classList.add('error');
+                isValid = false;
+            } else {
+                document.getElementById('phoneError').classList.remove('show');
+                document.getElementById('phone').classList.remove('error');
+            }
+
+            if (!isValid) return;
+
+            const completeSubmission = {
+                ticketNumber: currentTicketNumber,
+                timestamp: new Date().toISOString(),
+                contactInfo: {
+                    name: fullName,
+                    email: email,
+                    phone: phone
+                },
+                picks: currentPicksData,
+                entryFee: ENTRY_FEE,
+                paymentStatus: 'pending'
+            };
+
+            console.log('═══════════════════════════════════════════');
+            console.log('🎫 NEW BETTING POOL SUBMISSION');
+            console.log('═══════════════════════════════════════════');
+            console.log('Ticket Number:', completeSubmission.ticketNumber);
+            console.log('Timestamp:', completeSubmission.timestamp);
+            console.log('-------------------------------------------');
+            console.log('Contact Information:');
+            console.log('  Name:', completeSubmission.contactInfo.name);
+            console.log('  Email:', completeSubmission.contactInfo.email);
+            console.log('  Phone:', completeSubmission.contactInfo.phone);
+            console.log('-------------------------------------------');
+            console.log('Picks:');
+            completeSubmission.picks.forEach((pick, index) => {
+                console.log(`  ${index + 1}. ${pick.team} (${pick.spread})`);
+            });
+            console.log('-------------------------------------------');
+            console.log('Entry Fee: $' + completeSubmission.entryFee);
+            console.log('Payment Status:', completeSubmission.paymentStatus);
+            console.log('═══════════════════════════════════════════');
+            console.log('Complete JSON object for backend:');
+            console.log(JSON.stringify(completeSubmission, null, 2));
+            console.log('═══════════════════════════════════════════');
+
+            document.getElementById('paymentSection').classList.remove('hidden');
+            
+            const venmoNote = `NFL Pool Entry - ${currentTicketNumber}`;
+            const venmoUrl = `venmo://paycharge?txn=pay&recipients=${VENMO_USERNAME}&amount=${ENTRY_FEE}&note=${encodeURIComponent(venmoNote)}`;
+            const venmoWebUrl = `https://venmo.com/${VENMO_USERNAME}?txn=pay&amount=${ENTRY_FEE}&note=${encodeURIComponent(venmoNote)}`;
+            
+            document.getElementById('venmoButton').href = venmoUrl;
+            document.getElementById('venmoButton').onclick = function(e) {
+                window.location.href = venmoUrl;
+                setTimeout(function() {
+                    window.open(venmoWebUrl, '_blank');
+                }, 500);
+                e.preventDefault();
+            };
+
+            document.getElementById('paymentSection').scrollIntoView({ behavior: 'smooth' });
+        }
+
+        // Initialize
+        renderGames();
+        updateSelectionCount();
+    </script>
+</body>
+</html>
