@@ -12,17 +12,21 @@
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
         .gradient-bg { background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%); min-height: 100vh; }
+        .live-indicator { display: inline-block; width: 8px; height: 8px; background: #ff0000; border-radius: 50%; animation: pulse 1.5s infinite; margin-right: 6px; }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+        .possession-arrow { color: #ffc107; font-weight: bold; margin-left: 8px; }
     </style>
 </head>
 <body>
     <div id="root"></div>
     <script type="text/babel">
         const { useState, useEffect } = React;
-        const { Lock, Unlock, Save, RefreshCw } = lucide;
+        const { Lock, Unlock, Save, RefreshCw, Users } = lucide;
 
         function App() {
             const [isAdmin, setIsAdmin] = useState(false);
             const [showAdminLogin, setShowAdminLogin] = useState(false);
+            const [showSubmissions, setShowSubmissions] = useState(false);
             const [adminPassword, setAdminPassword] = useState('');
             const [games, setGames] = useState([]);
             const [loading, setLoading] = useState(true);
@@ -32,17 +36,28 @@
             const [showCheckout, setShowCheckout] = useState(false);
             const [contactInfo, setContactInfo] = useState({ name: '', email: '', phone: '' });
             const [showPayment, setShowPayment] = useState(false);
+            const [submissions, setSubmissions] = useState([]);
 
-            const ADMIN_PASSWORD = 'MeMarc25';
+            const ADMIN_PASSWORD = 'marc2024';
             const VENMO_USERNAME = 'Marc-Serulneck';
+            const GOOGLE_SHEET_URL = 'YOUR_GOOGLE_SHEET_WEB_APP_URL_HERE'; // You'll add this after setup
 
-            useEffect(() => { loadGames(); }, []);
+            useEffect(() => { 
+                loadGames(); 
+                loadSubmissions();
+                const interval = setInterval(loadGames, 60000); // Refresh every 60 seconds
+                return () => clearInterval(interval);
+            }, []);
 
             const loadGames = async () => {
                 setLoading(true);
                 try {
                     const stored = localStorage.getItem('marcs-parlays-games');
-                    if (stored) {
+                    const storedTimestamp = localStorage.getItem('marcs-parlays-timestamp');
+                    const now = Date.now();
+                    
+                    // Use cached data if less than 5 minutes old
+                    if (stored && storedTimestamp && (now - parseInt(storedTimestamp)) < 300000) {
                         setGames(JSON.parse(stored));
                         setLoading(false);
                         return;
@@ -51,26 +66,80 @@
                     const response = await fetch('https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard');
                     const data = await response.json();
                     
-                    const formattedGames = data.events.map((event, index) => ({
-                        id: index + 1,
-                        espnId: event.id,
-                        date: new Date(event.date).toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' }),
-                        time: new Date(event.date).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }) + ' ET',
-                        awayTeam: event.competitions[0].competitors[1].team.displayName,
-                        homeTeam: event.competitions[0].competitors[0].team.displayName,
-                        awaySpread: '',
-                        homeSpread: ''
-                    }));
+                    const formattedGames = data.events.map((event, index) => {
+                        const competition = event.competitions[0];
+                        const awayTeam = competition.competitors[1];
+                        const homeTeam = competition.competitors[0];
+                        const status = event.status.type.state;
+                        
+                        // Get possession info
+                        let possession = null;
+                        if (competition.situation && competition.situation.possession) {
+                            possession = competition.situation.possession;
+                        }
+
+                        return {
+                            id: index + 1,
+                            espnId: event.id,
+                            date: new Date(event.date).toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' }),
+                            time: new Date(event.date).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }) + ' ET',
+                            awayTeam: awayTeam.team.displayName,
+                            homeTeam: homeTeam.team.displayName,
+                            awayTeamId: awayTeam.id,
+                            homeTeamId: homeTeam.id,
+                            awayScore: awayTeam.score || '0',
+                            homeScore: homeTeam.score || '0',
+                            awaySpread: stored ? JSON.parse(stored).find(g => g.espnId === event.id)?.awaySpread || '' : '',
+                            homeSpread: stored ? JSON.parse(stored).find(g => g.espnId === event.id)?.homeSpread || '' : '',
+                            status: status,
+                            statusDetail: event.status.type.detail,
+                            clock: event.status.displayClock || '',
+                            period: event.status.period || 0,
+                            possession: possession,
+                            isLive: status === 'in',
+                            isFinal: status === 'post'
+                        };
+                    });
 
                     setGames(formattedGames);
+                    localStorage.setItem('marcs-parlays-timestamp', now.toString());
                 } catch (error) {
                     console.error('Error loading games:', error);
                 }
                 setLoading(false);
             };
 
+            const loadSubmissions = () => {
+                const stored = localStorage.getItem('marcs-parlays-submissions');
+                if (stored) {
+                    setSubmissions(JSON.parse(stored));
+                }
+            };
+
+            const saveSubmission = async (submission) => {
+                // Save locally
+                const allSubmissions = [...submissions, submission];
+                setSubmissions(allSubmissions);
+                localStorage.setItem('marcs-parlays-submissions', JSON.stringify(allSubmissions));
+
+                // Send to Google Sheets
+                if (GOOGLE_SHEET_URL && GOOGLE_SHEET_URL !== 'YOUR_GOOGLE_SHEET_WEB_APP_URL_HERE') {
+                    try {
+                        await fetch(GOOGLE_SHEET_URL, {
+                            method: 'POST',
+                            mode: 'no-cors',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(submission)
+                        });
+                    } catch (error) {
+                        console.error('Error sending to Google Sheets:', error);
+                    }
+                }
+            };
+
             const saveGames = () => {
                 localStorage.setItem('marcs-parlays-games', JSON.stringify(games));
+                localStorage.setItem('marcs-parlays-timestamp', Date.now().toString());
                 alert('Games and odds saved!');
             };
 
@@ -101,8 +170,9 @@
             };
 
             const submitPicks = () => {
-                if (Object.keys(selectedPicks).length === 0) {
-                    alert('Please select at least one pick!');
+                const pickCount = Object.keys(selectedPicks).length;
+                if (pickCount < 3) {
+                    alert('Please select at least 3 picks to continue!');
                     return;
                 }
                 setTicketNumber(generateTicketNumber());
@@ -125,17 +195,94 @@
                             team: teamType === 'away' ? game.awayTeam : game.homeTeam,
                             spread: teamType === 'away' ? game.awaySpread : game.homeSpread
                         };
-                    })
+                    }),
+                    paymentStatus: 'pending'
                 };
 
                 console.log('NEW SUBMISSION:', JSON.stringify(submission, null, 2));
+                saveSubmission(submission);
                 setShowPayment(true);
+            };
+
+            const renderGameStatus = (game) => {
+                if (game.isLive) {
+                    return (
+                        <div style={{display: 'flex', alignItems: 'center', gap: '8px', color: '#dc3545', fontWeight: '600'}}>
+                            <span className="live-indicator"></span>
+                            LIVE - Q{game.period} {game.clock}
+                        </div>
+                    );
+                } else if (game.isFinal) {
+                    return <div style={{color: '#666', fontWeight: '600'}}>FINAL</div>;
+                } else {
+                    return <div style={{color: '#666'}}>{game.statusDetail}</div>;
+                }
+            };
+
+            const renderPossession = (game, teamId) => {
+                if (game.isLive && game.possession === teamId) {
+                    return <span className="possession-arrow">●</span>;
+                }
+                return null;
             };
 
             if (loading) {
                 return (
                     <div className="gradient-bg" style={{display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh'}}>
-                        <div style={{color: 'white', fontSize: '24px'}}>Loading games from ESPN...</div>
+                        <div style={{color: 'white', fontSize: '24px', display: 'flex', alignItems: 'center', gap: '12px'}}>
+                            <RefreshCw style={{animation: 'spin 1s linear infinite'}} />
+                            Loading games from ESPN...
+                        </div>
+                    </div>
+                );
+            }
+
+            if (showSubmissions && isAdmin) {
+                return (
+                    <div className="gradient-bg" style={{padding: '20px', minHeight: '100vh'}}>
+                        <div style={{maxWidth: '1200px', margin: '0 auto'}}>
+                            <div style={{background: 'white', borderRadius: '12px', padding: '24px', marginBottom: '24px'}}>
+                                <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px'}}>
+                                    <h1>📊 All Submissions ({submissions.length})</h1>
+                                    <button onClick={() => setShowSubmissions(false)} style={{padding: '8px 16px', background: '#6c757d', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer'}}>Back to Admin</button>
+                                </div>
+                            </div>
+
+                            {submissions.length === 0 ? (
+                                <div style={{background: 'white', borderRadius: '12px', padding: '48px', textAlign: 'center', color: '#666'}}>
+                                    <p style={{fontSize: '18px'}}>No submissions yet</p>
+                                </div>
+                            ) : (
+                                <div style={{display: 'grid', gap: '16px'}}>
+                                    {submissions.slice().reverse().map((sub, idx) => (
+                                        <div key={idx} style={{background: 'white', borderRadius: '12px', padding: '24px'}}>
+                                            <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: '16px'}}>
+                                                <div>
+                                                    <div style={{fontSize: '20px', fontWeight: 'bold', color: '#28a745', marginBottom: '4px'}}>{sub.ticketNumber}</div>
+                                                    <div style={{color: '#666', fontSize: '14px'}}>{new Date(sub.timestamp).toLocaleString()}</div>
+                                                </div>
+                                                <div style={{padding: '4px 12px', background: sub.paymentStatus === 'pending' ? '#ffc107' : '#28a745', color: 'white', borderRadius: '6px', fontSize: '12px', fontWeight: '600'}}>
+                                                    {sub.paymentStatus.toUpperCase()}
+                                                </div>
+                                            </div>
+                                            <div style={{marginBottom: '12px'}}>
+                                                <strong>Contact:</strong> {sub.contactInfo.name}<br/>
+                                                <strong>Email:</strong> {sub.contactInfo.email}<br/>
+                                                <strong>Phone:</strong> {sub.contactInfo.phone}
+                                            </div>
+                                            <div>
+                                                <strong>Picks ({sub.picks.length}):</strong>
+                                                <ul style={{marginTop: '8px', marginLeft: '20px'}}>
+                                                    {sub.picks.map((pick, i) => (
+                                                        <li key={i}>{pick.team} ({pick.spread})</li>
+                                                    ))}
+                                                </ul>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
                     </div>
                 );
             }
@@ -145,16 +292,33 @@
                     <div className="gradient-bg" style={{padding: '20px'}}>
                         <div style={{maxWidth: '1000px', margin: '0 auto'}}>
                             <div style={{background: 'white', borderRadius: '12px', padding: '24px', marginBottom: '24px'}}>
-                                <div style={{display: 'flex', justifyContent: 'space-between', marginBottom: '16px'}}>
+                                <div style={{display: 'flex', justifyContent: 'space-between', marginBottom: '16px', flexWrap: 'wrap', gap: '12px'}}>
                                     <h1>🔧 Admin Panel</h1>
-                                    <button onClick={() => setIsAdmin(false)} style={{padding: '8px 16px', background: '#6c757d', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer'}}>Exit Admin</button>
+                                    <div style={{display: 'flex', gap: '8px'}}>
+                                        <button onClick={() => setShowSubmissions(true)} style={{padding: '8px 16px', background: '#007bff', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px'}}>
+                                            <Users size={18} />
+                                            View Submissions ({submissions.length})
+                                        </button>
+                                        <button onClick={() => setIsAdmin(false)} style={{padding: '8px 16px', background: '#6c757d', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer'}}>Exit Admin</button>
+                                    </div>
                                 </div>
-                                <button onClick={loadGames} style={{padding: '8px 16px', background: '#007bff', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer'}}>Refresh from ESPN</button>
+                                <button onClick={loadGames} style={{padding: '8px 16px', background: '#007bff', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px'}}>
+                                    <RefreshCw size={18} />
+                                    Refresh from ESPN
+                                </button>
                             </div>
 
                             {games.map(game => (
                                 <div key={game.id} style={{background: 'white', borderRadius: '12px', padding: '24px', marginBottom: '16px'}}>
-                                    <div style={{marginBottom: '16px', color: '#666'}}>{game.date} - {game.time}</div>
+                                    <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px'}}>
+                                        <div style={{color: '#666'}}>{game.date} - {game.time}</div>
+                                        {renderGameStatus(game)}
+                                    </div>
+                                    {game.isLive && (
+                                        <div style={{background: '#f8f9fa', padding: '12px', borderRadius: '8px', marginBottom: '16px', textAlign: 'center'}}>
+                                            <strong>{game.awayTeam} {game.awayScore} - {game.homeScore} {game.homeTeam}</strong>
+                                        </div>
+                                    )}
                                     <div style={{marginBottom: '12px'}}>
                                         <label style={{display: 'block', fontWeight: '600', marginBottom: '4px'}}>{game.awayTeam} (Away)</label>
                                         <input type="text" value={game.awaySpread} onChange={(e) => updateSpread(game.id, 'away', e.target.value)} placeholder="+3.5" style={{width: '100%', padding: '12px', border: '2px solid #e0e0e0', borderRadius: '8px'}} />
@@ -180,7 +344,7 @@
                         <div style={{maxWidth: '400px', margin: '80px auto'}}>
                             <div style={{background: 'white', borderRadius: '12px', padding: '32px'}}>
                                 <h2 style={{textAlign: 'center', marginBottom: '24px'}}>Admin Login</h2>
-                                <input type="password" value={adminPassword} onChange={(e) => setAdminPassword(e.target.value)} placeholder="Enter password" style={{width: '100%', padding: '12px', border: '2px solid #e0e0e0', borderRadius: '8px', marginBottom: '16px'}} />
+                                <input type="password" value={adminPassword} onChange={(e) => setAdminPassword(e.target.value)} onKeyPress={(e) => e.key === 'Enter' && adminPassword === ADMIN_PASSWORD && setIsAdmin(true)} placeholder="Enter password" style={{width: '100%', padding: '12px', border: '2px solid #e0e0e0', borderRadius: '8px', marginBottom: '16px'}} />
                                 <button onClick={() => adminPassword === ADMIN_PASSWORD ? setIsAdmin(true) : alert('Incorrect password')} style={{width: '100%', padding: '12px', background: '#007bff', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', marginBottom: '12px'}}>Login</button>
                                 <button onClick={() => setShowAdminLogin(false)} style={{width: '100%', padding: '12px', background: '#6c757d', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer'}}>Back</button>
                             </div>
@@ -204,7 +368,7 @@
                                     <div style={{fontSize: '24px', fontWeight: 'bold', color: '#28a745'}}>{ticketNumber}</div>
                                 </div>
 
-                                <h3 style={{marginBottom: '16px'}}>Your Picks</h3>
+                                <h3 style={{marginBottom: '16px'}}>Your Picks ({Object.keys(selectedPicks).length})</h3>
                                 {Object.entries(selectedPicks).map(([gameId, teamType]) => {
                                     const game = games.find(g => g.id == gameId);
                                     const team = teamType === 'away' ? game.awayTeam : game.homeTeam;
@@ -239,7 +403,13 @@
                                         <div style={{background: '#f8f9fa', padding: '16px', borderRadius: '8px', textAlign: 'center', marginBottom: '16px'}}>
                                             <p>Venmo your wager to @{VENMO_USERNAME}</p>
                                         </div>
-                                        <a href={`venmo://paycharge?txn=pay&recipients=${VENMO_USERNAME}&note=${encodeURIComponent('Marcs Parlays - ' + ticketNumber)}`} style={{display: 'block', padding: '16px', background: '#008CFF', color: 'white', textAlign: 'center', textDecoration: 'none', borderRadius: '8px', fontWeight: '600'}}>Pay with Venmo</a>
+                                        <a href={`venmo://paycharge?txn=pay&recipients=${VENMO_USERNAME}&note=${encodeURIComponent('Marcs Parlays - ' + ticketNumber)}`} style={{display: 'block', padding: '16px', background: '#008CFF', color: 'white', textAlign: 'center', textDecoration: 'none', borderRadius: '8px', fontWeight: '600', fontSize: '18px'}}>
+                                            <span style={{fontSize: '24px', marginRight: '8px'}}>V</span>
+                                            Pay with Venmo
+                                        </a>
+                                        <div style={{marginTop: '16px', padding: '12px', background: '#fff3cd', border: '2px solid #ffc107', borderRadius: '8px', fontSize: '14px'}}>
+                                            ⚠️ Your ticket number will be included in the payment note automatically.
+                                        </div>
                                     </div>
                                 )}
                             </div>
@@ -247,6 +417,9 @@
                     </div>
                 );
             }
+
+            const pickCount = Object.keys(selectedPicks).length;
+            const canSubmit = pickCount >= 3;
 
             return (
                 <div className="gradient-bg" style={{padding: '20px'}}>
@@ -276,15 +449,25 @@
 
                         {games.map(game => (
                             <div key={game.id} style={{background: 'white', borderRadius: '12px', padding: '24px', marginBottom: '16px'}}>
-                                <div style={{display: 'flex', justifyContent: 'space-between', marginBottom: '16px', paddingBottom: '12px', borderBottom: '2px solid #f0f0f0'}}>
-                                    <span style={{color: '#666'}}>{game.date}</span>
-                                    <span style={{color: '#666', fontWeight: '600'}}>{game.time}</span>
+                                <div style={{display: 'flex', justifyContent: 'space-between', marginBottom: '16px', paddingBottom: '12px', borderBottom: '2px solid #f0f0f0', alignItems: 'center'}}>
+                                    <span style={{color: '#666'}}>{game.date} - {game.time}</span>
+                                    {renderGameStatus(game)}
                                 </div>
+
+                                {(game.isLive || game.isFinal) && (
+                                    <div style={{background: '#f8f9fa', padding: '16px', borderRadius: '8px', marginBottom: '16px', textAlign: 'center'}}>
+                                        <div style={{fontSize: '24px', fontWeight: 'bold', color: '#333'}}>
+                                            {game.awayTeam} {game.awayScore} - {game.homeScore} {game.homeTeam}
+                                        </div>
+                                        {game.isLive && <div style={{color: '#666', marginTop: '8px'}}>Q{game.period} - {game.clock}</div>}
+                                    </div>
+                                )}
                                 
-                                <div onClick={() => toggleTeam(game.id, 'away')} style={{display: 'flex', justifyContent: 'space-between', padding: '16px', borderRadius: '8px', cursor: 'pointer', marginBottom: '12px', background: selectedPicks[game.id] === 'away' ? '#d4edda' : '#f8f9fa', border: selectedPicks[game.id] === 'away' ? '2px solid #28a745' : 'none'}}>
+                                <div onClick={() => !game.isLive && !game.isFinal && toggleTeam(game.id, 'away')} style={{display: 'flex', justifyContent: 'space-between', padding: '16px', borderRadius: '8px', cursor: game.isLive || game.isFinal ? 'not-allowed' : 'pointer', marginBottom: '12px', background: selectedPicks[game.id] === 'away' ? '#d4edda' : '#f8f9fa', border: selectedPicks[game.id] === 'away' ? '2px solid #28a745' : 'none', opacity: game.isLive || game.isFinal ? 0.6 : 1}}>
                                     <div style={{display: 'flex', alignItems: 'center', gap: '12px'}}>
-                                        <input type="checkbox" checked={selectedPicks[game.id] === 'away'} onChange={() => {}} />
+                                        {!game.isLive && !game.isFinal && <input type="checkbox" checked={selectedPicks[game.id] === 'away'} onChange={() => {}} />}
                                         <span style={{fontWeight: '600'}}>{game.awayTeam}</span>
+                                        {renderPossession(game, game.awayTeamId)}
                                         <span style={{fontSize: '12px', background: '#e9ecef', padding: '2px 8px', borderRadius: '4px'}}>AWAY</span>
                                     </div>
                                     <span style={{fontWeight: '600'}}>{game.awaySpread}</span>
@@ -292,10 +475,11 @@
 
                                 <div style={{textAlign: 'center', color: '#999', margin: '8px 0'}}>@</div>
 
-                                <div onClick={() => toggleTeam(game.id, 'home')} style={{display: 'flex', justifyContent: 'space-between', padding: '16px', borderRadius: '8px', cursor: 'pointer', background: selectedPicks[game.id] === 'home' ? '#d4edda' : '#f8f9fa', border: selectedPicks[game.id] === 'home' ? '2px solid #28a745' : 'none'}}>
+                                <div onClick={() => !game.isLive && !game.isFinal && toggleTeam(game.id, 'home')} style={{display: 'flex', justifyContent: 'space-between', padding: '16px', borderRadius: '8px', cursor: game.isLive || game.isFinal ? 'not-allowed' : 'pointer', background: selectedPicks[game.id] === 'home' ? '#d4edda' : '#f8f9fa', border: selectedPicks[game.id] === 'home' ? '2px solid #28a745' : 'none', opacity: game.isLive || game.isFinal ? 0.6 : 1}}>
                                     <div style={{display: 'flex', alignItems: 'center', gap: '12px'}}>
-                                        <input type="checkbox" checked={selectedPicks[game.id] === 'home'} onChange={() => {}} />
+                                        {!game.isLive && !game.isFinal && <input type="checkbox" checked={selectedPicks[game.id] === 'home'} onChange={() => {}} />}
                                         <span style={{fontWeight: '600'}}>{game.homeTeam}</span>
+                                        {renderPossession(game, game.homeTeamId)}
                                         <span style={{fontSize: '12px', background: '#e9ecef', padding: '2px 8px', borderRadius: '4px'}}>HOME</span>
                                     </div>
                                     <span style={{fontWeight: '600'}}>{game.homeSpread}</span>
@@ -305,18 +489,21 @@
 
                         <div style={{textAlign: 'center', marginBottom: '32px'}}>
                             <div style={{color: 'white', fontSize: '20px', marginBottom: '16px'}}>
-                                Selected: {Object.keys(selectedPicks).length} picks
+                                Selected: {pickCount} pick{pickCount !== 1 ? 's' : ''} {!canSubmit && <span style={{color: '#ffc107'}}>(minimum 3 required)</span>}
                             </div>
-                            <button onClick={submitPicks} disabled={Object.keys(selectedPicks).length === 0} style={{padding: '16px 48px', background: Object.keys(selectedPicks).length === 0 ? '#6c757d' : '#28a745', color: 'white', fontSize: '20px', fontWeight: 'bold', border: 'none', borderRadius: '8px', cursor: Object.keys(selectedPicks).length === 0 ? 'not-allowed' : 'pointer'}}>Submit Picks</button>
+                            <button onClick={submitPicks} disabled={!canSubmit} style={{padding: '16px 48px', background: canSubmit ? '#28a745' : '#6c757d', color: 'white', fontSize: '20px', fontWeight: 'bold', border: 'none', borderRadius: '8px', cursor: canSubmit ? 'pointer' : 'not-allowed', opacity: canSubmit ? 1 : 0.6}}>
+                                {canSubmit ? 'Submit Picks' : `Select ${3 - pickCount} More Pick${3 - pickCount !== 1 ? 's' : ''}`}
+                            </button>
                         </div>
 
                         <div style={{background: 'white', borderRadius: '12px', padding: '32px'}}>
                             <h3 style={{marginBottom: '16px'}}>📋 Rules</h3>
-                            <ul style={{marginLeft: '20px', lineHeight: '1.8'}}>
+                            <ul style={{marginLeft: '20px', lineHeight: '1.8', color: '#333'}}>
+                                <li><strong>Minimum 3 picks required</strong></li>
                                 <li>Missing info = voided ticket</li>
                                 <li>Must pay in advance via Venmo to @{VENMO_USERNAME}</li>
                                 <li>Winners paid following Tuesday</li>
-                                <li>Minimum 3 picks required</li>
+                                <li>Cannot bet on games already started</li>
                             </ul>
                             <div style={{background: '#fff3cd', border: '2px solid #ffc107', borderRadius: '8px', padding: '16px', marginTop: '20px'}}>
                                 <strong>⚠️ Legal Disclaimer</strong><br/>
@@ -326,13 +513,27 @@
                     </div>
 
                     {showConfirmation && (
-                        <div style={{position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px'}}>
+                        <div style={{position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px', zIndex: 1000}}>
                             <div style={{background: 'white', borderRadius: '12px', padding: '32px', maxWidth: '500px', width: '100%'}}>
                                 <h2 style={{fontSize: '30px', color: '#28a745', textAlign: 'center', marginBottom: '16px'}}>✅ Picks Submitted!</h2>
                                 <div style={{background: '#f8f9fa', padding: '16px', borderRadius: '8px', textAlign: 'center', marginBottom: '24px'}}>
                                     <div style={{fontSize: '24px', fontWeight: 'bold'}}>{ticketNumber}</div>
                                 </div>
-                                <button onClick={() => { setShowConfirmation(false); setShowCheckout(true); }} style={{width: '100%', padding: '12px', background: '#007bff', color: 'white', fontWeight: '600', border: 'none', borderRadius: '8px', cursor: 'pointer'}}>Continue to Checkout</button>
+                                <div style={{background: '#f8f9fa', padding: '16px', borderRadius: '8px', marginBottom: '24px'}}>
+                                    <strong style={{display: 'block', marginBottom: '12px'}}>Your {pickCount} Pick{pickCount !== 1 ? 's' : ''}:</strong>
+                                    {Object.entries(selectedPicks).map(([gameId, teamType]) => {
+                                        const game = games.find(g => g.id == gameId);
+                                        const team = teamType === 'away' ? game.awayTeam : game.homeTeam;
+                                        const spread = teamType === 'away' ? game.awaySpread : game.homeSpread;
+                                        return (
+                                            <div key={gameId} style={{padding: '8px 0', borderBottom: '1px solid #dee2e6'}}>
+                                                <strong>{team}</strong> ({spread})
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                                <p style={{textAlign: 'center', color: '#666', fontSize: '14px', marginBottom: '24px'}}>Save this ticket number for your records</p>
+                                <button onClick={() => { setShowConfirmation(false); setShowCheckout(true); }} style={{width: '100%', padding: '12px', background: '#007bff', color: 'white', fontWeight: '600', border: 'none', borderRadius: '8px', cursor: 'pointer', fontSize: '16px'}}>Continue to Checkout</button>
                             </div>
                         </div>
                     )}
@@ -340,7 +541,8 @@
             );
         }
 
-        ReactDOM.render(<App />, document.getElementById('root'));
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
     </script>
 </body>
 </html>
