@@ -620,7 +620,16 @@
                         <div className="card">
                             <h2 className="text-center mb-2">💰 Payout Odds</h2>
                             <div className="payout-grid">
-                                {[{picks: 3, payout: '2 to 1'}, {picks: 4, payout: '3 to 1'}, {picks: 5, payout: '4 to 1'}, {picks: 6, payout: '5 to 1'}, {picks: 7, payout: '6 to 1'}, {picks: 8, payout: '7 to 1'}, {picks: 9, payout: '8 to 1'}, {picks: 10, payout: '10 to 1'}].map(item => (
+                                {[
+                                    {picks: 3, payout: '10 to 1'}, 
+                                    {picks: 4, payout: '15 to 1'}, 
+                                    {picks: 5, payout: '25 to 1'}, 
+                                    {picks: 6, payout: '50 to 1'}, 
+                                    {picks: 7, payout: '100 to 1'}, 
+                                    {picks: 8, payout: '150 to 1'}, 
+                                    {picks: 9, payout: '200 to 1'}, 
+                                    {picks: 10, payout: '250 to 1'}
+                                ].map(item => (
                                     <div key={item.picks} style={{background: '#f8f9fa', padding: '14px', borderRadius: '8px', textAlign: 'center', border: '2px solid #e0e0e0'}}>
                                         <div style={{fontSize: '14px'}}>{item.picks} for {item.picks} pays</div>
                                         <div style={{fontSize: '18px', fontWeight: 'bold', color: '#28a745'}}>{item.payout}</div>
