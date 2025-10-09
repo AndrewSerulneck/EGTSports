@@ -676,9 +676,11 @@
                                     <div className="team-info">
                                         <span className="team-name">{game.awayTeam}</span>
                                         {game.isFinal && <span className="final-score-badge">{game.awayScore}</span>}
-                                        <span className="badge">AWAY</span>
                                     </div>
-                                    <span className="team-spread">{game.awaySpread || '--'}</span>
+                                    <div style={{display: 'flex', alignItems: 'center', gap: '8px'}}>
+                                        <span className="badge">AWAY</span>
+                                        <span className="team-spread">{game.awaySpread || '--'}</span>
+                                    </div>
                                 </div>
 
                                 <div style={{textAlign: 'center', color: '#999', margin: '8px 0', fontSize: '14px'}}>@</div>
@@ -690,9 +692,11 @@
                                     <div className="team-info">
                                         <span className="team-name">{game.homeTeam}</span>
                                         {game.isFinal && <span className="final-score-badge">{game.homeScore}</span>}
-                                        <span className="badge">HOME</span>
                                     </div>
-                                    <span className="team-spread">{game.homeSpread || '--'}</span>
+                                    <div style={{display: 'flex', alignItems: 'center', gap: '8px'}}>
+                                        <span className="badge">HOME</span>
+                                        <span className="team-spread">{game.homeSpread || '--'}</span>
+                                    </div>
                                 </div>
                             </div>
                         ))}
