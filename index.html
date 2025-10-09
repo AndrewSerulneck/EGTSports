@@ -89,12 +89,7 @@
                     const storedTimestamp = localStorage.getItem('marcs-parlays-timestamp');
                     const now = Date.now();
 
-                    if (stored && storedTimestamp && (now - parseInt(storedTimestamp)) < 300000) {
-                        setGames(JSON.parse(stored));
-                        setLoading(false);
-                        return;
-                    }
-
+                    // Always fetch fresh data from ESPN
                     const response = await fetch('https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard');
                     const data = await response.json();
 
@@ -125,9 +120,17 @@
                     });
 
                     setGames(formattedGames);
-                    localStorage.setItem('marcs-parlays-timestamp', now.toString());
+                    
+                    // Only update timestamp if we have spreads saved
+                    if (stored) {
+                        localStorage.setItem('marcs-parlays-timestamp', now.toString());
+                    }
                 } catch (error) {
                     console.error('Error loading games:', error);
+                    // If API fails, try to use stored data
+                    if (stored) {
+                        setGames(JSON.parse(stored));
+                    }
                 }
                 setLoading(false);
             };
