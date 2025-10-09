@@ -7,6 +7,31 @@
     <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script type="module">
+        // Initialize Firebase
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
+        import { getDatabase, ref, set, get, onValue } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js';
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyA9FsWV7hA4ow2Xaq0Krx9kCCMfMibkVOQ",
+            authDomain: "marcs-parlays.firebaseapp.com",
+            databaseURL: "https://marcs-parlays-default-rtdb.firebaseio.com",
+            projectId: "marcs-parlays",
+            storageBucket: "marcs-parlays.firebasestorage.app",
+            messagingSenderId: "631281528889",
+            appId: "1:631281528889:web:e3befe34907902387c1de8"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const database = getDatabase(app);
+        
+        // Make Firebase available globally
+        window.firebaseDB = database;
+        window.firebaseRef = ref;
+        window.firebaseSet = set;
+        window.firebaseGet = get;
+        window.firebaseOnValue = onValue;
+    </script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; overflow-x: hidden; }
@@ -85,20 +110,23 @@
             const loadGames = async () => {
                 setLoading(true);
                 try {
-                    const stored = localStorage.getItem('marcs-parlays-games');
-                    const storedTimestamp = localStorage.getItem('marcs-parlays-timestamp');
-                    const now = Date.now();
-
-                    // Always fetch fresh data from ESPN
+                    // Fetch games from ESPN
                     const response = await fetch('https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard');
                     const data = await response.json();
+
+                    // Fetch spreads from Firebase
+                    const spreadsRef = window.firebaseRef(window.firebaseDB, 'spreads');
+                    const spreadsSnapshot = await window.firebaseGet(spreadsRef);
+                    const firebaseSpreads = spreadsSnapshot.exists() ? spreadsSnapshot.val() : {};
 
                     const formattedGames = data.events.map((event, index) => {
                         const competition = event.competitions[0];
                         const awayTeam = competition.competitors[1];
                         const homeTeam = competition.competitors[0];
                         const status = event.status.type.state;
-                        const existingGame = stored ? JSON.parse(stored).find(g => g.espnId === event.id) : null;
+                        
+                        // Get spreads from Firebase using ESPN ID
+                        const savedSpread = firebaseSpreads[event.id] || {};
 
                         return {
                             id: index + 1,
@@ -111,8 +139,8 @@
                             homeTeamId: homeTeam.id,
                             awayScore: awayTeam.score || '0',
                             homeScore: homeTeam.score || '0',
-                            awaySpread: existingGame?.awaySpread || '',
-                            homeSpread: existingGame?.homeSpread || '',
+                            awaySpread: savedSpread.awaySpread || '',
+                            homeSpread: savedSpread.homeSpread || '',
                             status: status,
                             statusDetail: event.status.type.detail,
                             isFinal: status === 'post'
@@ -120,17 +148,8 @@
                     });
 
                     setGames(formattedGames);
-                    
-                    // Only update timestamp if we have spreads saved
-                    if (stored) {
-                        localStorage.setItem('marcs-parlays-timestamp', now.toString());
-                    }
                 } catch (error) {
                     console.error('Error loading games:', error);
-                    // If API fails, try to use stored data
-                    if (stored) {
-                        setGames(JSON.parse(stored));
-                    }
                 }
                 setLoading(false);
             };
@@ -183,10 +202,27 @@
                 localStorage.setItem('marcs-parlays-submissions', JSON.stringify(updatedSubmissions));
             };
 
-            const saveGames = () => {
-                localStorage.setItem('marcs-parlays-games', JSON.stringify(games));
-                localStorage.setItem('marcs-parlays-timestamp', Date.now().toString());
-                alert('Games and odds saved!');
+            const saveGames = async () => {
+                try {
+                    // Save spreads to Firebase
+                    const spreadsData = {};
+                    games.forEach(game => {
+                        spreadsData[game.espnId] = {
+                            awaySpread: game.awaySpread,
+                            homeSpread: game.homeSpread,
+                            awayTeam: game.awayTeam,
+                            homeTeam: game.homeTeam
+                        };
+                    });
+                    
+                    const spreadsRef = window.firebaseRef(window.firebaseDB, 'spreads');
+                    await window.firebaseSet(spreadsRef, spreadsData);
+                    
+                    alert('Games and odds saved to Firebase! All users will now see these spreads.');
+                } catch (error) {
+                    console.error('Error saving to Firebase:', error);
+                    alert('Error saving spreads. Please try again.');
+                }
             };
 
             const updateSpread = (gameId, team, value) => {
