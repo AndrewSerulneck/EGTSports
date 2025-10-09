@@ -20,11 +20,15 @@
         .btn-danger { background: #dc3545; color: white; }
         .btn:disabled { opacity: 0.6; cursor: not-allowed; }
         .game-card { background: white; border-radius: 12px; padding: 20px; margin-bottom: 16px; }
-        .team-row { display: flex; justify-content: space-between; padding: 16px; background: #f8f9fa; border-radius: 8px; cursor: pointer; margin-bottom: 8px; transition: all 0.2s; }
+        .team-row { display: flex; justify-content: space-between; align-items: center; padding: 16px; background: #f8f9fa; border-radius: 8px; cursor: pointer; margin-bottom: 8px; transition: all 0.2s; }
         .team-row.selected { background: #d4edda; border: 2px solid #28a745; }
         .team-row.disabled { opacity: 0.6; cursor: not-allowed; }
         .team-row.won { background: #d4edda; border: 2px solid #28a745; }
         .team-row.lost { background: #f8d7da; border: 2px solid #dc3545; }
+        .team-info { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+        .team-spread { font-weight: 600; font-size: 16px; white-space: nowrap; }
+        .final-score-badge { background: #007bff; color: white; padding: 4px 12px; border-radius: 12px; font-size: 14px; font-weight: 600; margin-left: 8px; }
+        .final-header { background: #f8f9fa; padding: 16px; border-radius: 8px; margin-bottom: 16px; border: 2px solid #dee2e6; }
         input[type="text"], input[type="email"], input[type="tel"], input[type="password"], input[type="number"] { width: 100%; padding: 12px; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 16px; margin-bottom: 16px; }
         .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.75); z-index: 1000; align-items: center; justify-content: center; padding: 20px; }
         .modal.active { display: flex; }
@@ -642,22 +646,37 @@
                             <div key={game.id} className="game-card">
                                 <div style={{display: 'flex', justifyContent: 'space-between', marginBottom: '16px', paddingBottom: '12px', borderBottom: '2px solid #f0f0f0', flexWrap: 'wrap', gap: '8px'}}>
                                     <span>{game.date} - {game.time}</span>
-                                    {game.isFinal && (
-                                        <span style={{color: '#666', fontWeight: '600'}}>
-                                            FINAL: {game.awayScore} - {game.homeScore}
-                                        </span>
-                                    )}
                                 </div>
+
+                                {game.isFinal && (
+                                    <div className="final-header">
+                                        <div style={{textAlign: 'center', fontWeight: '600', color: '#dc3545', marginBottom: '12px', fontSize: '16px'}}>
+                                            FINAL SCORE
+                                        </div>
+                                        <div style={{display: 'flex', justifyContent: 'space-around', alignItems: 'center', fontSize: '18px', fontWeight: 'bold'}}>
+                                            <div style={{textAlign: 'center'}}>
+                                                <div style={{color: '#333', marginBottom: '8px'}}>{game.awayTeam}</div>
+                                                <div style={{fontSize: '32px', color: '#007bff'}}>{game.awayScore}</div>
+                                            </div>
+                                            <div style={{fontSize: '24px', color: '#999'}}>-</div>
+                                            <div style={{textAlign: 'center'}}>
+                                                <div style={{color: '#333', marginBottom: '8px'}}>{game.homeTeam}</div>
+                                                <div style={{fontSize: '32px', color: '#007bff'}}>{game.homeScore}</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
 
                                 <div
                                     className={`team-row ${selectedPicks[game.id] === 'away' ? 'selected' : ''} ${game.isFinal ? 'disabled' : ''}`}
                                     onClick={() => !game.isFinal && toggleTeam(game.id, 'away')}
                                 >
-                                    <div>
+                                    <div className="team-info">
                                         <strong>{game.awayTeam}</strong>
-                                        <span style={{marginLeft: '8px', fontSize: '12px', background: '#e9ecef', padding: '4px 8px', borderRadius: '4px'}}>AWAY</span>
+                                        {game.isFinal && <span className="final-score-badge">{game.awayScore}</span>}
+                                        <span style={{fontSize: '12px', background: '#e9ecef', padding: '4px 8px', borderRadius: '4px'}}>AWAY</span>
                                     </div>
-                                    <strong>{game.awaySpread}</strong>
+                                    <strong className="team-spread">{game.awaySpread}</strong>
                                 </div>
 
                                 <div style={{textAlign: 'center', color: '#999', margin: '8px 0'}}>@</div>
@@ -666,11 +685,12 @@
                                     className={`team-row ${selectedPicks[game.id] === 'home' ? 'selected' : ''} ${game.isFinal ? 'disabled' : ''}`}
                                     onClick={() => !game.isFinal && toggleTeam(game.id, 'home')}
                                 >
-                                    <div>
+                                    <div className="team-info">
                                         <strong>{game.homeTeam}</strong>
-                                        <span style={{marginLeft: '8px', fontSize: '12px', background: '#e9ecef', padding: '4px 8px', borderRadius: '4px'}}>HOME</span>
+                                        {game.isFinal && <span className="final-score-badge">{game.homeScore}</span>}
+                                        <span style={{fontSize: '12px', background: '#e9ecef', padding: '4px 8px', borderRadius: '4px'}}>HOME</span>
                                     </div>
-                                    <strong>{game.homeSpread}</strong>
+                                    <strong className="team-spread">{game.homeSpread}</strong>
                                 </div>
                             </div>
                         ))}
@@ -702,7 +722,7 @@
                                 <li>You will receive confirmation via your chosen method (email or text)</li>
                             </ul>
                             <div style={{background: '#fff3cd', border: '2px solid #ffc107', borderRadius: '8px', padding: '16px', marginTop: '20px', fontSize: '14px', color: '#856404'}}>
-                                <strong>⚠️ Legal Disclaimer:</strong> For entertainment only. 21+ only. Private pool among friends. Check local laws. By clicking "Submit Picks", you acknowledge responsibility for compliance with all applicable laws and regulations.
+                                <strong>⚠️ Legal Disclaimer:</strong> For entertainment only. 21+ only. Private pool among friends. Check local laws. By participating, you acknowledge responsibility for compliance with all applicable laws and regulations.
                             </div>
                         </div>
                     </div>
