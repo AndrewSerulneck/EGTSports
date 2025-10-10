@@ -108,7 +108,11 @@
             useEffect(() => {
                 loadGames();
                 loadSubmissions();
-                setupFirebaseListener();
+                
+                // Set up Firebase listener immediately
+                setTimeout(() => {
+                    setupFirebaseListener();
+                }, 500);
                 
                 const interval = setInterval(loadGames, 300000);
                 return () => {
@@ -124,7 +128,10 @@
                     const { db, ref, onValue } = window.firebase;
                     const spreadsRef = ref(db, 'spreads');
                     
+                    console.log('Setting up Firebase listener...');
+                    
                     firebaseListener.current = onValue(spreadsRef, (snapshot) => {
+                        console.log('Firebase update received:', snapshot.val());
                         if (snapshot.exists()) {
                             const firebaseData = snapshot.val();
                             setGames(prevGames => {
@@ -133,9 +140,12 @@
                                     const espnId = game.espnId;
                                     if (firebaseData[espnId]) {
                                         const fbGame = firebaseData[espnId];
-                                        const changed = game.awaySpread !== fbGame.awaySpread || game.homeSpread !== fbGame.homeSpread;
+                                        const awaySpreadChanged = game.awaySpread !== fbGame.awaySpread;
+                                        const homeSpreadChanged = game.homeSpread !== fbGame.homeSpread;
+                                        const changed = awaySpreadChanged || homeSpreadChanged;
                                         
                                         if (changed) {
+                                            console.log(`Game ${game.id} spreads updated`, fbGame);
                                             updated = true;
                                             setRecentlyUpdated(prev => ({
                                                 ...prev,
@@ -165,6 +175,8 @@
                                 return newGames;
                             });
                         }
+                    }, (error) => {
+                        console.error('Firebase listener error:', error);
                     });
                 } catch (error) {
                     console.error('Error setting up Firebase listener:', error);
@@ -221,21 +233,21 @@
                     const spreadsData = {};
                     
                     games.forEach(game => {
-                        if (game.awaySpread || game.homeSpread) {
-                            spreadsData[game.espnId] = {
-                                awaySpread: game.awaySpread,
-                                homeSpread: game.homeSpread,
-                                timestamp: new Date().toISOString()
-                            };
-                        }
+                        spreadsData[game.espnId] = {
+                            awaySpread: game.awaySpread || '',
+                            homeSpread: game.homeSpread || '',
+                            timestamp: new Date().toISOString()
+                        };
                     });
                     
+                    console.log('Saving spreads to Firebase:', spreadsData);
                     await set(ref(db, 'spreads'), spreadsData);
-                    alert('Spreads saved to Firebase! All devices will update in real-time.');
+                    console.log('Spreads saved successfully!');
+                    alert('✅ Spreads saved! All devices will update in real-time.');
                     setIsSyncing(false);
                 } catch (error) {
                     console.error('Error saving to Firebase:', error);
-                    alert('Error saving spreads. Check console for details.');
+                    alert('❌ Error saving spreads:\n' + error.message + '\n\nCheck browser console for details.');
                     setIsSyncing(false);
                 }
             };
