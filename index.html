@@ -8,10 +8,9 @@
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <script type="module">
-        // Initialize Firebase
         import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
-        import { getDatabase, ref, set, get, onValue } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js';
-
+        import { getDatabase, ref, set, onValue } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js';
+        
         const firebaseConfig = {
             apiKey: "AIzaSyA9FsWV7hA4ow2Xaq0Krx9kCCMfMibkVOQ",
             authDomain: "marcs-parlays.firebaseapp.com",
@@ -21,16 +20,16 @@
             messagingSenderId: "631281528889",
             appId: "1:631281528889:web:e3befe34907902387c1de8"
         };
-
+        
         const app = initializeApp(firebaseConfig);
         const database = getDatabase(app);
         
-        // Make Firebase available globally
-        window.firebaseDB = database;
-        window.firebaseRef = ref;
-        window.firebaseSet = set;
-        window.firebaseGet = get;
-        window.firebaseOnValue = onValue;
+        window.firebase = {
+            db: database,
+            ref: ref,
+            set: set,
+            onValue: onValue
+        };
     </script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -38,21 +37,22 @@
         .gradient-bg { background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%); min-height: 100vh; padding: 20px; }
         .container { max-width: 1000px; margin: 0 auto; }
         .card { background: white; border-radius: 12px; padding: 24px; margin-bottom: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
-        .btn { padding: 12px 24px; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; font-size: 16px; }
+        .btn { padding: 12px 24px; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; font-size: 16px; margin-right: 8px; }
         .btn-primary { background: #007bff; color: white; }
         .btn-success { background: #28a745; color: white; }
         .btn-secondary { background: #6c757d; color: white; }
         .btn-danger { background: #dc3545; color: white; }
         .btn:disabled { opacity: 0.6; cursor: not-allowed; }
+        .btn:hover:not(:disabled) { opacity: 0.9; }
         .game-card { background: white; border-radius: 12px; padding: 20px; margin-bottom: 16px; }
         .team-row { display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; background: #f8f9fa; border-radius: 8px; cursor: pointer; margin-bottom: 8px; transition: all 0.2s; }
         .team-row.selected { background: #d4edda; border: 2px solid #28a745; }
         .team-row.disabled { opacity: 0.6; cursor: not-allowed; }
-        .team-row.won { background: #d4edda; border: 2px solid #28a745; }
-        .team-row.lost { background: #f8d7da; border: 2px solid #dc3545; }
         .team-info { display: flex; align-items: center; gap: 8px; flex: 1; min-width: 0; }
         .team-name { font-weight: 600; font-size: 15px; }
         .team-spread { font-weight: 700; font-size: 18px; color: #007bff; white-space: nowrap; min-width: 50px; text-align: right; }
+        .spread-updated { animation: spreadPulse 0.6s ease-out; }
+        @keyframes spreadPulse { 0% { background-color: #fff3cd; } 100% { background-color: transparent; } }
         .final-score-badge { background: #007bff; color: white; padding: 4px 12px; border-radius: 12px; font-size: 14px; font-weight: 600; margin-left: 8px; }
         .final-header { background: #f8f9fa; padding: 16px; border-radius: 8px; margin-bottom: 16px; border: 2px solid #dee2e6; }
         .badge { font-size: 11px; background: #e9ecef; padding: 3px 8px; border-radius: 4px; white-space: nowrap; }
@@ -64,7 +64,6 @@
         .text-white { color: white; }
         .mb-2 { margin-bottom: 16px; }
         .mb-4 { margin-bottom: 32px; }
-        .hidden { display: none; }
         .payout-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
         @media (max-width: 768px) {
             .payout-grid { grid-template-columns: repeat(2, 1fr); }
@@ -72,13 +71,16 @@
         .radio-group { display: flex; gap: 20px; margin-bottom: 16px; }
         .radio-label { display: flex; align-items: center; gap: 8px; cursor: pointer; }
         .free-play-badge { background: #28a745; color: white; padding: 4px 12px; border-radius: 12px; font-size: 12px; font-weight: 600; margin-left: 8px; }
+        .sync-indicator { display: inline-block; width: 8px; height: 8px; background: #28a745; border-radius: 50%; margin-left: 8px; }
+        .sync-indicator.syncing { background: #ffc107; animation: pulse 1s infinite; }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
     </style>
 </head>
 <body>
     <div id="root"></div>
     <script type="text/babel">
-        const { useState, useEffect } = React;
-
+        const { useState, useEffect, useRef } = React;
+        
         function App() {
             const [isAdmin, setIsAdmin] = useState(false);
             const [showAdminLogin, setShowAdminLogin] = useState(false);
@@ -94,37 +96,93 @@
             const [showPayment, setShowPayment] = useState(false);
             const [submissions, setSubmissions] = useState([]);
             const [editingSubmission, setEditingSubmission] = useState(null);
-
+            const [isSyncing, setIsSyncing] = useState(false);
+            const [recentlyUpdated, setRecentlyUpdated] = useState({});
+            const firebaseListener = useRef(null);
+            
             const ADMIN_PASSWORD = 'MeMarc25';
             const VENMO_USERNAME = 'Marc-Serulneck';
             const MAX_BET = 100;
             const GOOGLE_SHEET_URL = 'https://script.google.com/macros/s/AKfycbwUU7CtC2OY-jHq3P5W5ytDm02WSuGQ8R8bSmYvsE20sYb7HZHBKJQIcG8n6Z_K6SlW/exec';
-
+            
             useEffect(() => {
                 loadGames();
                 loadSubmissions();
-                const interval = setInterval(loadGames, 300000); // Check every 5 minutes instead of 1
-                return () => clearInterval(interval);
+                setupFirebaseListener();
+                
+                const interval = setInterval(loadGames, 300000);
+                return () => {
+                    clearInterval(interval);
+                    if (firebaseListener.current) {
+                        firebaseListener.current();
+                    }
+                };
             }, []);
-
+            
+            const setupFirebaseListener = () => {
+                try {
+                    const { db, ref, onValue } = window.firebase;
+                    const spreadsRef = ref(db, 'spreads');
+                    
+                    firebaseListener.current = onValue(spreadsRef, (snapshot) => {
+                        if (snapshot.exists()) {
+                            const firebaseData = snapshot.val();
+                            setGames(prevGames => {
+                                let updated = false;
+                                const newGames = prevGames.map(game => {
+                                    const espnId = game.espnId;
+                                    if (firebaseData[espnId]) {
+                                        const fbGame = firebaseData[espnId];
+                                        const changed = game.awaySpread !== fbGame.awaySpread || game.homeSpread !== fbGame.homeSpread;
+                                        
+                                        if (changed) {
+                                            updated = true;
+                                            setRecentlyUpdated(prev => ({
+                                                ...prev,
+                                                [game.id]: true
+                                            }));
+                                            setTimeout(() => {
+                                                setRecentlyUpdated(prev => ({
+                                                    ...prev,
+                                                    [game.id]: false
+                                                }));
+                                            }, 600);
+                                        }
+                                        
+                                        return {
+                                            ...game,
+                                            awaySpread: fbGame.awaySpread || '',
+                                            homeSpread: fbGame.homeSpread || ''
+                                        };
+                                    }
+                                    return game;
+                                });
+                                
+                                if (updated) {
+                                    setIsSyncing(false);
+                                }
+                                
+                                return newGames;
+                            });
+                        }
+                    });
+                } catch (error) {
+                    console.error('Error setting up Firebase listener:', error);
+                }
+            };
+            
             const loadGames = async () => {
                 setLoading(true);
                 try {
-                    const stored = localStorage.getItem('marcs-parlays-games');
-                    const storedTimestamp = localStorage.getItem('marcs-parlays-timestamp');
-                    const now = Date.now();
-
-                    // Always fetch fresh data from ESPN
                     const response = await fetch('https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard');
                     const data = await response.json();
-
+                    
                     const formattedGames = data.events.map((event, index) => {
                         const competition = event.competitions[0];
                         const awayTeam = competition.competitors[1];
                         const homeTeam = competition.competitors[0];
                         const status = event.status.type.state;
-                        const existingGame = stored ? JSON.parse(stored).find(g => g.espnId === event.id) : null;
-
+                        
                         return {
                             id: index + 1,
                             espnId: event.id,
@@ -136,40 +194,57 @@
                             homeTeamId: homeTeam.id,
                             awayScore: awayTeam.score || '0',
                             homeScore: homeTeam.score || '0',
-                            awaySpread: existingGame?.awaySpread || '',
-                            homeSpread: existingGame?.homeSpread || '',
+                            awaySpread: '',
+                            homeSpread: '',
                             status: status,
                             statusDetail: event.status.type.detail,
                             isFinal: status === 'post'
                         };
                     });
-
-                    setGames(formattedGames);
                     
-                    // Only update timestamp if we have spreads saved
-                    if (stored) {
-                        localStorage.setItem('marcs-parlays-timestamp', now.toString());
-                    }
+                    setGames(formattedGames);
                 } catch (error) {
                     console.error('Error loading games:', error);
-                    // If API fails, try to use stored data
-                    if (stored) {
-                        setGames(JSON.parse(stored));
-                    }
                 }
                 setLoading(false);
             };
-
+            
             const loadSubmissions = () => {
                 const stored = localStorage.getItem('marcs-parlays-submissions');
                 if (stored) setSubmissions(JSON.parse(stored));
             };
-
+            
+            const saveSpreadToFirebase = async () => {
+                try {
+                    setIsSyncing(true);
+                    const { db, ref, set } = window.firebase;
+                    const spreadsData = {};
+                    
+                    games.forEach(game => {
+                        if (game.awaySpread || game.homeSpread) {
+                            spreadsData[game.espnId] = {
+                                awaySpread: game.awaySpread,
+                                homeSpread: game.homeSpread,
+                                timestamp: new Date().toISOString()
+                            };
+                        }
+                    });
+                    
+                    await set(ref(db, 'spreads'), spreadsData);
+                    alert('Spreads saved to Firebase! All devices will update in real-time.');
+                    setIsSyncing(false);
+                } catch (error) {
+                    console.error('Error saving to Firebase:', error);
+                    alert('Error saving spreads. Check console for details.');
+                    setIsSyncing(false);
+                }
+            };
+            
             const saveSubmission = async (submission) => {
                 const allSubmissions = [...submissions, submission];
                 setSubmissions(allSubmissions);
                 localStorage.setItem('marcs-parlays-submissions', JSON.stringify(allSubmissions));
-
+                
                 try {
                     await fetch(GOOGLE_SHEET_URL, {
                         method: 'POST',
@@ -177,43 +252,18 @@
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify(submission)
                     });
-
-                    // Send confirmation
-                    if (submission.contactInfo.confirmMethod === 'email') {
-                        sendEmailConfirmation(submission);
-                    } else {
-                        sendTextConfirmation(submission);
-                    }
                 } catch (error) {
                     console.error('Error sending to Google Sheets:', error);
                 }
             };
-
-            const sendEmailConfirmation = (submission) => {
-                console.log('Email confirmation would be sent to:', submission.contactInfo.email);
-                console.log('Ticket:', submission.ticketNumber);
-                // Note: Actual email sending requires a backend service
-            };
-
-            const sendTextConfirmation = (submission) => {
-                console.log('Text confirmation would be sent to:', submission.contactInfo.phone);
-                console.log('Ticket:', submission.ticketNumber);
-                // Note: Actual SMS sending requires a backend service like Twilio
-            };
-
+            
             const updateSubmissionFreePlay = (index, amount) => {
                 const updatedSubmissions = [...submissions];
                 updatedSubmissions[index].freePlay = amount;
                 setSubmissions(updatedSubmissions);
                 localStorage.setItem('marcs-parlays-submissions', JSON.stringify(updatedSubmissions));
             };
-
-            const saveGames = () => {
-                localStorage.setItem('marcs-parlays-games', JSON.stringify(games));
-                localStorage.setItem('marcs-parlays-timestamp', Date.now().toString());
-                alert('Games and odds saved!');
-            };
-
+            
             const updateSpread = (gameId, team, value) => {
                 setGames(games.map(game =>
                     game.id === gameId
@@ -221,7 +271,7 @@
                         : game
                 ));
             };
-
+            
             const toggleTeam = (gameId, teamType) => {
                 setSelectedPicks(prev => {
                     const newPicks = { ...prev };
@@ -233,13 +283,13 @@
                     return newPicks;
                 });
             };
-
+            
             const generateTicketNumber = () => {
                 const timestamp = Date.now().toString(36).toUpperCase();
                 const random = Math.random().toString(36).substring(2, 8).toUpperCase();
                 return `TKT-${timestamp}-${random}`;
             };
-
+            
             const submitPicks = () => {
                 const pickCount = Object.keys(selectedPicks).length;
                 if (pickCount < 3) {
@@ -249,7 +299,7 @@
                 setTicketNumber(generateTicketNumber());
                 setShowConfirmation(true);
             };
-
+            
             const handleCheckoutSubmit = () => {
                 const betAmount = parseFloat(contactInfo.betAmount);
                 
@@ -257,17 +307,15 @@
                     alert('Please fill in all contact information');
                     return;
                 }
-
                 if (!betAmount || betAmount <= 0) {
                     alert('Please enter a valid bet amount');
                     return;
                 }
-
                 if (betAmount > MAX_BET) {
                     alert(`Maximum bet is $${MAX_BET}`);
                     return;
                 }
-
+                
                 const submission = {
                     ticketNumber,
                     timestamp: new Date().toISOString(),
@@ -290,29 +338,28 @@
                     }),
                     paymentStatus: 'pending'
                 };
-
-                console.log('NEW SUBMISSION:', JSON.stringify(submission, null, 2));
+                
                 saveSubmission(submission);
                 setShowPayment(true);
             };
-
+            
             const calculateResult = (submission) => {
                 let wins = 0;
                 let losses = 0;
                 let pending = 0;
-
+                
                 submission.picks.forEach(pick => {
                     const game = games.find(g => g.espnId === pick.gameId);
                     if (!game || !game.isFinal) {
                         pending++;
                         return;
                     }
-
+                    
                     const awayScore = parseInt(game.awayScore);
                     const homeScore = parseInt(game.homeScore);
                     const spread = parseFloat(pick.spread);
-
                     let won = false;
+                    
                     if (pick.pickedTeamType === 'away') {
                         const adjustedScore = awayScore + spread;
                         won = adjustedScore > homeScore;
@@ -320,17 +367,17 @@
                         const adjustedScore = homeScore + spread;
                         won = adjustedScore > awayScore;
                     }
-
+                    
                     if (won) wins++;
                     else losses++;
                 });
-
+                
                 const allGamesComplete = pending === 0;
                 const parlayWon = allGamesComplete && losses === 0 && wins === submission.picks.length;
-
+                
                 return { wins, losses, pending, allGamesComplete, parlayWon };
             };
-
+            
             if (loading) {
                 return (
                     <div className="gradient-bg" style={{display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh'}}>
@@ -338,14 +385,14 @@
                     </div>
                 );
             }
-
+            
             if (showSubmissions && isAdmin) {
                 return (
                     <div className="gradient-bg">
                         <div className="container">
                             <div className="card">
                                 <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px'}}>
-                                    <h1>📊 All Submissions ({submissions.length})</h1>
+                                    <h1>Submissions ({submissions.length})</h1>
                                     <button className="btn btn-secondary" onClick={() => setShowSubmissions(false)}>Back</button>
                                 </div>
                             </div>
@@ -357,14 +404,13 @@
                                 submissions.slice().reverse().map((sub, idx) => {
                                     const actualIndex = submissions.length - 1 - idx;
                                     const result = calculateResult(sub);
-                                    const totalBet = sub.betAmount + (sub.freePlay || 0);
                                     
                                     return (
                                         <div key={idx} className="card">
                                             <div style={{marginBottom: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'start'}}>
                                                 <div>
                                                     <strong style={{fontSize: '20px', color: '#28a745'}}>{sub.ticketNumber}</strong>
-                                                    {sub.freePlay > 0 && <span className="free-play-badge">${sub.freePlay} Free Play</span>}
+                                                    {sub.freePlay > 0 && <span className="free-play-badge">${sub.freePlay}</span>}
                                                     <div style={{color: '#666', fontSize: '14px'}}>{new Date(sub.timestamp).toLocaleString()}</div>
                                                 </div>
                                                 {result.allGamesComplete && (
@@ -383,77 +429,11 @@
                                                 <div><strong>Name:</strong> {sub.contactInfo.name}</div>
                                                 <div><strong>Email:</strong> {sub.contactInfo.email}</div>
                                                 <div><strong>Phone:</strong> {sub.contactInfo.phone}</div>
-                                                <div><strong>Bet Amount:</strong> ${sub.betAmount.toFixed(2)}</div>
-                                                <div><strong>Confirmation Method:</strong> {sub.contactInfo.confirmMethod}</div>
+                                                <div><strong>Bet:</strong> ${sub.betAmount.toFixed(2)}</div>
                                             </div>
                                             <div style={{marginBottom: '16px'}}>
                                                 <strong>Record: {result.wins}-{result.losses}</strong>
                                                 {result.pending > 0 && <span style={{color: '#666'}}> ({result.pending} pending)</span>}
-                                            </div>
-                                            <div style={{marginBottom: '16px'}}>
-                                                <strong>Picks ({sub.picks.length}):</strong>
-                                                {sub.picks.map((pick, i) => {
-                                                    const game = games.find(g => g.espnId === pick.gameId);
-                                                    let status = 'pending';
-                                                    if (game && game.isFinal) {
-                                                        const awayScore = parseInt(game.awayScore);
-                                                        const homeScore = parseInt(game.homeScore);
-                                                        const spread = parseFloat(pick.spread);
-                                                        
-                                                        if (pick.pickedTeamType === 'away') {
-                                                            const adjustedScore = awayScore + spread;
-                                                            status = adjustedScore > homeScore ? 'won' : 'lost';
-                                                        } else {
-                                                            const adjustedScore = homeScore + spread;
-                                                            status = adjustedScore > awayScore ? 'won' : 'lost';
-                                                        }
-                                                    }
-                                                    
-                                                    return (
-                                                        <div key={i} style={{
-                                                            padding: '12px',
-                                                            background: status === 'won' ? '#d4edda' : status === 'lost' ? '#f8d7da' : '#f8f9fa',
-                                                            borderRadius: '8px',
-                                                            marginTop: '8px',
-                                                            border: status === 'won' ? '2px solid #28a745' : status === 'lost' ? '2px solid #dc3545' : 'none'
-                                                        }}>
-                                                            <div style={{display: 'flex', justifyContent: 'space-between'}}>
-                                                                <span><strong>{pick.team}</strong> ({pick.spread})</span>
-                                                                {game && game.isFinal && (
-                                                                    <span style={{fontWeight: 'bold', color: status === 'won' ? '#28a745' : '#dc3545'}}>
-                                                                        {status.toUpperCase()}
-                                                                    </span>
-                                                                )}
-                                                            </div>
-                                                            {game && game.isFinal && (
-                                                                <div style={{fontSize: '14px', color: '#666', marginTop: '4px'}}>
-                                                                    Final: {game.awayTeam} {game.awayScore} - {game.homeScore} {game.homeTeam}
-                                                                </div>
-                                                            )}
-                                                        </div>
-                                                    );
-                                                })}
-                                            </div>
-                                            <div style={{display: 'flex', gap: '8px', marginTop: '16px'}}>
-                                                <input
-                                                    type="number"
-                                                    placeholder="Free play amount"
-                                                    value={editingSubmission === actualIndex ? (sub.freePlay || 0) : ''}
-                                                    onChange={(e) => {
-                                                        setEditingSubmission(actualIndex);
-                                                        updateSubmissionFreePlay(actualIndex, parseFloat(e.target.value) || 0);
-                                                    }}
-                                                    style={{flex: 1, marginBottom: 0}}
-                                                />
-                                                <button
-                                                    className="btn btn-primary"
-                                                    onClick={() => {
-                                                        alert(`Free play of $${sub.freePlay || 0} saved for ${sub.contactInfo.name}`);
-                                                        setEditingSubmission(null);
-                                                    }}
-                                                >
-                                                    Save Free Play
-                                                </button>
                                             </div>
                                         </div>
                                     );
@@ -463,14 +443,14 @@
                     </div>
                 );
             }
-
+            
             if (isAdmin) {
                 return (
                     <div className="gradient-bg">
                         <div className="container">
                             <div className="card">
-                                <div style={{display: 'flex', justifyContent: 'space-between', marginBottom: '16px', flexWrap: 'wrap', gap: '12px'}}>
-                                    <h1>🔧 Admin Panel</h1>
+                                <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '12px'}}>
+                                    <h1>Admin Panel <span className={`sync-indicator ${isSyncing ? 'syncing' : ''}`}></span></h1>
                                     <div style={{display: 'flex', gap: '8px'}}>
                                         <button className="btn btn-primary" onClick={() => setShowSubmissions(true)}>
                                             Submissions ({submissions.length})
@@ -478,9 +458,7 @@
                                         <button className="btn btn-secondary" onClick={() => setIsAdmin(false)}>Exit</button>
                                     </div>
                                 </div>
-                                <button className="btn btn-primary" onClick={loadGames}>Refresh from ESPN</button>
                             </div>
-
                             {games.map(game => (
                                 <div key={game.id} className="card">
                                     <div style={{marginBottom: '16px', display: 'flex', justifyContent: 'space-between'}}>
@@ -501,17 +479,16 @@
                                     </div>
                                 </div>
                             ))}
-
                             <div className="card">
-                                <button className="btn btn-success" onClick={saveGames} style={{width: '100%', fontSize: '18px'}}>
-                                    Save All Games & Odds
+                                <button className="btn btn-success" onClick={saveSpreadToFirebase} disabled={isSyncing} style={{width: '100%', fontSize: '18px', padding: '16px'}}>
+                                    {isSyncing ? 'Saving to Firebase...' : 'Save & Broadcast to All Devices'}
                                 </button>
                             </div>
                         </div>
                     </div>
                 );
             }
-
+            
             if (showAdminLogin) {
                 return (
                     <div className="gradient-bg" style={{display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh'}}>
@@ -534,23 +511,21 @@
                     </div>
                 );
             }
-
+            
             if (showCheckout) {
                 const pickCount = Object.keys(selectedPicks).length;
                 return (
                     <div className="gradient-bg">
                         <div className="container" style={{maxWidth: '600px'}}>
                             <div className="text-center text-white mb-4">
-                                <h1>💳 Checkout</h1>
+                                <h1>Checkout</h1>
                             </div>
-                            <button className="btn btn-secondary mb-2" onClick={() => setShowCheckout(false)}>← Back</button>
-
+                            <button className="btn btn-secondary mb-2" onClick={() => setShowCheckout(false)}>Back</button>
                             <div className="card">
                                 <div style={{background: '#f8f9fa', padding: '20px', borderRadius: '8px', textAlign: 'center', marginBottom: '24px'}}>
                                     <div style={{fontSize: '12px', color: '#666', marginBottom: '8px'}}>TICKET NUMBER</div>
                                     <div style={{fontSize: '24px', fontWeight: 'bold', color: '#28a745'}}>{ticketNumber}</div>
                                 </div>
-
                                 <h3 className="mb-2">Your Picks ({pickCount})</h3>
                                 {Object.entries(selectedPicks).map(([gameId, teamType]) => {
                                     const game = games.find(g => g.id == gameId);
@@ -563,7 +538,6 @@
                                         </div>
                                     );
                                 })}
-
                                 <h3 className="mb-2" style={{marginTop: '32px'}}>Contact Information</h3>
                                 <label>Full Name *</label>
                                 <input type="text" value={contactInfo.name} onChange={(e) => setContactInfo({...contactInfo, name: e.target.value})} />
@@ -584,7 +558,6 @@
                                     max={MAX_BET}
                                     step="0.01"
                                 />
-
                                 <label style={{marginBottom: '8px', display: 'block'}}>Confirmation Method *</label>
                                 <div className="radio-group">
                                     <label className="radio-label">
@@ -608,14 +581,12 @@
                                         Text Message
                                     </label>
                                 </div>
-
                                 <button className="btn btn-success" onClick={handleCheckoutSubmit} style={{width: '100%', fontSize: '18px', marginTop: '16px'}}>
-                                    Continue to Payment →
+                                    Continue to Payment
                                 </button>
-
                                 {showPayment && (
                                     <div style={{marginTop: '32px', paddingTop: '32px', borderTop: '2px solid #e0e0e0'}}>
-                                        <h3 className="text-center mb-2">💰 Payment</h3>
+                                        <h3 className="text-center mb-2">Payment</h3>
                                         <div style={{background: '#f8f9fa', padding: '20px', borderRadius: '8px', textAlign: 'center', marginBottom: '20px'}}>
                                             <p>Venmo <strong>${contactInfo.betAmount}</strong> to</p>
                                             <p style={{fontSize: '20px', fontWeight: 'bold', color: '#333', marginTop: '8px'}}>@{VENMO_USERNAME}</p>
@@ -624,10 +595,10 @@
                                             href={`venmo://paycharge?txn=pay&recipients=${VENMO_USERNAME}&amount=${contactInfo.betAmount}&note=${encodeURIComponent("Marc's Parlays - " + ticketNumber)}`}
                                             style={{display: 'block', padding: '16px', background: '#008CFF', color: 'white', textAlign: 'center', textDecoration: 'none', borderRadius: '8px', fontWeight: '600', fontSize: '18px'}}
                                         >
-                                            V Pay ${contactInfo.betAmount} with Venmo
+                                            Pay ${contactInfo.betAmount} with Venmo
                                         </a>
                                         <div style={{marginTop: '16px', padding: '16px', background: '#d1ecf1', border: '2px solid #0c5460', borderRadius: '8px', fontSize: '14px', color: '#0c5460'}}>
-                                            <strong>✅ Confirmation:</strong> You will receive a {contactInfo.confirmMethod === 'email' ? 'email' : 'text message'} confirmation shortly.
+                                            <strong>Confirmation:</strong> You will receive a {contactInfo.confirmMethod === 'email' ? 'email' : 'text message'} confirmation shortly.
                                         </div>
                                     </div>
                                 )}
@@ -636,23 +607,22 @@
                     </div>
                 );
             }
-
+            
             const pickCount = Object.keys(selectedPicks).length;
             const canSubmit = pickCount >= 3;
-
+            
             return (
                 <div className="gradient-bg">
                     <div className="container">
                         <div className="text-center text-white mb-4">
-                            <h1 style={{fontSize: '42px'}}>🏈 Marc's Parlays</h1>
+                            <h1 style={{fontSize: '42px'}}>Marc's Parlays</h1>
                             <p style={{fontSize: '22px'}}>NFL Betting Pool</p>
                             <button className="btn btn-secondary" onClick={() => setShowAdminLogin(true)} style={{marginTop: '16px'}}>
                                 Admin Login
                             </button>
                         </div>
-
                         <div className="card">
-                            <h2 className="text-center mb-2">💰 Payout Odds</h2>
+                            <h2 className="text-center mb-2">Payout Odds</h2>
                             <div className="payout-grid">
                                 {[
                                     {picks: 3, payout: '10 to 1'}, 
@@ -671,13 +641,11 @@
                                 ))}
                             </div>
                         </div>
-
                         {games.map(game => (
-                            <div key={game.id} className="game-card">
+                            <div key={game.id} className={`game-card ${recentlyUpdated[game.id] ? 'spread-updated' : ''}`}>
                                 <div style={{display: 'flex', justifyContent: 'space-between', marginBottom: '16px', paddingBottom: '12px', borderBottom: '2px solid #f0f0f0', flexWrap: 'wrap', gap: '8px'}}>
                                     <span>{game.date} - {game.time}</span>
                                 </div>
-
                                 {game.isFinal && (
                                     <div className="final-header">
                                         <div style={{textAlign: 'center', fontWeight: '600', color: '#dc3545', marginBottom: '12px', fontSize: '16px'}}>
@@ -696,7 +664,6 @@
                                         </div>
                                     </div>
                                 )}
-
                                 <div
                                     className={`team-row ${selectedPicks[game.id] === 'away' ? 'selected' : ''} ${game.isFinal ? 'disabled' : ''}`}
                                     onClick={() => !game.isFinal && toggleTeam(game.id, 'away')}
@@ -710,9 +677,7 @@
                                         <span className="team-spread">{game.awaySpread || '--'}</span>
                                     </div>
                                 </div>
-
                                 <div style={{textAlign: 'center', color: '#999', margin: '8px 0', fontSize: '14px'}}>@</div>
-
                                 <div
                                     className={`team-row ${selectedPicks[game.id] === 'home' ? 'selected' : ''} ${game.isFinal ? 'disabled' : ''}`}
                                     onClick={() => !game.isFinal && toggleTeam(game.id, 'home')}
@@ -728,7 +693,6 @@
                                 </div>
                             </div>
                         ))}
-
                         <div className="text-center mb-4">
                             <div className="text-white mb-2" style={{fontSize: '20px'}}>
                                 Selected: {pickCount} pick{pickCount !== 1 ? 's' : ''}
@@ -743,9 +707,8 @@
                                 {canSubmit ? 'Submit Picks' : `Select ${3 - pickCount} More`}
                             </button>
                         </div>
-
                         <div className="card">
-                            <h3 className="mb-2">📋 Important Rules</h3>
+                            <h3 className="mb-2">Important Rules</h3>
                             <ul style={{marginLeft: '20px', lineHeight: '1.8'}}>
                                 <li><strong>Minimum 3 picks required</strong></li>
                                 <li><strong>Maximum bet: ${MAX_BET}</strong></li>
@@ -756,14 +719,13 @@
                                 <li>You will receive confirmation via your chosen method (email or text)</li>
                             </ul>
                             <div style={{background: '#fff3cd', border: '2px solid #ffc107', borderRadius: '8px', padding: '16px', marginTop: '20px', fontSize: '14px', color: '#856404'}}>
-                                <strong>⚠️ Legal Disclaimer:</strong> For entertainment only. 21+ only. Private pool among friends. Check local laws. By participating, you acknowledge responsibility for compliance with all applicable laws and regulations.
+                                <strong>Legal Disclaimer:</strong> For entertainment only. 21+ only. Private pool among friends. Check local laws. By participating, you acknowledge responsibility for compliance with all applicable laws and regulations.
                             </div>
                         </div>
                     </div>
-
                     <div className={`modal ${showConfirmation ? 'active' : ''}`}>
                         <div className="modal-content">
-                            <h2 className="text-center" style={{fontSize: '32px', color: '#28a745', marginBottom: '20px'}}>✅ Picks Submitted!</h2>
+                            <h2 className="text-center" style={{fontSize: '32px', color: '#28a745', marginBottom: '20px'}}>Picks Submitted!</h2>
                             <div style={{background: '#f8f9fa', padding: '20px', borderRadius: '8px', textAlign: 'center', marginBottom: '24px'}}>
                                 <div style={{fontSize: '24px', fontWeight: 'bold'}}>{ticketNumber}</div>
                             </div>
@@ -780,9 +742,7 @@
                 </div>
             );
         }
-
+        
         const root = ReactDOM.createRoot(document.getElementById('root'));
         root.render(<App />);
     </script>
-</body>
-</html>
