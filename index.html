@@ -468,53 +468,73 @@
         }
 
         return (
-            <div className="gradient-bg">
-                <div className="container">
-                    <div className="text-center text-white mb-4">
-                        <h1 style={{fontSize: '48px', marginBottom: '8px', fontWeight: 'bold'}}>🏈 Marc's Parlays</h1>
-                        <p style={{fontSize: '18px', opacity: 0.9}}>Pick your teams against the spread</p>
-                    </div>
+        <div className="gradient-bg">
+  <div className="container">
+    <div className="text-center text-white mb-4">
+      <h1 style={{ fontSize: '48px', marginBottom: '8px', fontWeight: 'bold' }}>🏈 Marc's Parlays</h1>
+      <p style={{ fontSize: '18px', opacity: 0.9 }}>Pick your teams against the spread</p>
+    </div>
 
-                    <div className="card" style={{marginBottom: '24px'}}>
-                        <h2 style={{textAlign: 'center', marginBottom: '20px', color: '#1e3c72'}}>💰 Payout Odds</h2>
-                        <div style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: '12px'}}>
-                            <div style={{background: '#f8f9fa', padding: '16px', borderRadius: '8px', textAlign: 'center'}}>
-                                <div style={{fontSize: '20px', fontWeight: 'bold', color: '#007bff'}}>3 for 3</div>
-                                <div style={{fontSize: '16px', color: '#28a745', fontWeight: '600'}}>10 to 1</div>
-                            </div>
-                            <div style={{background: '#f8f9fa', padding: '16px', borderRadius: '8px', textAlign: 'center'}}>
-                                <div style={{fontSize: '20px', fontWeight: 'bold', color: '#007bff'}}>4 for 4</div>
-                                <div style={{fontSize: '16px', color: '#28a745', fontWeight: '600'}}>15 to 1</div>
-                            </div>
-                            <div style={{background: '#f8f9fa', padding: '16px', borderRadius: '8px', textAlign: 'center'}}>
-                                <div style={{fontSize: '20px', fontWeight: 'bold', color: '#007bff'}}>5 for 5</div>
-                                <div style={{fontSize: '16px', color: '#28a745', fontWeight: '600'}}>25 to 1</div>
-                            </div>
-                            <div style={{background: '#f8f9fa', padding: '16px', borderRadius: '8px', textAlign: 'center'}}>
-                                <div style={{fontSize: '20px', fontWeight: 'bold', color: '#007bff'}}>6 for 6</div>
-                                <div style={{fontSize: '16px', color: '#28a745', fontWeight: '600'}}>50 to 1</div>
-                            </div>
-                            <div style={{background: '#f8f9fa', padding: '16px', borderRadius: '8px', textAlign: 'center'}}>
-                                <div style={{fontSize: '20px', fontWeight: 'bold', color: '#007bff'}}>7 for 7</div>
-                                <div style={{fontSize: '16px', color: '#28a745', fontWeight: '600'}}>100 to 1</div>
-                            </div>
-                            <div style={{background: '#f8f9fa', padding: '16px', borderRadius: '8px', textAlign: 'center'}}>
-                                <div style={{fontSize: '20px', fontWeight: 'bold', color: '#007bff'}}>8 for 8</div>
-                                <div style={{fontSize: '16px', color: '#28a745', fontWeight: '600'}}>150 to 1</div>
-                            </div>
-                            <div style={{background: '#f8f9fa', padding: '16px', borderRadius: '8px', textAlign: 'center'}}>
-                                <div style={{fontSize: '20px', fontWeight: 'bold', color: '#007bff'}}>9 for 9</div>
-                                <div style={{fontSize: '16px', color: '#28a745', fontWeight: '600'}}>200 to 1</div>
-                            </div>
-                            <div style={{background: '#f8f9fa', padding: '16px', borderRadius: '8px', textAlign: 'center'}}>
-                                <div style={{fontSize: '20px', fontWeight: 'bold', color: '#007bff'}}>10 for 10</div>
-                                <div style={{fontSize: '16px', color: '#28a745', fontWeight: '600'}}>250 to 1</div>
-                            </div>
-                        </div>
-                        <p style={{textAlign: 'center', marginTop: '20px', fontSize: '14px', color: '#6c757d', fontStyle: 'italic'}}>
-                            * All picks must win to collect payout. Max bet ${MAX_BET}.
-                        </p>
-                    </div>
+    <div className="card" style={{ marginBottom: '24px' }}>
+      <h2 style={{ textAlign: 'center', marginBottom: '20px', color: '#1e3c72' }}>💰 Payout Odds</h2>
+
+      {/* Responsive Grid Container */}
+      <div
+        style={{
+          display: 'grid',
+          gap: '12px',
+          gridTemplateColumns: 'repeat(4, 1fr)',
+        }}
+        className="payout-grid"
+      >
+        {[
+          ['3 for 3', '10 to 1'],
+          ['4 for 4', '15 to 1'],
+          ['5 for 5', '25 to 1'],
+          ['6 for 6', '50 to 1'],
+          ['7 for 7', '100 to 1'],
+          ['8 for 8', '150 to 1'],
+          ['9 for 9', '200 to 1'],
+          ['10 for 10', '250 to 1'],
+        ].map(([title, odds], i) => (
+          <div
+            key={i}
+            style={{
+              background: '#f8f9fa',
+              padding: '16px',
+              borderRadius: '8px',
+              textAlign: 'center',
+            }}
+          >
+            <div style={{ fontSize: '20px', fontWeight: 'bold', color: '#007bff' }}>{title}</div>
+            <div style={{ fontSize: '16px', color: '#28a745', fontWeight: 600 }}>{odds}</div>
+          </div>
+        ))}
+      </div>
+
+      <p
+        style={{
+          textAlign: 'center',
+          marginTop: '20px',
+          fontSize: '14px',
+          color: '#6c757d',
+          fontStyle: 'italic',
+        }}
+      >
+        * All picks must win to collect payout. Max bet ${MAX_BET}.
+      </p>
+    </div>
+  </div>
+
+  {/* Add this <style> block for responsiveness */}
+  <style>{`
+    @media (max-width: 768px) {
+      .payout-grid {
+        grid-template-columns: repeat(2, 1fr) !important;
+      }
+    }
+  `}</style>
+</div>
 
                     <div className="card">
                         <h2 style={{marginBottom: '16px'}}>📋 Select Your Picks (Minimum 3)</h2>
