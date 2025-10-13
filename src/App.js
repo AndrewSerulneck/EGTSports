@@ -35,15 +35,15 @@ function AdminPanel({ user, games, setGames, isSyncing, setIsSyncing, recentlyUp
   const saveSpreadToFirebase = async () => {
     try {
       setIsSyncing(true);
-      const spreadsData = {};
-      games.forEach(game => {
-        spreadsData[game.espnId] = {
-          awaySpread: game.awaySpread || '',
-          homeSpread: game.homeSpread || '',
-          total: game.total || '',
-          timestamp: new Date().toISOString()
-        };
-      });
+    const spreadsData = {};
+    games.forEach(game => {
+      spreadsData[game.espnId] = {
+        awaySpread: game.awaySpread || '',
+        homeSpread: game.homeSpread || '',
+        total: game.total || '',
+        timestamp: new Date().toISOString()
+      };
+    });
       await set(ref(database, 'spreads'), spreadsData);
       alert('✅ Spreads saved! All devices will update in real-time.');
       setIsSyncing(false);
@@ -59,16 +59,15 @@ function AdminPanel({ user, games, setGames, isSyncing, setIsSyncing, recentlyUp
         game.id === gameId
           ? { ...game, [team === 'away' ? 'awaySpread' : 'homeSpread']: value }
           : game
-      )
-    );
-  };
-
   const updateTotal = (gameId, value) => {
     setGames(prevGames =>
       prevGames.map(game =>
         game.id === gameId
           ? { ...game, total: value }
           : game
+    )
+  );
+};
       )
     );
   };
@@ -195,15 +194,6 @@ function AdminPanel({ user, games, setGames, isSyncing, setIsSyncing, recentlyUp
             <div>
               <label><strong>{game.homeTeam} (Home)</strong></label>
               <input type="text" value={game.homeSpread} onChange={(e) => updateSpread(game.id, 'home', e.target.value)} placeholder="-3.5" />
-            </div>
-            <div>
-              <label><strong>Total</strong></label>
-              <input
-                type="text"
-                value={game.total}
-                onChange={(e) => updateTotal(game.id, e.target.value)}
-                placeholder="42.5"
-              />
             </div>
           </div>
         ))}
@@ -409,17 +399,7 @@ function LandingPage({ games, loading }) {
                 </div>
                 <a
                   href={`venmo://paycharge?txn=pay&recipients=${VENMO_USERNAME}&amount=${contactInfo.betAmount}&note=${encodeURIComponent("Marc's Parlays - " + ticketNumber)}`}
-                  style={{
-                    display: 'block',
-                    padding: '16px',
-                    background: '#008CFF',
-                    color: 'white',
-                    textAlign: 'center',
-                    textDecoration: 'none',
-                    borderRadius: '8px',
-                    fontWeight: '600',
-                    fontSize: '18px'
-                  }}
+                  style={{display: 'block', padding: '16px', background: '#008CFF', color: 'white', textAlign: 'center', textDecoration: 'none', borderRadius: '8px', fontWeight: '600', fontSize: '18px'}}
                 >
                   Pay ${contactInfo.betAmount} with Venmo
                 </a>
@@ -447,7 +427,7 @@ function LandingPage({ games, loading }) {
         <div className="text-center text-white mb-4">
           <div style={{display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '20px', marginBottom: '16px', flexWrap: 'wrap'}}>
             <div>
-              <h1 style={{fontSize: '42px'}}>Welcome to EGT Sports NFL Parlay Pool!</h1>
+              <h1 style={{fontSize: '42px'}}>Welcome to the EGT Sports NFL Parlay Club!</h1>
               <p style={{fontSize: '22px'}}>Make your selections below to get started.</p>
             </div>
             <button className="btn btn-secondary" onClick={handleAdminClick} style={{height: 'fit-content'}}>
@@ -525,12 +505,6 @@ function LandingPage({ games, loading }) {
                 <span className="team-spread">{game.homeSpread || '--'}</span>
               </div>
             </div>
-            {/* Show total if available */}
-            {game.total && (
-              <div style={{textAlign: 'center', color: '#333', margin: '8px 0', fontSize: '16px'}}>
-                <span><strong>Total:</strong> {game.total}</span>
-              </div>
-            )}
           </div>
         ))}
         <div className="text-center mb-4">
@@ -641,7 +615,7 @@ function App() {
                     }));
                   }, 600);
                 }
-                return {
+               return {
                   ...game,
                   awaySpread: fbGame.awaySpread || '',
                   homeSpread: fbGame.homeSpread || '',
@@ -672,24 +646,24 @@ function App() {
         const awayTeam = competition.competitors[1];
         const homeTeam = competition.competitors[0];
         const status = event.status.type.state;
-        return {
-          id: index + 1,
-          espnId: event.id,
-          date: new Date(event.date).toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' }),
-          time: new Date(event.date).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }) + ' ET',
-          awayTeam: awayTeam.team.displayName,
-          homeTeam: homeTeam.team.displayName,
-          awayTeamId: awayTeam.id,
-          homeTeamId: homeTeam.id,
-          awayScore: awayTeam.score || '0',
-          homeScore: homeTeam.score || '0',
-          awaySpread: '',
-          homeSpread: '',
-          total: '',
-          status: status,
-          statusDetail: event.status.type.detail,
-          isFinal: status === 'post'
-        };
+      return {
+        id: index + 1,
+        espnId: event.id,
+        date: new Date(event.date).toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' }),
+        time: new Date(event.date).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }) + ' ET',
+        awayTeam: awayTeam.team.displayName,
+        homeTeam: homeTeam.team.displayName,
+        awayTeamId: awayTeam.id,
+        homeTeamId: homeTeam.id,
+        awayScore: awayTeam.score || '0',
+        homeScore: homeTeam.score || '0',
+        awaySpread: '',
+        homeSpread: '',
+        total: '',
+        status: status,
+        statusDetail: event.status.type.detail,
+        isFinal: status === 'post'
+};
       });
       setGames(formattedGames);
     } catch (error) {
