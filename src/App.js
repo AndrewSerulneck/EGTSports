@@ -26,7 +26,7 @@ const auth = getAuth(app);
 
 const VENMO_USERNAME = '@EGTSports';
 const MAX_BET = 100;
-const GOOGLE_SHEET_URL = 'https://script.google.com/macros/s/AKfycbyyGPcJl6crCR_dyJ5BwbCUuzf6aOTDnSi1Rnu18EjGmGFMH1STlNKX0GBD2ZmNUd3K/exec';
+const GOOGLE_SHEET_URL = 'https://script.google.com/macros/s/AKfycbwUU7CtC2OY-jHq3P5W5ytDm02WSuGQ8R8bSmYvsE20sYb7HZHBKJQIcG8n6Z_K6SlW/exec';
 
 // Admin Panel Component
 function AdminPanel({ user, games, setGames, isSyncing, setIsSyncing, recentlyUpdated, setRecentlyUpdated, submissions }) {
@@ -249,25 +249,25 @@ function LandingPage({ games, loading }) {
     if (stored) setSubmissions(JSON.parse(stored));
   }, []);
 
-const saveSubmission = async (submission) => {
-  const allSubmissions = [...submissions, submission];
-  setSubmissions(allSubmissions);
-  localStorage.setItem('marcs-parlays-submissions', JSON.stringify(allSubmissions));
+  const saveSubmission = async (submission) => {
+    const allSubmissions = [...submissions, submission];
+    setSubmissions(allSubmissions);
+    localStorage.setItem('marcs-parlays-submissions', JSON.stringify(allSubmissions));
 
-  try {
-    const response = await fetch(GOOGLE_SHEET_URL, {
-      method: 'POST',
-      headers: { 
-        'Content-Type': 'text/plain;charset=utf-8'
-      },
-      body: JSON.stringify(submission)
-    });
-    
-    console.log('Submission sent to Google Sheets');
-  } catch (error) {
-    console.error('Error sending to Google Sheets:', error);
-  }
-};
+    try {
+      const response = await fetch(GOOGLE_SHEET_URL, {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'text/plain;charset=utf-8'
+        },
+        body: JSON.stringify(submission)
+      });
+      
+      console.log('Submission sent to Google Sheets');
+    } catch (error) {
+      console.error('Error sending to Google Sheets:', error);
+    }
+  };
 
   const toggleSpread = (gameId, teamType) => {
     setSelectedPicks(prev => {
@@ -313,6 +313,25 @@ const saveSubmission = async (submission) => {
     }
     setTicketNumber(generateTicketNumber());
     setShowConfirmation(true);
+  };
+
+  const openVenmo = () => {
+    const betAmount = contactInfo.betAmount;
+    const note = encodeURIComponent("Marc's Parlays - " + ticketNumber);
+    
+    // Try mobile app first
+    const venmoAppUrl = `venmo://paycharge?txn=pay&recipients=${VENMO_USERNAME}&amount=${betAmount}&note=${note}`;
+    
+    // Fallback to web
+    const venmoWebUrl = `https://venmo.com/?txn=pay&audience=private&recipients=${VENMO_USERNAME}&amount=${betAmount}&note=${note}`;
+    
+    // Try to open the app
+    window.location.href = venmoAppUrl;
+    
+    // If app doesn't open, fallback to web after a delay
+    setTimeout(() => {
+      window.open(venmoWebUrl, '_blank');
+    }, 1000);
   };
 
   const handleCheckoutSubmit = () => {
@@ -377,9 +396,8 @@ const saveSubmission = async (submission) => {
     saveSubmission(submission);
     setHasSubmitted(true);
 
-    // Redirect to Venmo immediately
-    const venmoUrl = `venmo://paycharge?txn=pay&recipients=${VENMO_USERNAME}&amount=${betAmount}&note=${encodeURIComponent("Marc's Parlays - " + ticketNumber)}`;
-    window.location.href = venmoUrl;
+    // Open Venmo
+    openVenmo();
   };
 
   if (loading) {
@@ -411,15 +429,17 @@ const saveSubmission = async (submission) => {
               <div style={{fontSize: '12px', color: '#666', marginBottom: '8px'}}>TICKET NUMBER</div>
               <div style={{fontSize: '24px', fontWeight: 'bold', color: '#28a745'}}>{ticketNumber}</div>
             </div>
-            <p style={{marginBottom: '20px'}}>You've been redirected to Venmo to complete your payment.</p>
-            <p style={{marginBottom: '20px', color: '#666'}}>If Venmo didn't open, click the button below:</p>
-            <a
-              href={`venmo://paycharge?txn=pay&recipients=${VENMO_USERNAME}&amount=${contactInfo.betAmount}&note=${encodeURIComponent("Marc's Parlays - " + ticketNumber)}`}
+            <p style={{marginBottom: '20px'}}>Your ticket has been submitted successfully!</p>
+            <div style={{background: '#d1ecf1', border: '2px solid #0c5460', borderRadius: '8px', padding: '16px', marginBottom: '20px', fontSize: '14px', color: '#0c5460'}}>
+              <strong>Payment Required:</strong> Please send <strong>${contactInfo.betAmount}</strong> to <strong>{VENMO_USERNAME}</strong> on Venmo with note: <strong>"{ticketNumber}"</strong>
+            </div>
+            <button
               className="btn btn-primary"
-              style={{display: 'inline-block', padding: '16px 32px', fontSize: '18px', marginBottom: '20px', textDecoration: 'none'}}
+              onClick={openVenmo}
+              style={{width: '100%', padding: '16px 32px', fontSize: '18px', marginBottom: '20px'}}
             >
-              Open Venmo
-            </a>
+              Open Venmo to Pay
+            </button>
             <button 
               className="btn btn-secondary" 
               onClick={() => window.location.reload()}
@@ -664,7 +684,6 @@ const saveSubmission = async (submission) => {
             <li>Winners paid following Tuesday</li>
             <li>Cannot bet on games already completed</li>
             <li>You will receive confirmation via your chosen method (email or text)</li>
-            <li>Each time you participate, your membership is renewed</li>
           </ul>
           <div style={{background: '#fff3cd', border: '2px solid #ffc107', borderRadius: '8px', padding: '16px', marginTop: '20px', fontSize: '14px', color: '#856404'}}>
             <strong>Legal Disclaimer:</strong> For entertainment only. 21+ only. Private pool among friends. Check local laws. By participating, you acknowledge responsibility for compliance with all applicable laws and regulations.
