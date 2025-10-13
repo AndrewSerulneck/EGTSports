@@ -26,7 +26,7 @@ const auth = getAuth(app);
 
 const VENMO_USERNAME = '@EGTSports';
 const MAX_BET = 100;
-const GOOGLE_SHEET_URL = 'https://script.google.com/macros/s/AKfycbyYTpbkBBy_vs9XgvItWKl4RDCAVU0Q5TWS01mYAeXweRaVLMNo-lmEonrhnibVVFlF/exec';
+const GOOGLE_SHEET_URL = 'https://script.google.com/macros/s/AKfycbyyGPcJl6crCR_dyJ5BwbCUuzf6aOTDnSi1Rnu18EjGmGFMH1STlNKX0GBD2ZmNUd3K/exec';
 
 // Admin Panel Component
 function AdminPanel({ user, games, setGames, isSyncing, setIsSyncing, recentlyUpdated, setRecentlyUpdated, submissions }) {
