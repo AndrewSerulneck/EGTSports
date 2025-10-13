@@ -8,7 +8,6 @@ import {
   signOut,
   onAuthStateChanged,
 } from "firebase/auth";
-
 // Firebase Config
 const firebaseConfig = {
   apiKey: "AIzaSyA9FsWV7hA4ow2Xaq0Krx9kCCMfMibkVOQ",
@@ -19,94 +18,91 @@ const firebaseConfig = {
   messagingSenderId: "631281528889",
   appId: "1:631281528889:web:e3befe34907902387c1de8"
 };
-
 const app = initializeApp(firebaseConfig);
 const database = getDatabase(app);
 const auth = getAuth(app);
-
 const VENMO_USERNAME = '@EGTSports';
 const MAX_BET = 100;
 const GOOGLE_SHEET_URL = 'https://script.google.com/macros/s/AKfycbwUU7CtC2OY-jHq3P5W5ytDm02WSuGQ8R8bSmYvsE20sYb7HZHBKJQIcG8n6Z_K6SlW/exec';
-
 // Admin Panel Component
 function AdminPanel({ user, games, setGames, isSyncing, setIsSyncing, recentlyUpdated, setRecentlyUpdated, submissions }) {
   const [showSubmissions, setShowSubmissions] = useState(false);
-
   const saveSpreadToFirebase = async () => {
     try {
       setIsSyncing(true);
-    const spreadsData = {};
-    games.forEach(game => {
-      spreadsData[game.espnId] = {
-        awaySpread: game.awaySpread || '',
-        homeSpread: game.homeSpread || '',
-        total: game.total || '',
-        timestamp: new Date().toISOString()
-      };
-    });
+      const spreadsData = {};
+      games.forEach(game => {
+        spreadsData[game.espnId] = {
+          awaySpread: game.awaySpread || '',
+          homeSpread: game.homeSpread || '',
+          total: game.total || '',
+          timestamp: new Date().toISOString()
+        };
+      });
       await set(ref(database, 'spreads'), spreadsData);
-      alert('✅ Spreads saved! All devices will update in real-time.');
+      alert('✅ Spreads and Totals saved! All devices will update in real-time.');
       setIsSyncing(false);
     } catch (error) {
       alert('❌ Error saving spreads:\n' + error.message);
       setIsSyncing(false);
     }
   };
-
   const updateSpread = (gameId, team, value) => {
     setGames(prevGames =>
       prevGames.map(game =>
         game.id === gameId
           ? { ...game, [team === 'away' ? 'awaySpread' : 'homeSpread']: value }
           : game
+      )
+    );
+  };
   const updateTotal = (gameId, value) => {
     setGames(prevGames =>
       prevGames.map(game =>
         game.id === gameId
           ? { ...game, total: value }
           : game
-    )
-  );
-};
       )
     );
   };
-
   const calculateResult = (submission) => {
     let wins = 0;
     let losses = 0;
     let pending = 0;
-
     submission.picks.forEach(pick => {
       const game = games.find(g => g.espnId === pick.gameId);
       if (!game || !game.isFinal) {
         pending++;
         return;
       }
-
       const awayScore = parseInt(game.awayScore);
       const homeScore = parseInt(game.homeScore);
-      const spread = parseFloat(pick.spread);
       let won = false;
-
-      if (pick.pickedTeamType === 'away') {
-        const adjustedScore = awayScore + spread;
-        won = adjustedScore > homeScore;
-      } else {
-        const adjustedScore = homeScore + spread;
-        won = adjustedScore > awayScore;
+      if (pick.pickType === 'spread') {
+        const spread = parseFloat(pick.spread);
+        if (pick.pickedTeamType === 'away') {
+          const adjustedScore = awayScore + spread;
+          won = adjustedScore > homeScore;
+        } else {
+          const adjustedScore = homeScore + spread;
+          won = adjustedScore > awayScore;
+        }
+      } else if (pick.pickType === 'total') {
+        const totalScore = awayScore + homeScore;
+        const total = parseFloat(pick.total);
+        if (pick.pickedOverUnder === 'over') {
+          won = totalScore > total;
+        } else {
+          won = totalScore < total;
+        }
       }
-
       if (won) wins++;
       else losses++;
     });
-
     const allGamesComplete = pending === 0;
     const parlayWon = allGamesComplete && losses === 0 && wins === submission.picks.length;
-
     return { wins, losses, pending, allGamesComplete, parlayWon };
   };
-
   if (showSubmissions) {
     return (
       <div className="gradient-bg">
@@ -162,7 +158,6 @@ function AdminPanel({ user, games, setGames, isSyncing, setIsSyncing, recentlyUp
       </div>
     );
   }
-
   return (
     <div className="gradient-bg">
       <div className="container">
@@ -188,12 +183,16 @@ function AdminPanel({ user, games, setGames, isSyncing, setIsSyncing, recentlyUp
               )}
             </div>
             <div>
-              <label><strong>{game.awayTeam} (Away)</strong></label>
+              <label><strong>{game.awayTeam} (Away) Spread</strong></label>
               <input type="text" value={game.awaySpread} onChange={(e) => updateSpread(game.id, 'away', e.target.value)} placeholder="+3.5" />
             </div>
             <div>
-              <label><strong>{game.homeTeam} (Home)</strong></label>
+              <label><strong>{game.homeTeam} (Home) Spread</strong></label>
               <input type="text" value={game.homeSpread} onChange={(e) => updateSpread(game.id, 'home', e.target.value)} placeholder="-3.5" />
+            </div>
+            <div>
+              <label><strong>Total (Over/Under)</strong></label>
+              <input type="text" value={game.total} onChange={(e) => updateTotal(game.id, e.target.value)} placeholder="45.5" />
             </div>
           </div>
         ))}
@@ -206,27 +205,24 @@ function AdminPanel({ user, games, setGames, isSyncing, setIsSyncing, recentlyUp
     </div>
   );
 }
-
 // Landing Page Component (for visitors)
 function LandingPage({ games, loading }) {
   const [selectedPicks, setSelectedPicks] = useState({});
+  const [selectedTotals, setSelectedTotals] = useState({});
   const [showConfirmation, setShowConfirmation] = useState(false);
   const [ticketNumber, setTicketNumber] = useState('');
   const [showCheckout, setShowCheckout] = useState(false);
   const [contactInfo, setContactInfo] = useState({ name: '', email: '', phone: '', betAmount: '', confirmMethod: 'email', freePlay: 0 });
   const [showPayment, setShowPayment] = useState(false);
   const [submissions, setSubmissions] = useState([]);
-
   useEffect(() => {
     const stored = localStorage.getItem('marcs-parlays-submissions');
     if (stored) setSubmissions(JSON.parse(stored));
   }, []);
-
   const saveSubmission = async (submission) => {
     const allSubmissions = [...submissions, submission];
     setSubmissions(allSubmissions);
     localStorage.setItem('marcs-parlays-submissions', JSON.stringify(allSubmissions));
-
     try {
       await fetch(GOOGLE_SHEET_URL, {
         method: 'POST',
@@ -238,7 +234,6 @@ function LandingPage({ games, loading }) {
       console.error('Error sending to Google Sheets:', error);
     }
   };
-
   const toggleTeam = (gameId, teamType) => {
     setSelectedPicks(prev => {
       const newPicks = { ...prev };
@@ -250,15 +245,26 @@ function LandingPage({ games, loading }) {
       return newPicks;
     });
   };
-
+  const toggleTotal = (gameId, overUnder) => {
+    setSelectedTotals(prev => {
+      const newTotals = { ...prev };
+      if (newTotals[gameId] === overUnder) {
+        delete newTotals[gameId];
+      } else {
+        newTotals[gameId] = overUnder;
+      }
+      return newTotals;
+    });
+  };
   const generateTicketNumber = () => {
     const timestamp = Date.now().toString(36).toUpperCase();
     const random = Math.random().toString(36).substring(2, 8).toUpperCase();
     return `TKT-${timestamp}-${random}`;
   };
-
   const submitPicks = () => {
-    const pickCount = Object.keys(selectedPicks).length;
+    const spreadPickCount = Object.keys(selectedPicks).length;
+    const totalPickCount = Object.keys(selectedTotals).length;
+    const pickCount = spreadPickCount + totalPickCount;
     if (pickCount < 3) {
       alert('Please select at least 3 picks!');
       return;
@@ -266,10 +272,8 @@ function LandingPage({ games, loading }) {
     setTicketNumber(generateTicketNumber());
     setShowConfirmation(true);
   };
-
   const handleCheckoutSubmit = () => {
     const betAmount = parseFloat(contactInfo.betAmount);
-
     if (!contactInfo.name || !contactInfo.email || !contactInfo.phone) {
       alert('Please fill in all contact information');
       return;
@@ -282,7 +286,6 @@ function LandingPage({ games, loading }) {
       alert(`Maximum bet is $${MAX_BET}`);
       return;
     }
-
     const submission = {
       ticketNumber,
       timestamp: new Date().toISOString(),
@@ -294,22 +297,33 @@ function LandingPage({ games, loading }) {
       },
       betAmount: betAmount,
       freePlay: 0,
-      picks: Object.entries(selectedPicks).map(([gameId, teamType]) => {
-        const game = games.find(g => g.id == gameId);
-        return {
-          gameId: game.espnId,
-          team: teamType === 'away' ? game.awayTeam : game.homeTeam,
-          spread: teamType === 'away' ? game.awaySpread : game.homeSpread,
-          pickedTeamType: teamType
-        };
-      }),
+      picks: [
+        ...Object.entries(selectedPicks).map(([gameId, teamType]) => {
+          const game = games.find(g => g.id == gameId);
+          return {
+            gameId: game.espnId,
+            team: teamType === 'away' ? game.awayTeam : game.homeTeam,
+            spread: teamType === 'away' ? game.awaySpread : game.homeSpread,
+            pickedTeamType: teamType,
+            pickType: 'spread'
+          };
+        }),
+        ...Object.entries(selectedTotals).map(([gameId, overUnder]) => {
+          const game = games.find(g => g.id == gameId);
+          return {
+            gameId: game.espnId,
+            team: overUnder === 'over' ? 'OVER' : 'UNDER',
+            total: game.total,
+            pickedOverUnder: overUnder,
+            pickType: 'total'
+          };
+        })
+      ],
       paymentStatus: 'pending'
     };
-
     saveSubmission(submission);
     setShowPayment(true);
   };
-
   if (loading) {
     return (
       <div className="gradient-bg" style={{display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh'}}>
@@ -317,9 +331,8 @@ function LandingPage({ games, loading }) {
       </div>
     );
   }
-
   if (showCheckout) {
-    const pickCount = Object.keys(selectedPicks).length;
+    const pickCount = Object.keys(selectedPicks).length + Object.keys(selectedTotals).length;
     return (
       <div className="gradient-bg">
         <div className="container" style={{maxWidth: '600px'}}>
@@ -338,22 +351,29 @@ function LandingPage({ games, loading }) {
               const team = teamType === 'away' ? game.awayTeam : game.homeTeam;
               const spread = teamType === 'away' ? game.awaySpread : game.homeSpread;
               return (
-                <div key={gameId} style={{display: 'flex', justifyContent: 'space-between', padding: '12px', background: '#f8f9fa', borderRadius: '8px', marginBottom: '8px'}}>
+                <div key={`spread-${gameId}`} style={{display: 'flex', justifyContent: 'space-between', padding: '12px', background: '#f8f9fa', borderRadius: '8px', marginBottom: '8px'}}>
                   <strong>{team}</strong>
                   <span>{spread}</span>
+                </div>
+              );
+            })}
+            {Object.entries(selectedTotals).map(([gameId, overUnder]) => {
+              const game = games.find(g => g.id == gameId);
+              const label = overUnder === 'over' ? 'OVER' : 'UNDER';
+              return (
+                <div key={`total-${gameId}`} style={{display: 'flex', justifyContent: 'space-between', padding: '12px', background: '#e8f4f8', borderRadius: '8px', marginBottom: '8px'}}>
+                  <strong>{label} {game.awayTeam} @ {game.homeTeam}</strong>
+                  <span>{game.total}</span>
                 </div>
               );
             })}
             <h3 className="mb-2" style={{marginTop: '32px'}}>Contact Information</h3>
             <label>Full Name *</label>
             <input type="text" value={contactInfo.name} onChange={(e) => setContactInfo({...contactInfo, name: e.target.value})} />
-
             <label>Email *</label>
             <input type="email" value={contactInfo.email} onChange={(e) => setContactInfo({...contactInfo, email: e.target.value})} />
-
             <label>Phone *</label>
             <input type="tel" value={contactInfo.phone} onChange={(e) => setContactInfo({...contactInfo, phone: e.target.value})} placeholder="(555) 123-4567" />
-
             <label>Bet Amount * (Max ${MAX_BET})</label>
             <input 
               type="number" 
@@ -395,10 +415,10 @@ function LandingPage({ games, loading }) {
                 <h3 className="text-center mb-2">Payment</h3>
                 <div style={{background: '#f8f9fa', padding: '20px', borderRadius: '8px', textAlign: 'center', marginBottom: '20px'}}>
                   <p>Venmo <strong>${contactInfo.betAmount}</strong> to</p>
-                  <p style={{fontSize: '20px', fontWeight: 'bold', color: '#333', marginTop: '8px'}}>@{VENMO_USERNAME}</p>
+                  <p style={{fontSize: '20px', fontWeight: 'bold', color: '#333', marginTop: '8px'}}>{VENMO_USERNAME}</p>
                 </div>
                 <a
-                  href={`venmo://paycharge?txn=pay&recipients=${VENMO_USERNAME}&amount=${contactInfo.betAmount}&note=${encodeURIComponent("Marc's Parlays - " + ticketNumber)}`}
+                  href={`venmo://paycharge?txn=pay&recipients=${VENMO_USERNAME}&amount=${contactInfo.betAmount}&note=${encodeURIComponent("EGT Sports - " + ticketNumber)}`}
                   style={{display: 'block', padding: '16px', background: '#008CFF', color: 'white', textAlign: 'center', textDecoration: 'none', borderRadius: '8px', fontWeight: '600', fontSize: '18px'}}
                 >
                   Pay ${contactInfo.betAmount} with Venmo
@@ -413,14 +433,11 @@ function LandingPage({ games, loading }) {
       </div>
     );
   }
-
-  const pickCount = Object.keys(selectedPicks).length;
+  const pickCount = Object.keys(selectedPicks).length + Object.keys(selectedTotals).length;
   const canSubmit = pickCount >= 3;
-
   const handleAdminClick = () => {
     window.location.href = '?admin=true';
   };
-
   return (
     <div className="gradient-bg">
       <div className="container">
@@ -505,6 +522,26 @@ function LandingPage({ games, loading }) {
                 <span className="team-spread">{game.homeSpread || '--'}</span>
               </div>
             </div>
+            <div style={{display: 'flex', gap: '12px', margin: '12px 0', justifyContent: 'center', flexWrap: 'wrap'}}>
+              <div
+                className={`team-row ou-option ${selectedTotals[game.id] === 'over' ? 'selected' : ''} ${game.isFinal ? 'disabled' : ''}`}
+                onClick={() => !game.isFinal && toggleTotal(game.id, 'over')}
+              >
+                <div className="team-info">
+                  <span className="team-name">OVER</span>
+                </div>
+                <span className="team-spread">{game.total || '--'}</span>
+              </div>
+              <div
+                className={`team-row ou-option ${selectedTotals[game.id] === 'under' ? 'selected' : ''} ${game.isFinal ? 'disabled' : ''}`}
+                onClick={() => !game.isFinal && toggleTotal(game.id, 'under')}
+              >
+                <div className="team-info">
+                  <span className="team-name">UNDER</span>
+                </div>
+                <span className="team-spread">{game.total || '--'}</span>
+              </div>
+            </div>
           </div>
         ))}
         <div className="text-center mb-4">
@@ -524,10 +561,10 @@ function LandingPage({ games, loading }) {
         <div className="card">
           <h3 className="mb-2">Important Rules</h3>
           <ul style={{marginLeft: '20px', lineHeight: '1.8'}}>
-            <li><strong>Minimum 3 picks required</strong></li>
+            <li><strong>Minimum 3 picks required</strong> (spreads and totals combined)</li>
             <li><strong>Maximum bet: ${MAX_BET}</strong></li>
             <li>Missing info = voided ticket</li>
-            <li>Must pay in advance via Venmo to <strong>@{VENMO_USERNAME}</strong></li>
+            <li>Must pay in advance via Venmo to <strong>{VENMO_USERNAME}</strong></li>
             <li>Winners paid following Tuesday</li>
             <li>Cannot bet on games already completed</li>
             <li>You will receive confirmation via your chosen method (email or text)</li>
@@ -536,263 +573,3 @@ function LandingPage({ games, loading }) {
             <strong>Legal Disclaimer:</strong> For entertainment only. 21+ only. Private pool among friends. Check local laws. By participating, you acknowledge responsibility for compliance with all applicable laws and regulations.
           </div>
         </div>
-      </div>
-      <div className={`modal ${showConfirmation ? 'active' : ''}`}>
-        <div className="modal-content">
-          <h2 className="text-center" style={{fontSize: '32px', color: '#28a745', marginBottom: '20px'}}>Picks Submitted!</h2>
-          <div style={{background: '#f8f9fa', padding: '20px', borderRadius: '8px', textAlign: 'center', marginBottom: '24px'}}>
-            <div style={{fontSize: '24px', fontWeight: 'bold'}}>{ticketNumber}</div>
-          </div>
-          <p className="text-center mb-4">Save this ticket number!</p>
-          <button
-            className="btn btn-primary"
-            onClick={() => { setShowConfirmation(false); setShowCheckout(true); }}
-            style={{width: '100%', fontSize: '18px'}}
-          >
-            Continue to Checkout
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// Main App Component
-function App() {
-  const [authState, setAuthState] = useState({
-    loading: true,
-    user: null,
-    isAdmin: false,
-    error: "",
-  });
-  const [loginForm, setLoginForm] = useState({
-    email: "",
-    password: "",
-  });
-  const [games, setGames] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [isSyncing, setIsSyncing] = useState(false);
-  const [recentlyUpdated, setRecentlyUpdated] = useState({});
-  const [submissions, setSubmissions] = useState([]);
-
-  useEffect(() => {
-    loadGames();
-    setTimeout(() => {
-      setupFirebaseListener();
-    }, 500);
-    const interval = setInterval(loadGames, 300000);
-    return () => {
-      clearInterval(interval);
-    };
-  }, []);
-
-  const setupFirebaseListener = () => {
-    try {
-      const spreadsRef = ref(database, 'spreads');
-      onValue(spreadsRef, (snapshot) => {
-        if (snapshot.exists()) {
-          const firebaseData = snapshot.val();
-          setGames(prevGames => {
-            let updated = false;
-            const newGames = prevGames.map(game => {
-              const espnId = game.espnId;
-              if (firebaseData[espnId]) {
-                const fbGame = firebaseData[espnId];
-                const awaySpreadChanged = game.awaySpread !== fbGame.awaySpread;
-                const homeSpreadChanged = game.homeSpread !== fbGame.homeSpread;
-                const totalChanged = game.total !== fbGame.total;
-                const changed = awaySpreadChanged || homeSpreadChanged || totalChanged;
-                if (changed) {
-                  updated = true;
-                  setRecentlyUpdated(prev => ({
-                    ...prev,
-                    [game.id]: true
-                  }));
-                  setTimeout(() => {
-                    setRecentlyUpdated(prev => ({
-                      ...prev,
-                      [game.id]: false
-                    }));
-                  }, 600);
-                }
-               return {
-                  ...game,
-                  awaySpread: fbGame.awaySpread || '',
-                  homeSpread: fbGame.homeSpread || '',
-                  total: fbGame.total || ''
-                };
-              }
-              return game;
-            });
-            if (updated) {
-              setIsSyncing(false);
-            }
-            return newGames;
-          });
-        }
-      });
-    } catch (error) {
-      // ignore
-    }
-  };
-
-  const loadGames = async () => {
-    setLoading(true);
-    try {
-      const response = await fetch('https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard');
-      const data = await response.json();
-      const formattedGames = data.events.map((event, index) => {
-        const competition = event.competitions[0];
-        const awayTeam = competition.competitors[1];
-        const homeTeam = competition.competitors[0];
-        const status = event.status.type.state;
-      return {
-        id: index + 1,
-        espnId: event.id,
-        date: new Date(event.date).toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' }),
-        time: new Date(event.date).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }) + ' ET',
-        awayTeam: awayTeam.team.displayName,
-        homeTeam: homeTeam.team.displayName,
-        awayTeamId: awayTeam.id,
-        homeTeamId: homeTeam.id,
-        awayScore: awayTeam.score || '0',
-        homeScore: homeTeam.score || '0',
-        awaySpread: '',
-        homeSpread: '',
-        total: '',
-        status: status,
-        statusDetail: event.status.type.detail,
-        isFinal: status === 'post'
-};
-      });
-      setGames(formattedGames);
-    } catch (error) {
-      // ignore
-    }
-    setLoading(false);
-  };
-
-  useEffect(() => {
-    const stored = localStorage.getItem('marcs-parlays-submissions');
-    if (stored) setSubmissions(JSON.parse(stored));
-  }, []);
-
-  useEffect(() => {
-    const unsub = onAuthStateChanged(auth, async (user) => {
-      if (user) {
-        const tokenResult = await user.getIdTokenResult(true);
-        setAuthState({
-          loading: false,
-          user,
-          isAdmin: tokenResult.claims.admin === true,
-          error: "",
-        });
-      } else {
-        setAuthState({
-          loading: false,
-          user: null,
-          isAdmin: false,
-          error: "",
-        });
-      }
-    });
-    return unsub;
-  }, []);
-
-  const handleLogin = async (e) => {
-    e.preventDefault();
-    setAuthState((a) => ({ ...a, loading: true, error: "" }));
-    try {
-      await signInWithEmailAndPassword(
-        auth,
-        loginForm.email,
-        loginForm.password
-      );
-    } catch (err) {
-      setAuthState((a) => ({
-        ...a,
-        loading: false,
-        error: "Login failed: " + err.message,
-      }));
-    }
-  };
-
-  // Render UI
-  if (authState.loading || loading) return (
-    <div className="gradient-bg" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh' }}>
-      <div className="text-white" style={{ fontSize: '24px' }}>Loading games from ESPN...</div>
-    </div>
-  );
-
-  if (authState.user && authState.isAdmin)
-    return <AdminPanel user={authState.user} games={games} setGames={setGames} isSyncing={isSyncing} setIsSyncing={setIsSyncing} recentlyUpdated={recentlyUpdated} setRecentlyUpdated={setRecentlyUpdated} submissions={submissions} />;
-
-  if (authState.user && !authState.isAdmin)
-    return (
-      <div className="gradient-bg" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh' }}>
-        <div className="card" style={{ maxWidth: '400px', width: '100%', margin: '0 auto', padding: 40 }}>
-          <h2 className="text-center mb-4">Not Authorized</h2>
-          <p style={{ textAlign: 'center', marginBottom: '20px' }}>You do not have admin access.</p>
-          <button className="btn btn-secondary" onClick={() => signOut(auth)} style={{ width: '100%' }}>Sign Out</button>
-        </div>
-      </div>
-    );
-
-  // Show landing page OR admin login
-  const showingLandingPage = true; // Default to landing page for visitors
-
-  if (showingLandingPage) {
-    // Check if they clicked admin login button
-    const urlParams = new URLSearchParams(window.location.search);
-    const showAdminLogin = urlParams.get('admin') === 'true';
-
-    if (showAdminLogin || authState.user) {
-      return (
-        <div className="gradient-bg" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh' }}>
-          <div className="card" style={{ maxWidth: '400px', width: '100%', margin: '0 auto', padding: 40 }}>
-            <h2 className="text-center mb-4">Admin Login</h2>
-            <form onSubmit={handleLogin} style={{ maxWidth: 300 }}>
-              <input
-                type="email"
-                placeholder="Admin Email"
-                required
-                value={loginForm.email}
-                onChange={(e) =>
-                  setLoginForm((f) => ({ ...f, email: e.target.value }))
-                }
-              />
-              <input
-                type="password"
-                placeholder="Password"
-                required
-                value={loginForm.password}
-                onChange={(e) =>
-                  setLoginForm((f) => ({ ...f, password: e.target.value }))
-                }
-              />
-              <button className="btn btn-primary" type="submit" style={{ width: '100%', marginBottom: '12px' }}>Login</button>
-              <button 
-                className="btn btn-secondary" 
-                type="button" 
-                onClick={() => window.history.back()} 
-                style={{ width: '100%' }}
-              >
-                Back
-              </button>
-              {authState.error && (
-                <div style={{ color: "red", marginTop: 10, textAlign: 'center' }}>{authState.error}</div>
-              )}
-            </form>
-          </div>
-        </div>
-      );
-    }
-
-    // Show landing page with admin login button
-    return (
-      <LandingPage games={games} loading={loading} />
-    );
-  }
-}
-
-export default App;
