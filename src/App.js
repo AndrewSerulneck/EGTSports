@@ -53,24 +53,25 @@ function AdminPanel({ user, games, setGames, isSyncing, setIsSyncing, recentlyUp
     }
   };
 
-  const updateSpread = (gameId, team, value) => {
-    setGames(prevGames =>
-      prevGames.map(game =>
-        game.id === gameId
-          ? { ...game, [team === 'away' ? 'awaySpread' : 'homeSpread']: value }
-          : game
-  const updateTotal = (gameId, value) => {
-    setGames(prevGames =>
-      prevGames.map(game =>
-        game.id === gameId
-          ? { ...game, total: value }
-          : game
+const updateSpread = (gameId, team, value) => {
+  setGames(prevGames =>
+    prevGames.map(game =>
+      game.id === gameId
+        ? { ...game, [team === 'away' ? 'awaySpread' : 'homeSpread']: value }
+        : game
     )
   );
 };
-      )
-    );
-  };
+
+const updateTotal = (gameId, value) => {
+  setGames(prevGames =>
+    prevGames.map(game =>
+      game.id === gameId
+        ? { ...game, total: value }
+        : game
+    )
+  );
+};
 
   const calculateResult = (submission) => {
     let wins = 0;
