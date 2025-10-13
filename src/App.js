@@ -196,6 +196,15 @@ function AdminPanel({ user, games, setGames, isSyncing, setIsSyncing, recentlyUp
               <label><strong>{game.homeTeam} (Home)</strong></label>
               <input type="text" value={game.homeSpread} onChange={(e) => updateSpread(game.id, 'home', e.target.value)} placeholder="-3.5" />
             </div>
+            <div>
+              <label><strong>Total</strong></label>
+              <input
+                type="text"
+                value={game.total}
+                onChange={(e) => updateTotal(game.id, e.target.value)}
+                placeholder="42.5"
+              />
+            </div>
           </div>
         ))}
         <div className="card">
@@ -516,6 +525,12 @@ function LandingPage({ games, loading }) {
                 <span className="team-spread">{game.homeSpread || '--'}</span>
               </div>
             </div>
+            {/* Show total if available */}
+            {game.total && (
+              <div style={{textAlign: 'center', color: '#333', margin: '8px 0', fontSize: '16px'}}>
+                <span><strong>Total:</strong> {game.total}</span>
+              </div>
+            )}
           </div>
         ))}
         <div className="text-center mb-4">
