@@ -417,8 +417,8 @@ function LandingPage({ games, loading }) {
         <div className="text-center text-white mb-4">
           <div style={{display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '20px', marginBottom: '16px', flexWrap: 'wrap'}}>
             <div>
-              <h1 style={{fontSize: '42px'}}>Marc's Parlays</h1>
-              <p style={{fontSize: '22px'}}>NFL Betting Pool</p>
+              <h1 style={{fontSize: '42px'}}>Welcome to EGT Sports NFL Parlay Pool!</h1>
+              <p style={{fontSize: '22px'}}>Make your selections below to get started.</p>
             </div>
             <button className="btn btn-secondary" onClick={handleAdminClick} style={{height: 'fit-content'}}>
               Admin Login
