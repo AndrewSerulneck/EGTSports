@@ -96,8 +96,11 @@ function AdminPanel({ user, games, setGames, isSyncing, setIsSyncing, recentlyUp
           won = totalScore < total;
         }
       }
-      if (won) wins++;
-      else losses++;
+      if (won) {
+        wins++;
+      } else {
+        losses++;
+      }
     });
     const allGamesComplete = pending === 0;
     const parlayWon = allGamesComplete && losses === 0 && wins === submission.picks.length;
