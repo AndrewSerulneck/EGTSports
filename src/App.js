@@ -604,10 +604,11 @@ function App() {
                     }));
                   }, 600);
                 }
-                return {
+               return {
                   ...game,
                   awaySpread: fbGame.awaySpread || '',
-                  homeSpread: fbGame.homeSpread || ''
+                  homeSpread: fbGame.homeSpread || '',
+                  total: fbGame.total || ''
                 };
               }
               return game;
