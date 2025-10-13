@@ -684,6 +684,7 @@ function LandingPage({ games, loading }) {
             <li>Winners paid following Tuesday</li>
             <li>Cannot bet on games already completed</li>
             <li>You will receive confirmation via your chosen method (email or text)</li>
+            <li>Each time you participate, your club membership is renewed</li>
           </ul>
           <div style={{background: '#fff3cd', border: '2px solid #ffc107', borderRadius: '8px', padding: '16px', marginTop: '20px', fontSize: '14px', color: '#856404'}}>
             <strong>Legal Disclaimer:</strong> For entertainment only. 21+ only. Private pool among friends. Check local laws. By participating, you acknowledge responsibility for compliance with all applicable laws and regulations.
