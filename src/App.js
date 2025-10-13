@@ -241,8 +241,8 @@ function LandingPage({ games, loading }) {
   const [ticketNumber, setTicketNumber] = useState('');
   const [showCheckout, setShowCheckout] = useState(false);
   const [contactInfo, setContactInfo] = useState({ name: '', email: '', phone: '', betAmount: '', confirmMethod: 'email', freePlay: 0 });
-  const [showPayment, setShowPayment] = useState(false);
   const [submissions, setSubmissions] = useState([]);
+  const [hasSubmitted, setHasSubmitted] = useState(false);
 
   useEffect(() => {
     const stored = localStorage.getItem('marcs-parlays-submissions');
@@ -331,11 +331,14 @@ function LandingPage({ games, loading }) {
     const picksFormatted = [];
     Object.entries(selectedPicks).forEach(([gameId, pickObj]) => {
       const game = games.find(g => g.id == gameId);
+      const gameName = `${game.awayTeam} @ ${game.homeTeam}`;
+      
       if (pickObj.spread) {
         const team = pickObj.spread === 'away' ? game.awayTeam : game.homeTeam;
         const spread = pickObj.spread === 'away' ? game.awaySpread : game.homeSpread;
         picksFormatted.push({
           gameId: game.espnId,
+          gameName: gameName,
           pickType: 'spread',
           team,
           spread,
@@ -345,6 +348,7 @@ function LandingPage({ games, loading }) {
       if (pickObj.total) {
         picksFormatted.push({
           gameId: game.espnId,
+          gameName: gameName,
           pickType: 'total',
           overUnder: pickObj.total,
           total: game.total
@@ -368,7 +372,11 @@ function LandingPage({ games, loading }) {
     };
 
     saveSubmission(submission);
-    setShowPayment(true);
+    setHasSubmitted(true);
+
+    // Redirect to Venmo immediately
+    const venmoUrl = `venmo://paycharge?txn=pay&recipients=${VENMO_USERNAME}&amount=${betAmount}&note=${encodeURIComponent("Marc's Parlays - " + ticketNumber)}`;
+    window.location.href = venmoUrl;
   };
 
   if (loading) {
@@ -389,6 +397,38 @@ function LandingPage({ games, loading }) {
   const handleAdminClick = () => {
     window.location.href = '?admin=true';
   };
+
+  if (hasSubmitted) {
+    return (
+      <div className="gradient-bg">
+        <div className="container" style={{maxWidth: '600px'}}>
+          <div className="card text-center">
+            <h2 style={{color: '#28a745', marginBottom: '20px'}}>✅ Ticket Submitted!</h2>
+            <div style={{background: '#f8f9fa', padding: '20px', borderRadius: '8px', marginBottom: '24px'}}>
+              <div style={{fontSize: '12px', color: '#666', marginBottom: '8px'}}>TICKET NUMBER</div>
+              <div style={{fontSize: '24px', fontWeight: 'bold', color: '#28a745'}}>{ticketNumber}</div>
+            </div>
+            <p style={{marginBottom: '20px'}}>You've been redirected to Venmo to complete your payment.</p>
+            <p style={{marginBottom: '20px', color: '#666'}}>If Venmo didn't open, click the button below:</p>
+            <a
+              href={`venmo://paycharge?txn=pay&recipients=${VENMO_USERNAME}&amount=${contactInfo.betAmount}&note=${encodeURIComponent("Marc's Parlays - " + ticketNumber)}`}
+              className="btn btn-primary"
+              style={{display: 'inline-block', padding: '16px 32px', fontSize: '18px', marginBottom: '20px', textDecoration: 'none'}}
+            >
+              Open Venmo
+            </a>
+            <button 
+              className="btn btn-secondary" 
+              onClick={() => window.location.reload()}
+              style={{width: '100%', fontSize: '18px'}}
+            >
+              Submit Another Ticket
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (showCheckout) {
     return (
@@ -416,8 +456,8 @@ function LandingPage({ games, loading }) {
                   )}
                   {pickObj.total && (
                     <div style={{display: 'flex', justifyContent: 'space-between', padding: '12px', background: '#f8f9fa', borderRadius: '8px', marginBottom: '4px'}}>
-                      <strong>[TOTAL] {pickObj.total === 'over' ? 'Over' : 'Under'}</strong>
-                      <span>{game.total}</span>
+                      <strong>[TOTAL] {pickObj.total === 'over' ? 'Over' : 'Under'} {game.total}</strong>
+                      <span>{game.awayTeam} @ {game.homeTeam}</span>
                     </div>
                   )}
                 </div>
@@ -469,24 +509,6 @@ function LandingPage({ games, loading }) {
             <button className="btn btn-success" onClick={handleCheckoutSubmit} style={{width: '100%', fontSize: '18px', marginTop: '16px'}}>
               Continue to Payment
             </button>
-            {showPayment && (
-              <div style={{marginTop: '32px', paddingTop: '32px', borderTop: '2px solid #e0e0e0'}}>
-                <h3 className="text-center mb-2">Payment</h3>
-                <div style={{background: '#f8f9fa', padding: '20px', borderRadius: '8px', textAlign: 'center', marginBottom: '20px'}}>
-                  <p>Venmo <strong>${contactInfo.betAmount}</strong> to</p>
-                  <p style={{fontSize: '20px', fontWeight: 'bold', color: '#333', marginTop: '8px'}}>@{VENMO_USERNAME}</p>
-                </div>
-                <a
-                  href={`venmo://paycharge?txn=pay&recipients=${VENMO_USERNAME}&amount=${contactInfo.betAmount}&note=${encodeURIComponent("Marc's Parlays - " + ticketNumber)}`}
-                  style={{display: 'block', padding: '16px', background: '#008CFF', color: 'white', textAlign: 'center', textDecoration: 'none', borderRadius: '8px', fontWeight: '600', fontSize: '18px'}}
-                >
-                  Pay ${contactInfo.betAmount} with Venmo
-                </a>
-                <div style={{marginTop: '16px', padding: '16px', background: '#d1ecf1', border: '2px solid #0c5460', borderRadius: '8px', fontSize: '14px', color: '#0c5460'}}>
-                  <strong>Confirmation:</strong> You will receive a {contactInfo.confirmMethod === 'email' ? 'email' : 'text message'} confirmation shortly.
-                </div>
-              </div>
-            )}
           </div>
         </div>
       </div>
