@@ -1,5 +1,5 @@
 import './App.css';
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect } from "react";
 import { initializeApp } from "firebase/app";
 import { getDatabase, ref, set, onValue } from "firebase/database";
 import {
@@ -35,15 +35,15 @@ function AdminPanel({ user, games, setGames, isSyncing, setIsSyncing, recentlyUp
   const saveSpreadToFirebase = async () => {
     try {
       setIsSyncing(true);
-    const spreadsData = {};
-    games.forEach(game => {
-      spreadsData[game.espnId] = {
-        awaySpread: game.awaySpread || '',
-        homeSpread: game.homeSpread || '',
-        total: game.total || '',
-        timestamp: new Date().toISOString()
-      };
-    });
+      const spreadsData = {};
+      games.forEach(game => {
+        spreadsData[game.espnId] = {
+          awaySpread: game.awaySpread || '',
+          homeSpread: game.homeSpread || '',
+          total: game.total || '',
+          timestamp: new Date().toISOString()
+        };
+      });
       await set(ref(database, 'spreads'), spreadsData);
       alert('✅ Spreads saved! All devices will update in real-time.');
       setIsSyncing(false);
@@ -59,15 +59,16 @@ function AdminPanel({ user, games, setGames, isSyncing, setIsSyncing, recentlyUp
         game.id === gameId
           ? { ...game, [team === 'away' ? 'awaySpread' : 'homeSpread']: value }
           : game
+      )
+    );
+  };
+
   const updateTotal = (gameId, value) => {
     setGames(prevGames =>
       prevGames.map(game =>
         game.id === gameId
           ? { ...game, total: value }
           : game
-    )
-  );
-};
       )
     );
   };
@@ -84,21 +85,38 @@ function AdminPanel({ user, games, setGames, isSyncing, setIsSyncing, recentlyUp
         return;
       }
 
-      const awayScore = parseInt(game.awayScore);
-      const homeScore = parseInt(game.homeScore);
-      const spread = parseFloat(pick.spread);
-      let won = false;
+      if (pick.pickType === 'spread') {
+        const awayScore = parseInt(game.awayScore);
+        const homeScore = parseInt(game.homeScore);
+        const spread = parseFloat(pick.spread);
+        let won = false;
 
-      if (pick.pickedTeamType === 'away') {
-        const adjustedScore = awayScore + spread;
-        won = adjustedScore > homeScore;
-      } else {
-        const adjustedScore = homeScore + spread;
-        won = adjustedScore > awayScore;
+        if (pick.pickedTeamType === 'away') {
+          const adjustedScore = awayScore + spread;
+          won = adjustedScore > homeScore;
+        } else {
+          const adjustedScore = homeScore + spread;
+          won = adjustedScore > awayScore;
+        }
+
+        if (won) wins++;
+        else losses++;
+      } else if (pick.pickType === 'total') {
+        const awayScore = parseInt(game.awayScore);
+        const homeScore = parseInt(game.homeScore);
+        const totalScore = awayScore + homeScore;
+        const total = parseFloat(pick.total);
+        let won = false;
+
+        if (pick.overUnder === 'over') {
+          won = totalScore > total;
+        } else {
+          won = totalScore < total;
+        }
+
+        if (won) wins++;
+        else losses++;
       }
-
-      if (won) wins++;
-      else losses++;
     });
 
     const allGamesComplete = pending === 0;
@@ -195,6 +213,15 @@ function AdminPanel({ user, games, setGames, isSyncing, setIsSyncing, recentlyUp
               <label><strong>{game.homeTeam} (Home)</strong></label>
               <input type="text" value={game.homeSpread} onChange={(e) => updateSpread(game.id, 'home', e.target.value)} placeholder="-3.5" />
             </div>
+            <div>
+              <label><strong>Total (O/U)</strong></label>
+              <input
+                type="text"
+                value={game.total}
+                onChange={(e) => updateTotal(game.id, e.target.value)}
+                placeholder="42.5"
+              />
+            </div>
           </div>
         ))}
         <div className="card">
@@ -214,8 +241,8 @@ function LandingPage({ games, loading }) {
   const [ticketNumber, setTicketNumber] = useState('');
   const [showCheckout, setShowCheckout] = useState(false);
   const [contactInfo, setContactInfo] = useState({ name: '', email: '', phone: '', betAmount: '', confirmMethod: 'email', freePlay: 0 });
-  const [showPayment, setShowPayment] = useState(false);
   const [submissions, setSubmissions] = useState([]);
+  const [hasSubmitted, setHasSubmitted] = useState(false);
 
   useEffect(() => {
     const stored = localStorage.getItem('marcs-parlays-submissions');
@@ -228,26 +255,43 @@ function LandingPage({ games, loading }) {
     localStorage.setItem('marcs-parlays-submissions', JSON.stringify(allSubmissions));
 
     try {
-      await fetch(GOOGLE_SHEET_URL, {
+      const response = await fetch(GOOGLE_SHEET_URL, {
         method: 'POST',
-        mode: 'no-cors',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'text/plain;charset=utf-8'
+        },
         body: JSON.stringify(submission)
       });
+      
+      console.log('Submission sent to Google Sheets');
     } catch (error) {
       console.error('Error sending to Google Sheets:', error);
     }
   };
 
-  const toggleTeam = (gameId, teamType) => {
+  const toggleSpread = (gameId, teamType) => {
     setSelectedPicks(prev => {
-      const newPicks = { ...prev };
-      if (newPicks[gameId] === teamType) {
-        delete newPicks[gameId];
-      } else {
-        newPicks[gameId] = teamType;
-      }
-      return newPicks;
+      const prevPick = prev[gameId] || {};
+      return {
+        ...prev,
+        [gameId]: {
+          ...prevPick,
+          spread: prevPick.spread === teamType ? undefined : teamType
+        }
+      };
+    });
+  };
+
+  const toggleTotal = (gameId, overUnder) => {
+    setSelectedPicks(prev => {
+      const prevPick = prev[gameId] || {};
+      return {
+        ...prev,
+        [gameId]: {
+          ...prevPick,
+          total: prevPick.total === overUnder ? undefined : overUnder
+        }
+      };
     });
   };
 
@@ -258,13 +302,36 @@ function LandingPage({ games, loading }) {
   };
 
   const submitPicks = () => {
-    const pickCount = Object.keys(selectedPicks).length;
+    let pickCount = 0;
+    Object.values(selectedPicks).forEach(obj => {
+      if (obj.spread) pickCount++;
+      if (obj.total) pickCount++;
+    });
     if (pickCount < 3) {
       alert('Please select at least 3 picks!');
       return;
     }
     setTicketNumber(generateTicketNumber());
     setShowConfirmation(true);
+  };
+
+  const openVenmo = () => {
+    const betAmount = contactInfo.betAmount;
+    const note = encodeURIComponent("Marc's Parlays - " + ticketNumber);
+    
+    // Try mobile app first
+    const venmoAppUrl = `venmo://paycharge?txn=pay&recipients=${VENMO_USERNAME}&amount=${betAmount}&note=${note}`;
+    
+    // Fallback to web
+    const venmoWebUrl = `https://venmo.com/?txn=pay&audience=private&recipients=${VENMO_USERNAME}&amount=${betAmount}&note=${note}`;
+    
+    // Try to open the app
+    window.location.href = venmoAppUrl;
+    
+    // If app doesn't open, fallback to web after a delay
+    setTimeout(() => {
+      window.open(venmoWebUrl, '_blank');
+    }, 1000);
   };
 
   const handleCheckoutSubmit = () => {
@@ -283,6 +350,34 @@ function LandingPage({ games, loading }) {
       return;
     }
 
+    const picksFormatted = [];
+    Object.entries(selectedPicks).forEach(([gameId, pickObj]) => {
+      const game = games.find(g => g.id == gameId);
+      const gameName = `${game.awayTeam} @ ${game.homeTeam}`;
+      
+      if (pickObj.spread) {
+        const team = pickObj.spread === 'away' ? game.awayTeam : game.homeTeam;
+        const spread = pickObj.spread === 'away' ? game.awaySpread : game.homeSpread;
+        picksFormatted.push({
+          gameId: game.espnId,
+          gameName: gameName,
+          pickType: 'spread',
+          team,
+          spread,
+          pickedTeamType: pickObj.spread
+        });
+      }
+      if (pickObj.total) {
+        picksFormatted.push({
+          gameId: game.espnId,
+          gameName: gameName,
+          pickType: 'total',
+          overUnder: pickObj.total,
+          total: game.total
+        });
+      }
+    });
+
     const submission = {
       ticketNumber,
       timestamp: new Date().toISOString(),
@@ -294,20 +389,15 @@ function LandingPage({ games, loading }) {
       },
       betAmount: betAmount,
       freePlay: 0,
-      picks: Object.entries(selectedPicks).map(([gameId, teamType]) => {
-        const game = games.find(g => g.id == gameId);
-        return {
-          gameId: game.espnId,
-          team: teamType === 'away' ? game.awayTeam : game.homeTeam,
-          spread: teamType === 'away' ? game.awaySpread : game.homeSpread,
-          pickedTeamType: teamType
-        };
-      }),
+      picks: picksFormatted,
       paymentStatus: 'pending'
     };
 
     saveSubmission(submission);
-    setShowPayment(true);
+    setHasSubmitted(true);
+
+    // Open Venmo
+    openVenmo();
   };
 
   if (loading) {
@@ -318,8 +408,52 @@ function LandingPage({ games, loading }) {
     );
   }
 
+  let pickCount = 0;
+  Object.values(selectedPicks).forEach(obj => {
+    if (obj.spread) pickCount++;
+    if (obj.total) pickCount++;
+  });
+  const canSubmit = pickCount >= 3;
+
+  const handleAdminClick = () => {
+    window.location.href = '?admin=true';
+  };
+
+  if (hasSubmitted) {
+    return (
+      <div className="gradient-bg">
+        <div className="container" style={{maxWidth: '600px'}}>
+          <div className="card text-center">
+            <h2 style={{color: '#28a745', marginBottom: '20px'}}>✅ Ticket Submitted!</h2>
+            <div style={{background: '#f8f9fa', padding: '20px', borderRadius: '8px', marginBottom: '24px'}}>
+              <div style={{fontSize: '12px', color: '#666', marginBottom: '8px'}}>TICKET NUMBER</div>
+              <div style={{fontSize: '24px', fontWeight: 'bold', color: '#28a745'}}>{ticketNumber}</div>
+            </div>
+            <p style={{marginBottom: '20px'}}>Your ticket has been submitted successfully!</p>
+            <div style={{background: '#d1ecf1', border: '2px solid #0c5460', borderRadius: '8px', padding: '16px', marginBottom: '20px', fontSize: '14px', color: '#0c5460'}}>
+              <strong>Payment Required:</strong> Please send <strong>${contactInfo.betAmount}</strong> to <strong>{VENMO_USERNAME}</strong> on Venmo with note: <strong>"{ticketNumber}"</strong>
+            </div>
+            <button
+              className="btn btn-primary"
+              onClick={openVenmo}
+              style={{width: '100%', padding: '16px 32px', fontSize: '18px', marginBottom: '20px'}}
+            >
+              Open Venmo to Pay
+            </button>
+            <button 
+              className="btn btn-secondary" 
+              onClick={() => window.location.reload()}
+              style={{width: '100%', fontSize: '18px'}}
+            >
+              Submit Another Ticket
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   if (showCheckout) {
-    const pickCount = Object.keys(selectedPicks).length;
     return (
       <div className="gradient-bg">
         <div className="container" style={{maxWidth: '600px'}}>
@@ -333,14 +467,22 @@ function LandingPage({ games, loading }) {
               <div style={{fontSize: '24px', fontWeight: 'bold', color: '#28a745'}}>{ticketNumber}</div>
             </div>
             <h3 className="mb-2">Your Picks ({pickCount})</h3>
-            {Object.entries(selectedPicks).map(([gameId, teamType]) => {
+            {Object.entries(selectedPicks).map(([gameId, pickObj]) => {
               const game = games.find(g => g.id == gameId);
-              const team = teamType === 'away' ? game.awayTeam : game.homeTeam;
-              const spread = teamType === 'away' ? game.awaySpread : game.homeSpread;
               return (
-                <div key={gameId} style={{display: 'flex', justifyContent: 'space-between', padding: '12px', background: '#f8f9fa', borderRadius: '8px', marginBottom: '8px'}}>
-                  <strong>{team}</strong>
-                  <span>{spread}</span>
+                <div key={gameId}>
+                  {pickObj.spread && (
+                    <div style={{display: 'flex', justifyContent: 'space-between', padding: '12px', background: '#f8f9fa', borderRadius: '8px', marginBottom: '4px'}}>
+                      <strong>[SPREAD] {pickObj.spread === 'away' ? game.awayTeam : game.homeTeam}</strong>
+                      <span>{pickObj.spread === 'away' ? game.awaySpread : game.homeSpread}</span>
+                    </div>
+                  )}
+                  {pickObj.total && (
+                    <div style={{display: 'flex', justifyContent: 'space-between', padding: '12px', background: '#f8f9fa', borderRadius: '8px', marginBottom: '4px'}}>
+                      <strong>[TOTAL] {pickObj.total === 'over' ? 'Over' : 'Under'} {game.total}</strong>
+                      <span>{game.awayTeam} @ {game.homeTeam}</span>
+                    </div>
+                  )}
                 </div>
               );
             })}
@@ -390,36 +532,11 @@ function LandingPage({ games, loading }) {
             <button className="btn btn-success" onClick={handleCheckoutSubmit} style={{width: '100%', fontSize: '18px', marginTop: '16px'}}>
               Continue to Payment
             </button>
-            {showPayment && (
-              <div style={{marginTop: '32px', paddingTop: '32px', borderTop: '2px solid #e0e0e0'}}>
-                <h3 className="text-center mb-2">Payment</h3>
-                <div style={{background: '#f8f9fa', padding: '20px', borderRadius: '8px', textAlign: 'center', marginBottom: '20px'}}>
-                  <p>Venmo <strong>${contactInfo.betAmount}</strong> to</p>
-                  <p style={{fontSize: '20px', fontWeight: 'bold', color: '#333', marginTop: '8px'}}>@{VENMO_USERNAME}</p>
-                </div>
-                <a
-                  href={`venmo://paycharge?txn=pay&recipients=${VENMO_USERNAME}&amount=${contactInfo.betAmount}&note=${encodeURIComponent("Marc's Parlays - " + ticketNumber)}`}
-                  style={{display: 'block', padding: '16px', background: '#008CFF', color: 'white', textAlign: 'center', textDecoration: 'none', borderRadius: '8px', fontWeight: '600', fontSize: '18px'}}
-                >
-                  Pay ${contactInfo.betAmount} with Venmo
-                </a>
-                <div style={{marginTop: '16px', padding: '16px', background: '#d1ecf1', border: '2px solid #0c5460', borderRadius: '8px', fontSize: '14px', color: '#0c5460'}}>
-                  <strong>Confirmation:</strong> You will receive a {contactInfo.confirmMethod === 'email' ? 'email' : 'text message'} confirmation shortly.
-                </div>
-              </div>
-            )}
           </div>
         </div>
       </div>
     );
   }
-
-  const pickCount = Object.keys(selectedPicks).length;
-  const canSubmit = pickCount >= 3;
-
-  const handleAdminClick = () => {
-    window.location.href = '?admin=true';
-  };
 
   return (
     <div className="gradient-bg">
@@ -455,58 +572,94 @@ function LandingPage({ games, loading }) {
             ))}
           </div>
         </div>
-        {games.map(game => (
-          <div key={game.id} className="game-card">
-            <div style={{display: 'flex', justifyContent: 'space-between', marginBottom: '16px', paddingBottom: '12px', borderBottom: '2px solid #f0f0f0', flexWrap: 'wrap', gap: '8px'}}>
-              <span>{game.date} - {game.time}</span>
-            </div>
-            {game.isFinal && (
-              <div className="final-header">
-                <div style={{textAlign: 'center', fontWeight: '600', color: '#dc3545', marginBottom: '12px', fontSize: '16px'}}>
-                  FINAL SCORE
-                </div>
-                <div style={{display: 'flex', justifyContent: 'space-around', alignItems: 'center', fontSize: '18px', fontWeight: 'bold'}}>
-                  <div style={{textAlign: 'center'}}>
-                    <div style={{color: '#333', marginBottom: '8px'}}>{game.awayTeam}</div>
-                    <div style={{fontSize: '32px', color: '#007bff'}}>{game.awayScore}</div>
+        {games.map(game => {
+          const pickObj = selectedPicks[game.id] || {};
+          return (
+            <div key={game.id} className="game-card">
+              <div style={{display: 'flex', justifyContent: 'space-between', marginBottom: '16px', paddingBottom: '12px', borderBottom: '2px solid #f0f0f0', flexWrap: 'wrap', gap: '8px'}}>
+                <span>{game.date} - {game.time}</span>
+              </div>
+              {game.isFinal && (
+                <div className="final-header">
+                  <div style={{textAlign: 'center', fontWeight: '600', color: '#dc3545', marginBottom: '12px', fontSize: '16px'}}>
+                    FINAL SCORE
                   </div>
-                  <div style={{fontSize: '24px', color: '#999'}}>-</div>
-                  <div style={{textAlign: 'center'}}>
-                    <div style={{color: '#333', marginBottom: '8px'}}>{game.homeTeam}</div>
-                    <div style={{fontSize: '32px', color: '#007bff'}}>{game.homeScore}</div>
+                  <div style={{display: 'flex', justifyContent: 'space-around', alignItems: 'center', fontSize: '18px', fontWeight: 'bold'}}>
+                    <div style={{textAlign: 'center'}}>
+                      <div style={{color: '#333', marginBottom: '8px'}}>{game.awayTeam}</div>
+                      <div style={{fontSize: '32px', color: '#007bff'}}>{game.awayScore}</div>
+                    </div>
+                    <div style={{fontSize: '24px', color: '#999'}}>-</div>
+                    <div style={{textAlign: 'center'}}>
+                      <div style={{color: '#333', marginBottom: '8px'}}>{game.homeTeam}</div>
+                      <div style={{fontSize: '32px', color: '#007bff'}}>{game.homeScore}</div>
+                    </div>
                   </div>
                 </div>
+              )}
+              <div
+                className={`team-row ${pickObj.spread === 'away' ? 'selected' : ''} ${game.isFinal ? 'disabled' : ''}`}
+                onClick={() => !game.isFinal && toggleSpread(game.id, 'away')}
+              >
+                <div className="team-info">
+                  <span className="team-name">{game.awayTeam}</span>
+                  {game.isFinal && <span className="final-score-badge">{game.awayScore}</span>}
+                </div>
+                <div style={{display: 'flex', alignItems: 'center', gap: '8px'}}>
+                  <span className="badge">AWAY</span>
+                  <span className="team-spread">{game.awaySpread || '--'}</span>
+                </div>
               </div>
-            )}
-            <div
-              className={`team-row ${selectedPicks[game.id] === 'away' ? 'selected' : ''} ${game.isFinal ? 'disabled' : ''}`}
-              onClick={() => !game.isFinal && toggleTeam(game.id, 'away')}
-            >
-              <div className="team-info">
-                <span className="team-name">{game.awayTeam}</span>
-                {game.isFinal && <span className="final-score-badge">{game.awayScore}</span>}
+              <div style={{textAlign: 'center', color: '#999', margin: '8px 0', fontSize: '14px'}}>@</div>
+              <div
+                className={`team-row ${pickObj.spread === 'home' ? 'selected' : ''} ${game.isFinal ? 'disabled' : ''}`}
+                onClick={() => !game.isFinal && toggleSpread(game.id, 'home')}
+              >
+                <div className="team-info">
+                  <span className="team-name">{game.homeTeam}</span>
+                  {game.isFinal && <span className="final-score-badge">{game.homeScore}</span>}
+                </div>
+                <div style={{display: 'flex', alignItems: 'center', gap: '8px'}}>
+                  <span className="badge">HOME</span>
+                  <span className="team-spread">{game.homeSpread || '--'}</span>
+                </div>
               </div>
-              <div style={{display: 'flex', alignItems: 'center', gap: '8px'}}>
-                <span className="badge">AWAY</span>
-                <span className="team-spread">{game.awaySpread || '--'}</span>
-              </div>
+              {game.total && (
+                <div style={{textAlign: 'center', color: '#333', margin: '16px 0', padding: '12px', background: '#f8f9fa', borderRadius: '8px'}}>
+                  <div style={{marginBottom: '8px'}}><strong>Total:</strong> {game.total}</div>
+                  <div style={{display: 'flex', justifyContent: 'center', gap: '12px'}}>
+                    <button
+                      type="button"
+                      className="btn"
+                      style={{
+                        background: pickObj.total === 'over' ? '#28a745' : '#fff',
+                        color: pickObj.total === 'over' ? '#fff' : '#333',
+                        border: '2px solid #28a745',
+                        fontWeight: 'bold',
+                        padding: '8px 20px'
+                      }}
+                      disabled={game.isFinal}
+                      onClick={() => !game.isFinal && toggleTotal(game.id, 'over')}
+                    >Over</button>
+                    <button
+                      type="button"
+                      className="btn"
+                      style={{
+                        background: pickObj.total === 'under' ? '#dc3545' : '#fff',
+                        color: pickObj.total === 'under' ? '#fff' : '#333',
+                        border: '2px solid #dc3545',
+                        fontWeight: 'bold',
+                        padding: '8px 20px'
+                      }}
+                      disabled={game.isFinal}
+                      onClick={() => !game.isFinal && toggleTotal(game.id, 'under')}
+                    >Under</button>
+                  </div>
+                </div>
+              )}
             </div>
-            <div style={{textAlign: 'center', color: '#999', margin: '8px 0', fontSize: '14px'}}>@</div>
-            <div
-              className={`team-row ${selectedPicks[game.id] === 'home' ? 'selected' : ''} ${game.isFinal ? 'disabled' : ''}`}
-              onClick={() => !game.isFinal && toggleTeam(game.id, 'home')}
-            >
-              <div className="team-info">
-                <span className="team-name">{game.homeTeam}</span>
-                {game.isFinal && <span className="final-score-badge">{game.homeScore}</span>}
-              </div>
-              <div style={{display: 'flex', alignItems: 'center', gap: '8px'}}>
-                <span className="badge">HOME</span>
-                <span className="team-spread">{game.homeSpread || '--'}</span>
-              </div>
-            </div>
-          </div>
-        ))}
+          );
+        })}
         <div className="text-center mb-4">
           <div className="text-white mb-2" style={{fontSize: '20px'}}>
             Selected: {pickCount} pick{pickCount !== 1 ? 's' : ''}
@@ -615,7 +768,7 @@ function App() {
                     }));
                   }, 600);
                 }
-               return {
+                return {
                   ...game,
                   awaySpread: fbGame.awaySpread || '',
                   homeSpread: fbGame.homeSpread || '',
@@ -646,24 +799,24 @@ function App() {
         const awayTeam = competition.competitors[1];
         const homeTeam = competition.competitors[0];
         const status = event.status.type.state;
-      return {
-        id: index + 1,
-        espnId: event.id,
-        date: new Date(event.date).toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' }),
-        time: new Date(event.date).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }) + ' ET',
-        awayTeam: awayTeam.team.displayName,
-        homeTeam: homeTeam.team.displayName,
-        awayTeamId: awayTeam.id,
-        homeTeamId: homeTeam.id,
-        awayScore: awayTeam.score || '0',
-        homeScore: homeTeam.score || '0',
-        awaySpread: '',
-        homeSpread: '',
-        total: '',
-        status: status,
-        statusDetail: event.status.type.detail,
-        isFinal: status === 'post'
-};
+        return {
+          id: index + 1,
+          espnId: event.id,
+          date: new Date(event.date).toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' }),
+          time: new Date(event.date).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }) + ' ET',
+          awayTeam: awayTeam.team.displayName,
+          homeTeam: homeTeam.team.displayName,
+          awayTeamId: awayTeam.id,
+          homeTeamId: homeTeam.id,
+          awayScore: awayTeam.score || '0',
+          homeScore: homeTeam.score || '0',
+          awaySpread: '',
+          homeSpread: '',
+          total: '',
+          status: status,
+          statusDetail: event.status.type.detail,
+          isFinal: status === 'post'
+        };
       });
       setGames(formattedGames);
     } catch (error) {
