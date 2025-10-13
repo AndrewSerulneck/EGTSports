@@ -35,14 +35,15 @@ function AdminPanel({ user, games, setGames, isSyncing, setIsSyncing, recentlyUp
   const saveSpreadToFirebase = async () => {
     try {
       setIsSyncing(true);
-      const spreadsData = {};
-      games.forEach(game => {
-        spreadsData[game.espnId] = {
-          awaySpread: game.awaySpread || '',
-          homeSpread: game.homeSpread || '',
-          timestamp: new Date().toISOString()
-        };
-      });
+    const spreadsData = {};
+    games.forEach(game => {
+      spreadsData[game.espnId] = {
+        awaySpread: game.awaySpread || '',
+        homeSpread: game.homeSpread || '',
+        total: game.total || '',
+        timestamp: new Date().toISOString()
+      };
+    });
       await set(ref(database, 'spreads'), spreadsData);
       alert('✅ Spreads saved! All devices will update in real-time.');
       setIsSyncing(false);
