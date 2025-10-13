@@ -590,7 +590,8 @@ function App() {
                 const fbGame = firebaseData[espnId];
                 const awaySpreadChanged = game.awaySpread !== fbGame.awaySpread;
                 const homeSpreadChanged = game.homeSpread !== fbGame.homeSpread;
-                const changed = awaySpreadChanged || homeSpreadChanged;
+                const totalChanged = game.total !== fbGame.total;
+                const changed = awaySpreadChanged || homeSpreadChanged || totalChanged;
                 if (changed) {
                   updated = true;
                   setRecentlyUpdated(prev => ({
