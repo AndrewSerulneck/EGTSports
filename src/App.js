@@ -24,7 +24,7 @@ const app = initializeApp(firebaseConfig);
 const database = getDatabase(app);
 const auth = getAuth(app);
 
-const VENMO_USERNAME = '@EGTSports';
+const VENMO_USERNAME = 'EGTSports';
 const MAX_BET = 100;
 const GOOGLE_SHEET_URL = 'https://script.google.com/macros/s/AKfycbwUU7CtC2OY-jHq3P5W5ytDm02WSuGQ8R8bSmYvsE20sYb7HZHBKJQIcG8n6Z_K6SlW/exec';
 
