@@ -249,22 +249,25 @@ function LandingPage({ games, loading }) {
     if (stored) setSubmissions(JSON.parse(stored));
   }, []);
 
-  const saveSubmission = async (submission) => {
-    const allSubmissions = [...submissions, submission];
-    setSubmissions(allSubmissions);
-    localStorage.setItem('marcs-parlays-submissions', JSON.stringify(allSubmissions));
+const saveSubmission = async (submission) => {
+  const allSubmissions = [...submissions, submission];
+  setSubmissions(allSubmissions);
+  localStorage.setItem('marcs-parlays-submissions', JSON.stringify(allSubmissions));
 
-    try {
-      await fetch(GOOGLE_SHEET_URL, {
-        method: 'POST',
-        mode: 'no-cors',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(submission)
-      });
-    } catch (error) {
-      console.error('Error sending to Google Sheets:', error);
-    }
-  };
+  try {
+    const response = await fetch(GOOGLE_SHEET_URL, {
+      method: 'POST',
+      headers: { 
+        'Content-Type': 'text/plain;charset=utf-8'
+      },
+      body: JSON.stringify(submission)
+    });
+    
+    console.log('Submission sent to Google Sheets');
+  } catch (error) {
+    console.error('Error sending to Google Sheets:', error);
+  }
+};
 
   const toggleSpread = (gameId, teamType) => {
     setSelectedPicks(prev => {
