@@ -634,23 +634,24 @@ function App() {
         const awayTeam = competition.competitors[1];
         const homeTeam = competition.competitors[0];
         const status = event.status.type.state;
-        return {
-          id: index + 1,
-          espnId: event.id,
-          date: new Date(event.date).toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' }),
-          time: new Date(event.date).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }) + ' ET',
-          awayTeam: awayTeam.team.displayName,
-          homeTeam: homeTeam.team.displayName,
-          awayTeamId: awayTeam.id,
-          homeTeamId: homeTeam.id,
-          awayScore: awayTeam.score || '0',
-          homeScore: homeTeam.score || '0',
-          awaySpread: '',
-          homeSpread: '',
-          status: status,
-          statusDetail: event.status.type.detail,
-          isFinal: status === 'post'
-        };
+      return {
+        id: index + 1,
+        espnId: event.id,
+        date: new Date(event.date).toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' }),
+        time: new Date(event.date).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }) + ' ET',
+        awayTeam: awayTeam.team.displayName,
+        homeTeam: homeTeam.team.displayName,
+        awayTeamId: awayTeam.id,
+        homeTeamId: homeTeam.id,
+        awayScore: awayTeam.score || '0',
+        homeScore: homeTeam.score || '0',
+        awaySpread: '',
+        homeSpread: '',
+        total: '',
+        status: status,
+        statusDetail: event.status.type.detail,
+        isFinal: status === 'post'
+};
       });
       setGames(formattedGames);
     } catch (error) {
