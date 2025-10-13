@@ -407,12 +407,23 @@ function LandingPage({ games, loading }) {
   const pickCount = Object.keys(selectedPicks).length;
   const canSubmit = pickCount >= 3;
 
+  const handleAdminClick = () => {
+    window.location.href = '?admin=true';
+  };
+
   return (
     <div className="gradient-bg">
       <div className="container">
         <div className="text-center text-white mb-4">
-          <h1 style={{fontSize: '42px'}}>Marc's Parlays</h1>
-          <p style={{fontSize: '22px'}}>NFL Betting Pool</p>
+          <div style={{display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '20px', marginBottom: '16px', flexWrap: 'wrap'}}>
+            <div>
+              <h1 style={{fontSize: '42px'}}>Marc's Parlays</h1>
+              <p style={{fontSize: '22px'}}>NFL Betting Pool</p>
+            </div>
+            <button className="btn btn-secondary" onClick={handleAdminClick} style={{height: 'fit-content'}}>
+              Admin Login
+            </button>
+          </div>
         </div>
         <div className="card">
           <h2 className="text-center mb-2">Payout Odds</h2>
