@@ -58,6 +58,15 @@ function AdminPanel({ user, games, setGames, isSyncing, setIsSyncing, recentlyUp
         game.id === gameId
           ? { ...game, [team === 'away' ? 'awaySpread' : 'homeSpread']: value }
           : game
+  const updateTotal = (gameId, value) => {
+    setGames(prevGames =>
+      prevGames.map(game =>
+        game.id === gameId
+          ? { ...game, total: value }
+          : game
+    )
+  );
+};
       )
     );
   };
