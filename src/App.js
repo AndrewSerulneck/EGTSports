@@ -544,7 +544,7 @@ function LandingPage({ games, loading }) {
         <div className="text-center text-white mb-4">
           <div style={{display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '20px', marginBottom: '16px', flexWrap: 'wrap'}}>
             <div>
-              <h1 style={{fontSize: '42px'}}>Welcome to the EGT Sports NFL Parlay Club!</h1>
+              <h1 style={{fontSize: '42px'}}>Welcome to the EGT Sports Parlay Club!</h1>
               <p style={{fontSize: '22px'}}>Make your selections below to get started.</p>
             </div>
             <button className="btn btn-secondary" onClick={handleAdminClick} style={{height: 'fit-content'}}>
