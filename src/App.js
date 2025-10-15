@@ -680,7 +680,7 @@ function LandingPage({ games, loading }) {
             <li><strong>Minimum 3 picks required</strong></li>
             <li><strong>Maximum bet: ${MAX_BET}</strong></li>
             <li>Missing info = voided ticket</li>
-            <li>Must pay in advance via Venmo to <strong>@{VENMO_USERNAME}</strong></li>
+            <li>Funds must be deposited into players pool <strong>@{VENMO_USERNAME}</strong> prior  to games starting or ticket is not valid</li>
             <li>Winners paid following Tuesday</li>
             <li>Cannot bet on games already completed</li>
             <li>You will receive confirmation via your chosen method (email or text)</li>
