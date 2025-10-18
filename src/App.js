@@ -11,22 +11,23 @@ import {
 
 // Firebase Config
 const firebaseConfig = {
-  apiKey: "AIzaSyA9FsWV7hA4ow2Xaq0Krx9kCCMfMibkVOQ",
-  authDomain: "marcs-parlays.firebaseapp.com",
-  databaseURL: "https://marcs-parlays-default-rtdb.firebaseio.com",
-  projectId: "marcs-parlays",
-  storageBucket: "marcs-parlays.firebasestorage.app",
-  messagingSenderId: "631281528889",
-  appId: "1:631281528889:web:e3befe34907902387c1de8"
+  apiKey: process.env.REACT_APP_FIREBASE_API_KEY || "AIzaSyA9FsWV7hA4ow2Xaq0Krx9kCCMfMibkVOQ",
+  authDomain: process.env.REACT_APP_FIREBASE_AUTH_DOMAIN || "marcs-parlays.firebaseapp.com",
+  databaseURL: process.env.REACT_APP_FIREBASE_DATABASE_URL || "https://marcs-parlays-default-rtdb.firebaseio.com",
+  projectId: process.env.REACT_APP_FIREBASE_PROJECT_ID || "marcs-parlays",
+  storageBucket: process.env.REACT_APP_FIREBASE_STORAGE_BUCKET || "marcs-parlays.firebasestorage.app",
+  messagingSenderId: process.env.REACT_APP_FIREBASE_MESSAGING_SENDER_ID || "631281528889",
+  appId: process.env.REACT_APP_FIREBASE_APP_ID || "1:631281528889:web:e3befe34907902387c1de8"
 };
 
 const app = initializeApp(firebaseConfig);
 const database = getDatabase(app);
 const auth = getAuth(app);
 
-const VENMO_USERNAME = 'EGTSports';
-const MAX_BET = 100;
-const GOOGLE_SHEET_URL = 'https://script.google.com/macros/s/AKfycbwUU7CtC2OY-jHq3P5W5ytDm02WSuGQ8R8bSmYvsE20sYb7HZHBKJQIcG8n6Z_K6SlW/exec';
+const VENMO_USERNAME = process.env.REACT_APP_VENMO_USERNAME || 'EGTSports';
+const MIN_BET = parseInt(process.env.REACT_APP_MIN_BET) || 5;
+const MAX_BET = parseInt(process.env.REACT_APP_MAX_BET) || 100;
+const GOOGLE_SHEET_URL = process.env.REACT_APP_GOOGLE_SHEET_URL || 'https://script.google.com/macros/s/AKfycbwUU7CtC2OY-jHq3P5W5ytDm02WSuGQ8R8bSmYvsE20sYb7HZHBKJQIcG8n6Z_K6SlW/exec';
 
 // Admin Panel Component
 function AdminPanel({ user, games, setGames, isSyncing, setIsSyncing, recentlyUpdated, setRecentlyUpdated, submissions }) {
@@ -255,7 +256,7 @@ function LandingPage({ games, loading }) {
     localStorage.setItem('marcs-parlays-submissions', JSON.stringify(allSubmissions));
 
     try {
-      const response = await fetch(GOOGLE_SHEET_URL, {
+      await fetch(GOOGLE_SHEET_URL, {
         method: 'POST',
         headers: { 
           'Content-Type': 'text/plain;charset=utf-8'
@@ -337,14 +338,25 @@ function LandingPage({ games, loading }) {
   const handleCheckoutSubmit = () => {
     const betAmount = parseFloat(contactInfo.betAmount);
 
+    // Validate contact information
     if (!contactInfo.name || !contactInfo.email || !contactInfo.phone) {
       alert('Please fill in all contact information');
       return;
     }
+    
+    // Validate bet amount exists and is positive
     if (!betAmount || betAmount <= 0) {
       alert('Please enter a valid bet amount');
       return;
     }
+    
+    // Validate minimum bet
+    if (betAmount < MIN_BET) {
+      alert(`Minimum bet is $${MIN_BET.toFixed(2)}`);
+      return;
+    }
+    
+    // Validate maximum bet
     if (betAmount > MAX_BET) {
       alert(`Maximum bet is $${MAX_BET}`);
       return;
@@ -352,7 +364,7 @@ function LandingPage({ games, loading }) {
 
     const picksFormatted = [];
     Object.entries(selectedPicks).forEach(([gameId, pickObj]) => {
-      const game = games.find(g => g.id == gameId);
+      const game = games.find(g => g.id === parseInt(gameId));
       const gameName = `${game.awayTeam} @ ${game.homeTeam}`;
       
       if (pickObj.spread) {
@@ -468,7 +480,7 @@ function LandingPage({ games, loading }) {
             </div>
             <h3 className="mb-2">Your Picks ({pickCount})</h3>
             {Object.entries(selectedPicks).map(([gameId, pickObj]) => {
-              const game = games.find(g => g.id == gameId);
+              const game = games.find(g => g.id === parseInt(gameId));
               return (
                 <div key={gameId}>
                   {pickObj.spread && (
@@ -496,13 +508,13 @@ function LandingPage({ games, loading }) {
             <label>Phone *</label>
             <input type="tel" value={contactInfo.phone} onChange={(e) => setContactInfo({...contactInfo, phone: e.target.value})} placeholder="(555) 123-4567" />
 
-            <label>Bet Amount * (Max ${MAX_BET})</label>
+            <label>Bet Amount * (Min ${MIN_BET}, Max ${MAX_BET})</label>
             <input 
               type="number" 
               value={contactInfo.betAmount} 
               onChange={(e) => setContactInfo({...contactInfo, betAmount: e.target.value})} 
-              placeholder="Enter amount"
-              min="1"
+              placeholder={`Enter amount ($${MIN_BET} - $${MAX_BET})`}
+              min={MIN_BET}
               max={MAX_BET}
               step="0.01"
             />
@@ -678,7 +690,7 @@ function LandingPage({ games, loading }) {
           <h3 className="mb-2">Important Rules</h3>
           <ul style={{marginLeft: '20px', lineHeight: '1.8'}}>
             <li><strong>Minimum 3 picks required</strong></li>
-            <li><strong>Maximum bet: ${MAX_BET}</strong></li>
+            <li><strong>Bet range: ${MIN_BET} - ${MAX_BET}</strong></li>
             <li>Missing info = voided ticket</li>
             <li>Funds must be deposited into players pool <strong>@{VENMO_USERNAME}</strong> prior  to games starting or ticket is not valid</li>
             <li>Winners paid following Tuesday</li>
