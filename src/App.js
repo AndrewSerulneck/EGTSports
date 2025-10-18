@@ -25,6 +25,7 @@ const database = getDatabase(app);
 const auth = getAuth(app);
 
 const VENMO_USERNAME = 'EGTSports';
+const MIN_BET = 5;
 const MAX_BET = 100;
 const GOOGLE_SHEET_URL = 'https://script.google.com/macros/s/AKfycbwUU7CtC2OY-jHq3P5W5ytDm02WSuGQ8R8bSmYvsE20sYb7HZHBKJQIcG8n6Z_K6SlW/exec';
 
@@ -335,20 +336,24 @@ function LandingPage({ games, loading }) {
   };
 
   const handleCheckoutSubmit = () => {
-    const betAmount = parseFloat(contactInfo.betAmount);
+  const betAmount = parseFloat(contactInfo.betAmount);
 
-    if (!contactInfo.name || !contactInfo.email || !contactInfo.phone) {
-      alert('Please fill in all contact information');
-      return;
-    }
-    if (!betAmount || betAmount <= 0) {
-      alert('Please enter a valid bet amount');
-      return;
-    }
-    if (betAmount > MAX_BET) {
-      alert(`Maximum bet is $${MAX_BET}`);
-      return;
-    }
+  if (!contactInfo.name || !contactInfo.email || !contactInfo.phone) {
+    alert('Please fill in all contact information');
+    return;
+  }
+  if (!betAmount || betAmount <= 0) {
+    alert('Please enter a valid bet amount');
+    return;
+  }
+  if (betAmount < MIN_BET) {
+    alert(`Minimum bet is $${MIN_BET}`);
+    return;
+  }
+  if (betAmount > MAX_BET) {
+    alert(`Maximum bet is $${MAX_BET}`);
+    return;
+  }
 
     const picksFormatted = [];
     Object.entries(selectedPicks).forEach(([gameId, pickObj]) => {
@@ -496,16 +501,16 @@ function LandingPage({ games, loading }) {
             <label>Phone *</label>
             <input type="tel" value={contactInfo.phone} onChange={(e) => setContactInfo({...contactInfo, phone: e.target.value})} placeholder="(555) 123-4567" />
 
-            <label>Bet Amount * (Max ${MAX_BET})</label>
-            <input 
+           <label>Bet Amount * (Min ${MIN_BET}, Max ${MAX_BET})</label>
+              <input 
               type="number" 
-              value={contactInfo.betAmount} 
-              onChange={(e) => setContactInfo({...contactInfo, betAmount: e.target.value})} 
-              placeholder="Enter amount"
-              min="1"
-              max={MAX_BET}
-              step="0.01"
-            />
+                value={contactInfo.betAmount} 
+                onChange={(e) => setContactInfo({...contactInfo, betAmount: e.target.value})} 
+                placeholder={`Enter amount ($${MIN_BET} - $${MAX_BET})`}
+                min={MIN_BET}
+                max={MAX_BET}
+                step="0.01"
+                />
             <label style={{marginBottom: '8px', display: 'block'}}>Confirmation Method *</label>
             <div className="radio-group">
               <label className="radio-label">
@@ -676,9 +681,9 @@ function LandingPage({ games, loading }) {
         </div>
         <div className="card">
           <h3 className="mb-2">Important Rules</h3>
-          <ul style={{marginLeft: '20px', lineHeight: '1.8'}}>
+           <ul style={{marginLeft: '20px', lineHeight: '1.8'}}>
             <li><strong>Minimum 3 picks required</strong></li>
-            <li><strong>Maximum bet: ${MAX_BET}</strong></li>
+            <li><strong>Bet range: ${MIN_BET} - ${MAX_BET}</strong></li>
             <li>Missing info = voided ticket</li>
             <li>Ties count as a LOSS</li>
             <li>Funds must be deposited into players pool <strong>@{VENMO_USERNAME}</strong> prior  to games starting or ticket is not valid</li>
