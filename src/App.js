@@ -27,7 +27,7 @@ const auth = getAuth(app);
 const VENMO_USERNAME = process.env.REACT_APP_VENMO_USERNAME || 'EGTSports';
 const MIN_BET = parseInt(process.env.REACT_APP_MIN_BET) || 5;
 const MAX_BET = parseInt(process.env.REACT_APP_MAX_BET) || 100;
-const GOOGLE_SHEET_URL = process.env.REACT_APP_GOOGLE_SHEET_URL || 'https://script.google.com/macros/s/AKfycbwUU7CtC2OY-jHq3P5W5ytDm02WSuGQ8R8bSmYvsE20sYb7HZHBKJQIcG8n6Z_K6SlW/exec';
+const GOOGLE_SHEET_URL = process.env.REACT_APP_GOOGLE_SHEET_URL || 'https://script.google.com/macros/s/AKfycbzPastor8yKkWQxKx1z0p-0ZibwBJHkJCuVvHDqP9YX7Dv1-vwakdR9RU6Y6oNw4T2W2PA/exec';
 
 // Admin Panel Component
 function AdminPanel({ user, games, setGames, isSyncing, setIsSyncing, recentlyUpdated, setRecentlyUpdated, submissions }) {
@@ -166,7 +166,6 @@ function AdminPanel({ user, games, setGames, isSyncing, setIsSyncing, recentlyUp
                   <div style={{marginBottom: '16px', padding: '16px', background: '#f8f9fa', borderRadius: '8px'}}>
                     <div><strong>Name:</strong> {sub.contactInfo.name}</div>
                     <div><strong>Email:</strong> {sub.contactInfo.email}</div>
-                    <div><strong>Phone:</strong> {sub.contactInfo.phone}</div>
                     <div><strong>Bet:</strong> ${sub.betAmount.toFixed(2)}</div>
                   </div>
                   <div style={{marginBottom: '16px'}}>
@@ -241,7 +240,7 @@ function LandingPage({ games, loading }) {
   const [showConfirmation, setShowConfirmation] = useState(false);
   const [ticketNumber, setTicketNumber] = useState('');
   const [showCheckout, setShowCheckout] = useState(false);
-  const [contactInfo, setContactInfo] = useState({ name: '', email: '', phone: '', betAmount: '', confirmMethod: 'email', freePlay: 0 });
+  const [contactInfo, setContactInfo] = useState({ name: '', email: '', betAmount: '', confirmMethod: 'email', freePlay: 0 });
   const [submissions, setSubmissions] = useState([]);
   const [hasSubmitted, setHasSubmitted] = useState(false);
 
@@ -318,7 +317,7 @@ function LandingPage({ games, loading }) {
 
   const openVenmo = () => {
     const betAmount = contactInfo.betAmount;
-    const note = encodeURIComponent("Marc's Parlays - " + ticketNumber);
+    const note = encodeURIComponent("EGT Sports - " + ticketNumber);
     
     // Try mobile app first
     const venmoAppUrl = `venmo://paycharge?txn=pay&recipients=${VENMO_USERNAME}&amount=${betAmount}&note=${note}`;
@@ -339,7 +338,7 @@ function LandingPage({ games, loading }) {
     const betAmount = parseFloat(contactInfo.betAmount);
 
     // Validate contact information
-    if (!contactInfo.name || !contactInfo.email || !contactInfo.phone) {
+    if (!contactInfo.name || !contactInfo.email) {
       alert('Please fill in all contact information');
       return;
     }
@@ -396,8 +395,7 @@ function LandingPage({ games, loading }) {
       contactInfo: {
         name: contactInfo.name,
         email: contactInfo.email,
-        phone: contactInfo.phone,
-        confirmMethod: contactInfo.confirmMethod
+        confirmMethod: 'email'
       },
       betAmount: betAmount,
       freePlay: 0,
@@ -505,9 +503,6 @@ function LandingPage({ games, loading }) {
             <label>Email *</label>
             <input type="email" value={contactInfo.email} onChange={(e) => setContactInfo({...contactInfo, email: e.target.value})} />
 
-            <label>Phone *</label>
-            <input type="tel" value={contactInfo.phone} onChange={(e) => setContactInfo({...contactInfo, phone: e.target.value})} placeholder="(555) 123-4567" />
-
             <label>Bet Amount * (Min ${MIN_BET}, Max ${MAX_BET})</label>
             <input 
               type="number" 
@@ -518,29 +513,6 @@ function LandingPage({ games, loading }) {
               max={MAX_BET}
               step="0.01"
             />
-            <label style={{marginBottom: '8px', display: 'block'}}>Confirmation Method *</label>
-            <div className="radio-group">
-              <label className="radio-label">
-                <input 
-                  type="radio" 
-                  name="confirmMethod" 
-                  value="email"
-                  checked={contactInfo.confirmMethod === 'email'}
-                  onChange={(e) => setContactInfo({...contactInfo, confirmMethod: e.target.value})}
-                />
-                Email
-              </label>
-              <label className="radio-label">
-                <input 
-                  type="radio" 
-                  name="confirmMethod" 
-                  value="text"
-                  checked={contactInfo.confirmMethod === 'text'}
-                  onChange={(e) => setContactInfo({...contactInfo, confirmMethod: e.target.value})}
-                />
-                Text Message
-              </label>
-            </div>
             <button className="btn btn-success" onClick={handleCheckoutSubmit} style={{width: '100%', fontSize: '18px', marginTop: '16px'}}>
               Continue to Payment
             </button>
@@ -692,10 +664,10 @@ function LandingPage({ games, loading }) {
             <li><strong>Minimum 3 picks required</strong></li>
             <li><strong>Bet range: ${MIN_BET} - ${MAX_BET}</strong></li>
             <li>Missing info = voided ticket</li>
-            <li>Funds must be deposited into players pool <strong>@{VENMO_USERNAME}</strong> prior  to games starting or ticket is not valid</li>
+            <li>Funds must be deposited into players pool <strong>@{VENMO_USERNAME}</strong> prior to games starting or ticket is not valid</li>
             <li>Winners paid following Tuesday</li>
             <li>Cannot bet on games already completed</li>
-            <li>You will receive confirmation via your chosen method (email or text)</li>
+            <li>You will receive email confirmation with your ticket details</li>
             <li>Each time you participate, your club membership is renewed</li>
           </ul>
           <div style={{background: '#fff3cd', border: '2px solid #ffc107', borderRadius: '8px', padding: '16px', marginTop: '20px', fontSize: '14px', color: '#856404'}}>
