@@ -255,7 +255,7 @@ function LandingPage({ games, loading }) {
     localStorage.setItem('marcs-parlays-submissions', JSON.stringify(allSubmissions));
 
     try {
-      const response = await fetch(GOOGLE_SHEET_URL, {
+      await fetch(GOOGLE_SHEET_URL, {
         method: 'POST',
         headers: { 
           'Content-Type': 'text/plain;charset=utf-8'
@@ -352,7 +352,7 @@ function LandingPage({ games, loading }) {
 
     const picksFormatted = [];
     Object.entries(selectedPicks).forEach(([gameId, pickObj]) => {
-      const game = games.find(g => g.id == gameId);
+      const game = games.find(g => g.id === gameId);
       const gameName = `${game.awayTeam} @ ${game.homeTeam}`;
       
       if (pickObj.spread) {
@@ -468,7 +468,7 @@ function LandingPage({ games, loading }) {
             </div>
             <h3 className="mb-2">Your Picks ({pickCount})</h3>
             {Object.entries(selectedPicks).map(([gameId, pickObj]) => {
-              const game = games.find(g => g.id == gameId);
+              const game = games.find(g => g.id === gameId);
               return (
                 <div key={gameId}>
                   {pickObj.spread && (
