@@ -435,18 +435,37 @@ function LandingPage({ games, loading }) {
         <div className="container" style={{maxWidth: '600px'}}>
           <div className="card text-center">
             <h2 style={{color: '#28a745', marginBottom: '20px'}}>✅ Ticket Submitted!</h2>
+            
+            {/* TICKET NUMBER */}
             <div style={{background: '#f8f9fa', padding: '20px', borderRadius: '8px', marginBottom: '24px'}}>
               <div style={{fontSize: '12px', color: '#666', marginBottom: '8px'}}>TICKET NUMBER</div>
               <div style={{fontSize: '24px', fontWeight: 'bold', color: '#28a745'}}>{ticketNumber}</div>
             </div>
-            <p style={{marginBottom: '20px'}}>Your ticket has been submitted successfully!</p>
+
+            {/* IMPORTANT WARNING - SAVE YOUR TICKET */}
+            <div style={{background: '#fff3cd', border: '3px solid #ffc107', borderRadius: '12px', padding: '20px', marginBottom: '24px'}}>
+              <div style={{fontSize: '28px', marginBottom: '12px'}}>⚠️</div>
+              <h3 style={{color: '#856404', marginBottom: '12px', fontSize: '20px'}}>IMPORTANT: Save Your Ticket Number!</h3>
+              <p style={{color: '#856404', marginBottom: '12px', fontSize: '16px', fontWeight: 'bold'}}>
+                📸 Take a screenshot of this page or write down your confirmation number.
+              </p>
+              <p style={{color: '#856404', fontSize: '14px'}}>
+                You will need this number to verify your ticket and claim winnings. We do not send email confirmations at this time.
+              </p>
+            </div>
+
+            <p style={{marginBottom: '20px', fontSize: '16px'}}>Your ticket has been submitted successfully!</p>
+            
+            {/* PAYMENT INSTRUCTIONS */}
             <div style={{background: '#d1ecf1', border: '2px solid #0c5460', borderRadius: '8px', padding: '16px', marginBottom: '20px', fontSize: '14px', color: '#0c5460'}}>
               <strong>Payment Required:</strong> Please send <strong>${contactInfo.betAmount}</strong> to <strong>{VENMO_USERNAME}</strong> on Venmo with note: <strong>"{ticketNumber}"</strong>
             </div>
+
+            {/* BUTTONS */}
             <button
               className="btn btn-primary"
               onClick={openVenmo}
-              style={{width: '100%', padding: '16px 32px', fontSize: '18px', marginBottom: '20px'}}
+              style={{width: '100%', padding: '16px 32px', fontSize: '18px', marginBottom: '12px'}}
             >
               Open Venmo to Pay
             </button>
