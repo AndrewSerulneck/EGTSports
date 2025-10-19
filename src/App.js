@@ -684,9 +684,10 @@ function LandingPage({ games, loading }) {
             <li><strong>Bet range: ${MIN_BET} - ${MAX_BET}</strong></li>
             <li>Missing info = voided ticket</li>
             <li>Funds must be deposited into players pool <strong>@{VENMO_USERNAME}</strong> prior to games starting or ticket is not valid</li>
+             <li>A tie counts as a loss</li>
             <li>Winners paid following Tuesday</li>
             <li>Cannot bet on games already completed</li>
-            <li>You will receive email confirmation with your ticket details</li>
+             <li>When you place your bet, write down your ticket number or screenshot your ticket if you want a receipt</li>
             <li>Each time you participate, your club membership is renewed</li>
           </ul>
           <div style={{background: '#fff3cd', border: '2px solid #ffc107', borderRadius: '8px', padding: '16px', marginTop: '20px', fontSize: '14px', color: '#856404'}}>
