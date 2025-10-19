@@ -559,7 +559,7 @@ function LandingPage({ games, loading }) {
           <h2 className="text-center mb-2">Payout Odds</h2>
           <div className="payout-grid">
             {[
-              {picks: 3, payout: '10 to 1'}, 
+              {picks: 3, payout: '8 to 1'}, 
               {picks: 4, payout: '15 to 1'}, 
               {picks: 5, payout: '25 to 1'}, 
               {picks: 6, payout: '50 to 1'}, 
