@@ -9,6 +9,16 @@ import {
   onAuthStateChanged,
 } from "firebase/auth";
 
+// ESPN API Endpoints for all sports
+const ESPN_API_ENDPOINTS = {
+  'NFL': 'https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard',
+  'NBA': 'https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard',
+  'College Football': 'https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard',
+  'College Basketball': 'https://site.api.espn.com/apis/site/v2/sports/basketball/mens-college-basketball/scoreboard',
+  'Major League Baseball': 'https://site.api.espn.com/apis/site/v2/sports/baseball/mlb/scoreboard',
+  'NHL': 'https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard'
+};
+
 // Firebase Config
 const firebaseConfig = {
   apiKey: process.env.REACT_APP_FIREBASE_API_KEY || "AIzaSyA9FsWV7hA4ow2Xaq0Krx9kCCMfMibkVOQ",
@@ -29,8 +39,8 @@ const MIN_BET = parseInt(process.env.REACT_APP_MIN_BET) || 5;
 const MAX_BET = parseInt(process.env.REACT_APP_MAX_BET) || 100;
 const GOOGLE_SHEET_URL = process.env.REACT_APP_GOOGLE_SHEET_URL || 'https://script.google.com/macros/s/AKfycbzPastor8yKkWQxKx1z0p-0ZibwBJHkJCuVvHDqP9YX7Dv1-vwakdR9RU6Y6oNw4T2W2PA/exec';
 
-// Admin Panel Component
-function AdminPanel({ user, games, setGames, isSyncing, setIsSyncing, recentlyUpdated, setRecentlyUpdated, submissions }) {
+// Admin Panel Component - NOW SPORT-SPECIFIC
+function AdminPanel({ user, games, setGames, isSyncing, setIsSyncing, recentlyUpdated, setRecentlyUpdated, submissions, sport, onBackToMenu }) {
   const [showSubmissions, setShowSubmissions] = useState(false);
 
   const saveSpreadToFirebase = async () => {
@@ -45,7 +55,8 @@ function AdminPanel({ user, games, setGames, isSyncing, setIsSyncing, recentlyUp
           timestamp: new Date().toISOString()
         };
       });
-      await set(ref(database, 'spreads'), spreadsData);
+      // SPORT-SPECIFIC FIREBASE PATH
+      await set(ref(database, `spreads/${sport}`), spreadsData);
       alert('✅ Spreads saved! All devices will update in real-time.');
       setIsSyncing(false);
     } catch (error) {
@@ -186,8 +197,9 @@ function AdminPanel({ user, games, setGames, isSyncing, setIsSyncing, recentlyUp
       <div className="container">
         <div className="card">
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '12px' }}>
-            <h1>Admin Panel <span className={`sync-indicator ${isSyncing ? 'syncing' : ''}`}></span></h1>
+            <h1>{sport} Admin Panel <span className={`sync-indicator ${isSyncing ? 'syncing' : ''}`}></span></h1>
             <div style={{display: 'flex', gap: '8px'}}>
+              <button className="btn btn-secondary" onClick={onBackToMenu}>← Back to Menu</button>
               <button className="btn btn-primary" onClick={() => setShowSubmissions(true)}>
                 Submissions ({submissions.length})
               </button>
@@ -234,15 +246,15 @@ function AdminPanel({ user, games, setGames, isSyncing, setIsSyncing, recentlyUp
   );
 }
 
-// Welcome Landing Page Component
+// Welcome Landing Page Component - ALL SPORTS ENABLED
 function WelcomeLandingPage({ onSelectSport }) {
   const sports = [
     { name: 'NFL', available: true },
-    { name: 'NBA', available: false },
-    { name: 'College Football', available: false },
-    { name: 'College Basketball', available: false },
-    { name: 'Major League Baseball', available: false },
-    { name: 'NHL', available: false }
+    { name: 'NBA', available: true },
+    { name: 'College Football', available: true },
+    { name: 'College Basketball', available: true },
+    { name: 'Major League Baseball', available: true },
+    { name: 'NHL', available: true }
   ];
 
   return (
@@ -298,8 +310,8 @@ function WelcomeLandingPage({ onSelectSport }) {
   );
 }
 
-// Landing Page Component (for visitors)
-function LandingPage({ games, loading, onBackToMenu }) {
+// Landing Page Component - NOW ACCEPTS SPORT PARAMETER
+function LandingPage({ games, loading, onBackToMenu, sport }) {
   const [selectedPicks, setSelectedPicks] = useState({});
   const [showConfirmation, setShowConfirmation] = useState(false);
   const [ticketNumber, setTicketNumber] = useState('');
@@ -464,7 +476,8 @@ function LandingPage({ games, loading, onBackToMenu }) {
       betAmount: betAmount,
       freePlay: 0,
       picks: picksFormatted,
-      paymentStatus: 'pending'
+      paymentStatus: 'pending',
+      sport: sport  // ADD SPORT TO SUBMISSION
     };
 
     saveSubmission(submission);
@@ -490,7 +503,7 @@ function LandingPage({ games, loading, onBackToMenu }) {
   const canSubmit = pickCount >= 3;
 
   const handleAdminClick = () => {
-    window.location.href = '?admin=true';
+    window.location.href = `?admin=true&sport=${encodeURIComponent(sport)}`;
   };
 
   if (hasSubmitted) {
@@ -614,7 +627,7 @@ function LandingPage({ games, loading, onBackToMenu }) {
               ← Back to Menu
             </button>
             <div style={{flex: 1, textAlign: 'center'}}>
-              <h1 style={{fontSize: '42px'}}>NFL Parlays</h1>
+              <h1 style={{fontSize: '42px'}}>{sport} Parlays</h1>
               <p style={{fontSize: '22px'}}>Make your selections below to get started.</p>
             </div>
             <button className="btn btn-secondary" onClick={handleAdminClick} style={{height: 'fit-content'}}>
@@ -758,7 +771,7 @@ function LandingPage({ games, loading, onBackToMenu }) {
             <li>Each time you participate, your club membership is renewed</li>
           </ul>
           <div style={{background: '#fff3cd', border: '2px solid #ffc107', borderRadius: '8px', padding: '16px', marginTop: '20px', fontSize: '14px', color: '#856404'}}>
-            <strong>Legal Disclaimer:</strong> For entertainment only. 21+ only. Private pool among friends. Check local laws. By participating, you acknowledge responsibility for compliance with all applicable laws and regulations.
+            <strong>Legal Disclaimer:</strong> For entertainment only. 21+ only. Private pool among friends. Check local laws. By participating, you acknowledge responsibility for compliance with local laws.
           </div>
         </div>
       </div>
@@ -782,7 +795,7 @@ function LandingPage({ games, loading, onBackToMenu }) {
   );
 }
 
-// Main App Component
+// Main App Component - REFACTORED FOR MULTI-SPORT
 function App() {
   const [authState, setAuthState] = useState({
     loading: true,
@@ -801,20 +814,48 @@ function App() {
   const [submissions, setSubmissions] = useState([]);
   const [selectedSport, setSelectedSport] = useState(null);
 
-  useEffect(() => {
-    loadGames();
-    setTimeout(() => {
-      setupFirebaseListener();
-    }, 500);
-    const interval = setInterval(loadGames, 300000);
-    return () => {
-      clearInterval(interval);
-    };
-  }, []);
-
-  const setupFirebaseListener = () => {
+  // SPORT-SPECIFIC GAME LOADING
+  const loadGames = async (sport) => {
+    setLoading(true);
     try {
-      const spreadsRef = ref(database, 'spreads');
+      const apiEndpoint = ESPN_API_ENDPOINTS[sport];
+      const response = await fetch(apiEndpoint);
+      const data = await response.json();
+      const formattedGames = data.events.map((event, index) => {
+        const competition = event.competitions[0];
+        const awayTeam = competition.competitors[1];
+        const homeTeam = competition.competitors[0];
+        const status = event.status.type.state;
+        return {
+          id: index + 1,
+          espnId: event.id,
+          date: new Date(event.date).toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' }),
+          time: new Date(event.date).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }) + ' ET',
+          awayTeam: awayTeam.team.displayName,
+          homeTeam: homeTeam.team.displayName,
+          awayTeamId: awayTeam.id,
+          homeTeamId: homeTeam.id,
+          awayScore: awayTeam.score || '0',
+          homeScore: homeTeam.score || '0',
+          awaySpread: '',
+          homeSpread: '',
+          total: '',
+          status: status,
+          statusDetail: event.status.type.detail,
+          isFinal: status === 'post'
+        };
+      });
+      setGames(formattedGames);
+    } catch (error) {
+      console.error('Error loading games:', error);
+    }
+    setLoading(false);
+  };
+
+  // SPORT-SPECIFIC FIREBASE LISTENER
+  const setupFirebaseListener = (sport) => {
+    try {
+      const spreadsRef = ref(database, `spreads/${sport}`);
       onValue(spreadsRef, (snapshot) => {
         if (snapshot.exists()) {
           const firebaseData = snapshot.val();
@@ -858,45 +899,23 @@ function App() {
         }
       });
     } catch (error) {
-      // ignore
+      console.error('Error setting up Firebase listener:', error);
     }
   };
 
-  const loadGames = async () => {
-    setLoading(true);
-    try {
-      const response = await fetch('https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard');
-      const data = await response.json();
-      const formattedGames = data.events.map((event, index) => {
-        const competition = event.competitions[0];
-        const awayTeam = competition.competitors[1];
-        const homeTeam = competition.competitors[0];
-        const status = event.status.type.state;
-        return {
-          id: index + 1,
-          espnId: event.id,
-          date: new Date(event.date).toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' }),
-          time: new Date(event.date).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }) + ' ET',
-          awayTeam: awayTeam.team.displayName,
-          homeTeam: homeTeam.team.displayName,
-          awayTeamId: awayTeam.id,
-          homeTeamId: homeTeam.id,
-          awayScore: awayTeam.score || '0',
-          homeScore: homeTeam.score || '0',
-          awaySpread: '',
-          homeSpread: '',
-          total: '',
-          status: status,
-          statusDetail: event.status.type.detail,
-          isFinal: status === 'post'
-        };
-      });
-      setGames(formattedGames);
-    } catch (error) {
-      // ignore
+  // LOAD GAMES WHEN SPORT IS SELECTED
+  useEffect(() => {
+    if (selectedSport) {
+      loadGames(selectedSport);
+      setTimeout(() => {
+        setupFirebaseListener(selectedSport);
+      }, 500);
+      const interval = setInterval(() => loadGames(selectedSport), 300000); // Refresh every 5 minutes
+      return () => {
+        clearInterval(interval);
+      };
     }
-    setLoading(false);
-  };
+  }, [selectedSport]);
 
   useEffect(() => {
     const stored = localStorage.getItem('marcs-parlays-submissions');
@@ -944,14 +963,25 @@ function App() {
   };
 
   // Render UI
-  if (authState.loading || loading) return (
+  if (authState.loading || (loading && selectedSport)) return (
     <div className="gradient-bg" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh' }}>
       <div className="text-white" style={{ fontSize: '24px' }}>Loading games from ESPN...</div>
     </div>
   );
 
   if (authState.user && authState.isAdmin)
-    return <AdminPanel user={authState.user} games={games} setGames={setGames} isSyncing={isSyncing} setIsSyncing={setIsSyncing} recentlyUpdated={recentlyUpdated} setRecentlyUpdated={setRecentlyUpdated} submissions={submissions} />;
+    return <AdminPanel 
+      user={authState.user} 
+      games={games} 
+      setGames={setGames} 
+      isSyncing={isSyncing} 
+      setIsSyncing={setIsSyncing} 
+      recentlyUpdated={recentlyUpdated} 
+      setRecentlyUpdated={setRecentlyUpdated} 
+      submissions={submissions} 
+      sport={selectedSport}
+      onBackToMenu={() => setSelectedSport(null)}
+    />;
 
   if (authState.user && !authState.isAdmin)
     return (
@@ -967,8 +997,14 @@ function App() {
   // Check if they clicked admin login button
   const urlParams = new URLSearchParams(window.location.search);
   const showAdminLogin = urlParams.get('admin') === 'true';
+  const adminSport = urlParams.get('sport');
 
   if (showAdminLogin || authState.user) {
+    // If admin login with a sport, set selected sport
+    if (adminSport && !selectedSport) {
+      setSelectedSport(decodeURIComponent(adminSport));
+    }
+    
     return (
       <div className="gradient-bg" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh' }}>
         <div className="card" style={{ maxWidth: '400px', width: '100%', margin: '0 auto', padding: 40 }}>
@@ -1017,13 +1053,8 @@ function App() {
     return <WelcomeLandingPage onSelectSport={(sport) => setSelectedSport(sport)} />;
   }
 
-  // Show NFL Parlays page
-  if (selectedSport === 'NFL') {
-    return <LandingPage games={games} loading={loading} onBackToMenu={() => setSelectedSport(null)} />;
-  }
-
-  // This shouldn't happen, but just in case
-  return <WelcomeLandingPage onSelectSport={(sport) => setSelectedSport(sport)} />;
+  // Show Sport-Specific Parlays page
+  return <LandingPage games={games} loading={loading} onBackToMenu={() => setSelectedSport(null)} sport={selectedSport} />;
 }
 
 export default App;
