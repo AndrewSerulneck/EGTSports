@@ -290,7 +290,7 @@ function WelcomeLandingPage({ onSelectSport }) {
         <div className="card" style={{ marginTop: '40px' }}>
           <h3 className="text-center mb-2">About EGT Sports</h3>
           <p style={{ textAlign: 'center', color: '#666', lineHeight: '1.6' }}>
-            Join our exclusive sports betting club! Select a sport above to start making your parlays.
+           Private pool among friends. 
           </p>
         </div>
       </div>
