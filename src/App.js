@@ -234,8 +234,72 @@ function AdminPanel({ user, games, setGames, isSyncing, setIsSyncing, recentlyUp
   );
 }
 
+// Welcome Landing Page Component
+function WelcomeLandingPage({ onSelectSport }) {
+  const sports = [
+    { name: 'NFL', available: true },
+    { name: 'NBA', available: false },
+    { name: 'College Football', available: false },
+    { name: 'College Basketball', available: false },
+    { name: 'Major League Baseball', available: false },
+    { name: 'NHL', available: false }
+  ];
+
+  return (
+    <div className="gradient-bg">
+      <div className="container" style={{ maxWidth: '800px', paddingTop: '60px' }}>
+        <div className="text-center text-white mb-4">
+          <h1 style={{ fontSize: '48px', marginBottom: '16px' }}>Welcome to EGT Sports</h1>
+          <p style={{ fontSize: '20px', marginBottom: '40px' }}>Select a sport to get started</p>
+        </div>
+        
+        <div className="card">
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px' }}>
+            {sports.map((sport) => (
+              <button
+                key={sport.name}
+                className="btn"
+                onClick={() => sport.available && onSelectSport(sport.name)}
+                disabled={!sport.available}
+                style={{
+                  padding: '32px 24px',
+                  fontSize: '18px',
+                  fontWeight: 'bold',
+                  background: sport.available ? '#007bff' : '#e9ecef',
+                  color: sport.available ? 'white' : '#6c757d',
+                  border: 'none',
+                  cursor: sport.available ? 'pointer' : 'not-allowed',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  gap: '8px',
+                  position: 'relative'
+                }}
+              >
+                <span>{sport.name}</span>
+                {!sport.available && (
+                  <span style={{ fontSize: '12px', fontStyle: 'italic', color: '#999' }}>
+                    Coming Soon
+                  </span>
+                )}
+              </button>
+            ))}
+          </div>
+        </div>
+        
+        <div className="card" style={{ marginTop: '40px' }}>
+          <h3 className="text-center mb-2">About EGT Sports</h3>
+          <p style={{ textAlign: 'center', color: '#666', lineHeight: '1.6' }}>
+            Join our exclusive sports betting club! Select a sport above to start making your parlays.
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // Landing Page Component (for visitors)
-function LandingPage({ games, loading }) {
+function LandingPage({ games, loading, onBackToMenu }) {
   const [selectedPicks, setSelectedPicks] = useState({});
   const [showConfirmation, setShowConfirmation] = useState(false);
   const [ticketNumber, setTicketNumber] = useState('');
@@ -545,9 +609,12 @@ function LandingPage({ games, loading }) {
     <div className="gradient-bg">
       <div className="container">
         <div className="text-center text-white mb-4">
-          <div style={{display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '20px', marginBottom: '16px', flexWrap: 'wrap'}}>
-            <div>
-              <h1 style={{fontSize: '42px'}}>Welcome to the EGT Sports Parlay Club!</h1>
+          <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '12px'}}>
+            <button className="btn btn-secondary" onClick={onBackToMenu} style={{height: 'fit-content'}}>
+              ← Back to Menu
+            </button>
+            <div style={{flex: 1, textAlign: 'center'}}>
+              <h1 style={{fontSize: '42px'}}>NFL Parlays</h1>
               <p style={{fontSize: '22px'}}>Make your selections below to get started.</p>
             </div>
             <button className="btn btn-secondary" onClick={handleAdminClick} style={{height: 'fit-content'}}>
@@ -732,6 +799,7 @@ function App() {
   const [isSyncing, setIsSyncing] = useState(false);
   const [recentlyUpdated, setRecentlyUpdated] = useState({});
   const [submissions, setSubmissions] = useState([]);
+  const [selectedSport, setSelectedSport] = useState(null);
 
   useEffect(() => {
     loadGames();
@@ -896,61 +964,66 @@ function App() {
       </div>
     );
 
-  // Show landing page OR admin login
-  const showingLandingPage = true; // Default to landing page for visitors
+  // Check if they clicked admin login button
+  const urlParams = new URLSearchParams(window.location.search);
+  const showAdminLogin = urlParams.get('admin') === 'true';
 
-  if (showingLandingPage) {
-    // Check if they clicked admin login button
-    const urlParams = new URLSearchParams(window.location.search);
-    const showAdminLogin = urlParams.get('admin') === 'true';
-
-    if (showAdminLogin || authState.user) {
-      return (
-        <div className="gradient-bg" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh' }}>
-          <div className="card" style={{ maxWidth: '400px', width: '100%', margin: '0 auto', padding: 40 }}>
-            <h2 className="text-center mb-4">Admin Login</h2>
-            <form onSubmit={handleLogin} style={{ maxWidth: 300 }}>
-              <input
-                type="email"
-                placeholder="Admin Email"
-                required
-                value={loginForm.email}
-                onChange={(e) =>
-                  setLoginForm((f) => ({ ...f, email: e.target.value }))
-                }
-              />
-              <input
-                type="password"
-                placeholder="Password"
-                required
-                value={loginForm.password}
-                onChange={(e) =>
-                  setLoginForm((f) => ({ ...f, password: e.target.value }))
-                }
-              />
-              <button className="btn btn-primary" type="submit" style={{ width: '100%', marginBottom: '12px' }}>Login</button>
-              <button 
-                className="btn btn-secondary" 
-                type="button" 
-                onClick={() => window.history.back()} 
-                style={{ width: '100%' }}
-              >
-                Back
-              </button>
-              {authState.error && (
-                <div style={{ color: "red", marginTop: 10, textAlign: 'center' }}>{authState.error}</div>
-              )}
-            </form>
-          </div>
-        </div>
-      );
-    }
-
-    // Show landing page with admin login button
+  if (showAdminLogin || authState.user) {
     return (
-      <LandingPage games={games} loading={loading} />
+      <div className="gradient-bg" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh' }}>
+        <div className="card" style={{ maxWidth: '400px', width: '100%', margin: '0 auto', padding: 40 }}>
+          <h2 className="text-center mb-4">Admin Login</h2>
+          <form onSubmit={handleLogin} style={{ maxWidth: 300 }}>
+            <input
+              type="email"
+              placeholder="Admin Email"
+              required
+              value={loginForm.email}
+              onChange={(e) =>
+                setLoginForm((f) => ({ ...f, email: e.target.value }))
+              }
+            />
+            <input
+              type="password"
+              placeholder="Password"
+              required
+              value={loginForm.password}
+              onChange={(e) =>
+                setLoginForm((f) => ({ ...f, password: e.target.value }))
+              }
+            />
+            <button className="btn btn-primary" type="submit" style={{ width: '100%', marginBottom: '12px' }}>Login</button>
+            <button 
+              className="btn btn-secondary" 
+              type="button" 
+              onClick={() => {
+                window.history.back();
+              }} 
+              style={{ width: '100%' }}
+            >
+              Back
+            </button>
+            {authState.error && (
+              <div style={{ color: "red", marginTop: 10, textAlign: 'center' }}>{authState.error}</div>
+            )}
+          </form>
+        </div>
+      </div>
     );
   }
+
+  // Show welcome landing page or sport-specific page
+  if (!selectedSport) {
+    return <WelcomeLandingPage onSelectSport={(sport) => setSelectedSport(sport)} />;
+  }
+
+  // Show NFL Parlays page
+  if (selectedSport === 'NFL') {
+    return <LandingPage games={games} loading={loading} onBackToMenu={() => setSelectedSport(null)} />;
+  }
+
+  // This shouldn't happen, but just in case
+  return <WelcomeLandingPage onSelectSport={(sport) => setSelectedSport(sport)} />;
 }
 
 export default App;
