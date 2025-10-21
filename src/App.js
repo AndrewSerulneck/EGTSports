@@ -19,6 +19,11 @@ const ESPN_API_ENDPOINTS = {
   'NHL': 'https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard'
 };
 
+// Cache configuration
+const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes in milliseconds
+const REFRESH_INTERVAL = 10 * 60 * 1000; // 10 minutes in milliseconds
+const gameCache = {};
+
 // Firebase Config
 const firebaseConfig = {
   apiKey: process.env.REACT_APP_FIREBASE_API_KEY || "AIzaSyA9FsWV7hA4ow2Xaq0Krx9kCCMfMibkVOQ",
@@ -311,7 +316,7 @@ function WelcomeLandingPage({ onSelectSport }) {
 }
 
 // Landing Page Component - NOW ACCEPTS SPORT PARAMETER
-function LandingPage({ games, loading, onBackToMenu, sport }) {
+function LandingPage({ games, loading, onBackToMenu, sport, apiError }) {
   const [selectedPicks, setSelectedPicks] = useState({});
   const [showConfirmation, setShowConfirmation] = useState(false);
   const [ticketNumber, setTicketNumber] = useState('');
@@ -490,7 +495,39 @@ function LandingPage({ games, loading, onBackToMenu, sport }) {
   if (loading) {
     return (
       <div className="gradient-bg" style={{display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh'}}>
-        <div className="text-white" style={{fontSize: '24px'}}>Loading games from ESPN...</div>
+        <div className="text-white" style={{fontSize: '24px'}}>Loading {sport} games from ESPN...</div>
+      </div>
+    );
+  }
+
+  // Show API Error if exists
+  if (apiError) {
+    return (
+      <div className="gradient-bg">
+        <div className="container" style={{maxWidth: '600px', paddingTop: '60px'}}>
+          <div className="card text-center">
+            <h2 style={{color: '#dc3545', marginBottom: '20px'}}>⚠️ Unable to Load Games</h2>
+            <p style={{marginBottom: '20px'}}>{apiError}</p>
+            <button className="btn btn-primary" onClick={onBackToMenu}>← Back to Menu</button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Show message if no games available
+  if (games.length === 0) {
+    return (
+      <div className="gradient-bg">
+        <div className="container" style={{maxWidth: '600px', paddingTop: '60px'}}>
+          <div className="card text-center">
+            <h2 style={{marginBottom: '20px'}}>No {sport} Games Available</h2>
+            <p style={{marginBottom: '20px', color: '#666'}}>
+              There are currently no upcoming {sport} games. This could be due to the off-season or no scheduled games at this time.
+            </p>
+            <button className="btn btn-primary" onClick={onBackToMenu}>← Back to Menu</button>
+          </div>
+        </div>
       </div>
     );
   }
@@ -795,7 +832,7 @@ function LandingPage({ games, loading, onBackToMenu, sport }) {
   );
 }
 
-// Main App Component - REFACTORED FOR MULTI-SPORT
+// Main App Component - REFACTORED FOR MULTI-SPORT WITH CACHING
 function App() {
   const [authState, setAuthState] = useState({
     loading: true,
@@ -809,18 +846,68 @@ function App() {
   });
   const [games, setGames] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [apiError, setApiError] = useState(null);
   const [isSyncing, setIsSyncing] = useState(false);
   const [recentlyUpdated, setRecentlyUpdated] = useState({});
   const [submissions, setSubmissions] = useState([]);
   const [selectedSport, setSelectedSport] = useState(null);
 
-  // SPORT-SPECIFIC GAME LOADING
+  // IMPROVED: SPORT-SPECIFIC GAME LOADING WITH CACHING & ERROR HANDLING
   const loadGames = async (sport) => {
     setLoading(true);
+    setApiError(null);
+    
+    // Check cache first
+    const cached = gameCache[sport];
+    if (cached && Date.now() - cached.timestamp < CACHE_DURATION) {
+      console.log(`✅ Using cached data for ${sport}`);
+      setGames(cached.data);
+      setLoading(false);
+      return;
+    }
+    
     try {
       const apiEndpoint = ESPN_API_ENDPOINTS[sport];
+      console.log(`🔄 Fetching ${sport} games from ESPN API...`);
+      
       const response = await fetch(apiEndpoint);
+      
+      // Handle rate limiting (429 status)
+      if (response.status === 429) {
+        console.error('⚠️ ESPN API rate limit exceeded');
+        setApiError('ESPN API is temporarily unavailable due to rate limiting. Please try again in a few minutes.');
+        
+        // Try to use stale cache if available
+        if (cached) {
+          console.log('📦 Using stale cache due to rate limit');
+          setGames(cached.data);
+        }
+        setLoading(false);
+        return;
+      }
+      
+      // Handle other HTTP errors
+      if (!response.ok) {
+        throw new Error(`ESPN API returned status ${response.status}`);
+      }
+      
       const data = await response.json();
+      
+      // Check if events exist
+      if (!data.events || data.events.length === 0) {
+        console.log(`ℹ️ No games available for ${sport}`);
+        setGames([]);
+        
+        // Cache empty result to avoid repeated API calls
+        gameCache[sport] = {
+          data: [],
+          timestamp: Date.now()
+        };
+        
+        setLoading(false);
+        return;
+      }
+      
       const formattedGames = data.events.map((event, index) => {
         const competition = event.competitions[0];
         const awayTeam = competition.competitors[1];
@@ -845,9 +932,25 @@ function App() {
           isFinal: status === 'post'
         };
       });
+      
+      // Cache the results
+      gameCache[sport] = {
+        data: formattedGames,
+        timestamp: Date.now()
+      };
+      
+      console.log(`✅ Loaded ${formattedGames.length} ${sport} games`);
       setGames(formattedGames);
     } catch (error) {
-      console.error('Error loading games:', error);
+      console.error(`❌ Error loading ${sport} games:`, error);
+      setApiError(`Unable to load ${sport} games. ${error.message}`);
+      
+      // Try to use stale cache if available
+      const cached = gameCache[sport];
+      if (cached) {
+        console.log('📦 Using stale cache due to error');
+        setGames(cached.data);
+      }
     }
     setLoading(false);
   };
@@ -894,6 +997,12 @@ function App() {
             if (updated) {
               setIsSyncing(false);
             }
+            
+            // Update cache with Firebase data
+            if (gameCache[sport]) {
+              gameCache[sport].data = newGames;
+            }
+            
             return newGames;
           });
         }
@@ -903,14 +1012,16 @@ function App() {
     }
   };
 
-  // LOAD GAMES WHEN SPORT IS SELECTED
+  // LOAD GAMES WHEN SPORT IS SELECTED - OPTIMIZED REFRESH INTERVAL
   useEffect(() => {
     if (selectedSport) {
       loadGames(selectedSport);
       setTimeout(() => {
         setupFirebaseListener(selectedSport);
       }, 500);
-      const interval = setInterval(() => loadGames(selectedSport), 300000); // Refresh every 5 minutes
+      
+      // IMPROVED: 10-minute refresh interval instead of 5 minutes
+      const interval = setInterval(() => loadGames(selectedSport), REFRESH_INTERVAL);
       return () => {
         clearInterval(interval);
       };
@@ -963,9 +1074,11 @@ function App() {
   };
 
   // Render UI
-  if (authState.loading || (loading && selectedSport)) return (
+  if (authState.loading || (loading && selectedSport && !apiError)) return (
     <div className="gradient-bg" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh' }}>
-      <div className="text-white" style={{ fontSize: '24px' }}>Loading games from ESPN...</div>
+      <div className="text-white" style={{ fontSize: '24px' }}>
+        Loading {selectedSport ? `${selectedSport} games` : 'data'} from ESPN...
+      </div>
     </div>
   );
 
@@ -1054,7 +1167,13 @@ function App() {
   }
 
   // Show Sport-Specific Parlays page
-  return <LandingPage games={games} loading={loading} onBackToMenu={() => setSelectedSport(null)} sport={selectedSport} />;
+  return <LandingPage 
+    games={games} 
+    loading={loading} 
+    onBackToMenu={() => setSelectedSport(null)} 
+    sport={selectedSport}
+    apiError={apiError}
+  />;
 }
 
 export default App;
