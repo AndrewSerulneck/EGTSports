@@ -234,8 +234,89 @@ function AdminPanel({ user, games, setGames, isSyncing, setIsSyncing, recentlyUp
   );
 }
 
-// Landing Page Component (for visitors)
-function LandingPage({ games, loading }) {
+// Welcome Landing Page Component (for sport selection)
+function WelcomeLandingPage({ onSportSelect, onAdminClick }) {
+  const sports = [
+    { id: 'nfl', name: 'NFL', icon: '🏈', available: true },
+    { id: 'nba', name: 'NBA', icon: '🏀', available: false },
+    { id: 'college-football', name: 'College Football', icon: '🎓🏈', available: false },
+    { id: 'mlb', name: 'Major League Baseball', icon: '⚾', available: false },
+    { id: 'college-baseball', name: 'College Baseball', icon: '⚾🎓', available: false },
+    { id: 'nhl', name: 'NHL', icon: '🏒', available: false }
+  ];
+
+  return (
+    <div className="gradient-bg">
+      <div className="container" style={{ maxWidth: '800px', paddingTop: '60px' }}>
+        <div className="text-center text-white mb-4">
+          <h1 style={{ fontSize: '48px', marginBottom: '16px' }}>Welcome to EGT Sports</h1>
+          <p style={{ fontSize: '24px', marginBottom: '40px' }}>Select Your Sport to Get Started</p>
+        </div>
+
+        <div className="card">
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+            {sports.map(sport => (
+              <button
+                key={sport.id}
+                className={`btn ${sport.available ? 'btn-primary' : 'btn-secondary'}`}
+                onClick={() => sport.available && onSportSelect(sport.id)}
+                disabled={!sport.available}
+                style={{
+                  width: '100%',
+                  padding: '24px',
+                  fontSize: '24px',
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  opacity: sport.available ? 1 : 0.6
+                }}
+              >
+                <span>
+                  <span style={{ marginRight: '12px' }}>{sport.icon}</span>
+                  {sport.name}
+                </span>
+                {!sport.available && (
+                  <span
+                    style={{
+                      background: '#ffc107',
+                      color: 'black',
+                      padding: '6px 16px',
+                      borderRadius: '20px',
+                      fontWeight: 'bold',
+                      fontSize: '16px'
+                    }}
+                  >
+                    Coming Soon
+                  </span>
+                )}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="card">
+          <h3 className="mb-2">About EGT Sports Parlay Club</h3>
+          <p style={{ lineHeight: '1.8', marginBottom: '16px' }}>
+            Welcome to EGT Sports Parlay Club, your premier destination for exciting sports parlay betting action! 
+            We offer a user-friendly platform where you can build custom parlays across multiple sports with competitive odds and real-time updates.
+          </p>
+          <p style={{ lineHeight: '1.8', marginBottom: '16px' }}>
+            Whether you're a seasoned bettor or just starting out, our platform makes it easy to select your picks, 
+            track your tickets, and celebrate your wins. Start by selecting your sport above and let the excitement begin!
+          </p>
+          <div style={{ marginTop: '24px', textAlign: 'center' }}>
+            <button className="btn btn-secondary" onClick={onAdminClick}>
+              Admin Login
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// NFL Parlay Page Component (for visitors)
+function NFLParlayPage({ games, loading, onBack }) {
   const [selectedPicks, setSelectedPicks] = useState({});
   const [showConfirmation, setShowConfirmation] = useState(false);
   const [ticketNumber, setTicketNumber] = useState('');
@@ -550,9 +631,16 @@ function LandingPage({ games, loading }) {
               <h1 style={{fontSize: '42px'}}>Welcome to the EGT Sports Parlay Club!</h1>
               <p style={{fontSize: '22px'}}>Make your selections below to get started.</p>
             </div>
-            <button className="btn btn-secondary" onClick={handleAdminClick} style={{height: 'fit-content'}}>
-              Admin Login
-            </button>
+            <div style={{display: 'flex', gap: '8px'}}>
+              {onBack && (
+                <button className="btn btn-secondary" onClick={onBack} style={{height: 'fit-content'}}>
+                  ← Back to Sports
+                </button>
+              )}
+              <button className="btn btn-secondary" onClick={handleAdminClick} style={{height: 'fit-content'}}>
+                Admin Login
+              </button>
+            </div>
           </div>
         </div>
         <div className="card">
@@ -732,6 +820,7 @@ function App() {
   const [isSyncing, setIsSyncing] = useState(false);
   const [recentlyUpdated, setRecentlyUpdated] = useState({});
   const [submissions, setSubmissions] = useState([]);
+  const [selectedSport, setSelectedSport] = useState(null);
 
   useEffect(() => {
     loadGames();
@@ -896,61 +985,70 @@ function App() {
       </div>
     );
 
-  // Show landing page OR admin login
-  const showingLandingPage = true; // Default to landing page for visitors
+  // Check if they clicked admin login button
+  const urlParams = new URLSearchParams(window.location.search);
+  const showAdminLogin = urlParams.get('admin') === 'true';
 
-  if (showingLandingPage) {
-    // Check if they clicked admin login button
-    const urlParams = new URLSearchParams(window.location.search);
-    const showAdminLogin = urlParams.get('admin') === 'true';
-
-    if (showAdminLogin || authState.user) {
-      return (
-        <div className="gradient-bg" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh' }}>
-          <div className="card" style={{ maxWidth: '400px', width: '100%', margin: '0 auto', padding: 40 }}>
-            <h2 className="text-center mb-4">Admin Login</h2>
-            <form onSubmit={handleLogin} style={{ maxWidth: 300 }}>
-              <input
-                type="email"
-                placeholder="Admin Email"
-                required
-                value={loginForm.email}
-                onChange={(e) =>
-                  setLoginForm((f) => ({ ...f, email: e.target.value }))
-                }
-              />
-              <input
-                type="password"
-                placeholder="Password"
-                required
-                value={loginForm.password}
-                onChange={(e) =>
-                  setLoginForm((f) => ({ ...f, password: e.target.value }))
-                }
-              />
-              <button className="btn btn-primary" type="submit" style={{ width: '100%', marginBottom: '12px' }}>Login</button>
-              <button 
-                className="btn btn-secondary" 
-                type="button" 
-                onClick={() => window.history.back()} 
-                style={{ width: '100%' }}
-              >
-                Back
-              </button>
-              {authState.error && (
-                <div style={{ color: "red", marginTop: 10, textAlign: 'center' }}>{authState.error}</div>
-              )}
-            </form>
-          </div>
-        </div>
-      );
-    }
-
-    // Show landing page with admin login button
+  if (showAdminLogin || authState.user) {
     return (
-      <LandingPage games={games} loading={loading} />
+      <div className="gradient-bg" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh' }}>
+        <div className="card" style={{ maxWidth: '400px', width: '100%', margin: '0 auto', padding: 40 }}>
+          <h2 className="text-center mb-4">Admin Login</h2>
+          <form onSubmit={handleLogin} style={{ maxWidth: 300 }}>
+            <input
+              type="email"
+              placeholder="Admin Email"
+              required
+              value={loginForm.email}
+              onChange={(e) =>
+                setLoginForm((f) => ({ ...f, email: e.target.value }))
+              }
+            />
+            <input
+              type="password"
+              placeholder="Password"
+              required
+              value={loginForm.password}
+              onChange={(e) =>
+                setLoginForm((f) => ({ ...f, password: e.target.value }))
+              }
+            />
+            <button className="btn btn-primary" type="submit" style={{ width: '100%', marginBottom: '12px' }}>Login</button>
+            <button 
+              className="btn btn-secondary" 
+              type="button" 
+              onClick={() => window.history.back()} 
+              style={{ width: '100%' }}
+            >
+              Back
+            </button>
+            {authState.error && (
+              <div style={{ color: "red", marginTop: 10, textAlign: 'center' }}>{authState.error}</div>
+            )}
+          </form>
+        </div>
+      </div>
     );
   }
+
+  // Show NFL parlay page if sport is selected
+  if (selectedSport === 'nfl') {
+    return (
+      <NFLParlayPage 
+        games={games} 
+        loading={loading} 
+        onBack={() => setSelectedSport(null)}
+      />
+    );
+  }
+
+  // Show welcome landing page by default
+  return (
+    <WelcomeLandingPage 
+      onSportSelect={(sport) => setSelectedSport(sport)}
+      onAdminClick={() => window.location.href = '?admin=true'}
+    />
+  );
 }
 
 export default App;
