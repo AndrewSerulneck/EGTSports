@@ -1,7 +1,7 @@
 import './App.css';
 import React, { useState, useEffect } from "react";
 import { initializeApp } from "firebase/app";
-import { getDatabase, ref, set, onValue } from "firebase/database";
+import { getDatabase, ref, set, onValue, push } from "firebase/database";
 import {
   getAuth,
   signInWithEmailAndPassword,
@@ -17,6 +17,21 @@ const ESPN_API_ENDPOINTS = {
   'College Basketball': 'https://site.api.espn.com/apis/site/v2/sports/basketball/mens-college-basketball/scoreboard',
   'Major League Baseball': 'https://site.api.espn.com/apis/site/v2/sports/baseball/mlb/scoreboard',
   'NHL': 'https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard'
+};
+
+// Cache configuration
+const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes in milliseconds
+const REFRESH_INTERVAL_ACTIVE = 2 * 60 * 1000; // 2 minutes when games are live
+const REFRESH_INTERVAL_INACTIVE = 30 * 60 * 1000; // 30 minutes when no active games
+const gameCache = {};
+
+// API Usage Tracking
+let apiCallCount = {
+  total: 0,
+  byEndpoint: {},
+  errors: 0,
+  cacheHits: 0,
+  lastReset: Date.now()
 };
 
 // Firebase Config
@@ -39,9 +54,53 @@ const MIN_BET = parseInt(process.env.REACT_APP_MIN_BET) || 5;
 const MAX_BET = parseInt(process.env.REACT_APP_MAX_BET) || 100;
 const GOOGLE_SHEET_URL = process.env.REACT_APP_GOOGLE_SHEET_URL || 'https://script.google.com/macros/s/AKfycbzPastor8yKkWQxKx1z0p-0ZibwBJHkJCuVvHDqP9YX7Dv1-vwakdR9RU6Y6oNw4T2W2PA/exec';
 
-// Admin Panel Component - NOW SPORT-SPECIFIC
+// Utility: Log API usage to Firebase (for admin monitoring)
+const logAPIUsage = async (sport, success, fromCache) => {
+  try {
+    const usageRef = ref(database, 'analytics/apiUsage');
+    await push(usageRef, {
+      timestamp: new Date().toISOString(),
+      sport: sport,
+      success: success,
+      fromCache: fromCache,
+      user: auth.currentUser ? auth.currentUser.uid : 'anonymous'
+    });
+  } catch (error) {
+    console.error('Error logging API usage:', error);
+  }
+};
+
+// Utility: Check if there are any active/live games
+const hasActiveGames = (games) => {
+  return games.some(game => game.status === 'in' || game.status === 'pre');
+};
+
+// Utility: Get API stats for display
+const getAPIStats = () => {
+  const hoursSinceReset = (Date.now() - apiCallCount.lastReset) / (1000 * 60 * 60);
+  return {
+    total: apiCallCount.total,
+    cacheHits: apiCallCount.cacheHits,
+    errors: apiCallCount.errors,
+    cacheHitRate: apiCallCount.total > 0 ? ((apiCallCount.cacheHits / (apiCallCount.total + apiCallCount.cacheHits)) * 100).toFixed(1) : 0,
+    callsPerHour: hoursSinceReset > 0 ? (apiCallCount.total / hoursSinceReset).toFixed(1) : 0,
+    byEndpoint: apiCallCount.byEndpoint
+  };
+};
+
+// Admin Panel Component - NOW SPORT-SPECIFIC WITH API STATS
 function AdminPanel({ user, games, setGames, isSyncing, setIsSyncing, recentlyUpdated, setRecentlyUpdated, submissions, sport, onBackToMenu }) {
   const [showSubmissions, setShowSubmissions] = useState(false);
+  const [showAPIStats, setShowAPIStats] = useState(false);
+  const [apiStats, setApiStats] = useState(getAPIStats());
+
+  // Update API stats every 5 seconds
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setApiStats(getAPIStats());
+    }, 5000);
+    return () => clearInterval(interval);
+  }, []);
 
   const saveSpreadToFirebase = async () => {
     try {
@@ -137,6 +196,59 @@ function AdminPanel({ user, games, setGames, isSyncing, setIsSyncing, recentlyUp
     return { wins, losses, pending, allGamesComplete, parlayWon };
   };
 
+  if (showAPIStats) {
+    return (
+      <div className="gradient-bg">
+        <div className="container">
+          <div className="card">
+            <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px'}}>
+              <h1>📊 API Usage Analytics</h1>
+              <button className="btn btn-secondary" onClick={() => setShowAPIStats(false)}>Back</button>
+            </div>
+          </div>
+          
+          <div className="card">
+            <h3 className="mb-2">Overall Stats</h3>
+            <div style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px', marginBottom: '20px'}}>
+              <div style={{padding: '16px', background: '#f8f9fa', borderRadius: '8px', textAlign: 'center'}}>
+                <div style={{fontSize: '32px', fontWeight: 'bold', color: '#007bff'}}>{apiStats.total}</div>
+                <div style={{color: '#666'}}>Total API Calls</div>
+              </div>
+              <div style={{padding: '16px', background: '#f8f9fa', borderRadius: '8px', textAlign: 'center'}}>
+                <div style={{fontSize: '32px', fontWeight: 'bold', color: '#28a745'}}>{apiStats.cacheHits}</div>
+                <div style={{color: '#666'}}>Cache Hits</div>
+              </div>
+              <div style={{padding: '16px', background: '#f8f9fa', borderRadius: '8px', textAlign: 'center'}}>
+                <div style={{fontSize: '32px', fontWeight: 'bold', color: '#ffc107'}}>{apiStats.cacheHitRate}%</div>
+                <div style={{color: '#666'}}>Cache Hit Rate</div>
+              </div>
+              <div style={{padding: '16px', background: '#f8f9fa', borderRadius: '8px', textAlign: 'center'}}>
+                <div style={{fontSize: '32px', fontWeight: 'bold', color: '#dc3545'}}>{apiStats.errors}</div>
+                <div style={{color: '#666'}}>Errors</div>
+              </div>
+            </div>
+          </div>
+
+          <div className="card">
+            <h3 className="mb-2">Calls Per Sport</h3>
+            {Object.entries(apiStats.byEndpoint).map(([sport, count]) => (
+              <div key={sport} style={{display: 'flex', justifyContent: 'space-between', padding: '12px', background: '#f8f9fa', borderRadius: '8px', marginBottom: '8px'}}>
+                <strong>{sport}</strong>
+                <span>{count} calls</span>
+              </div>
+            ))}
+          </div>
+
+          <div className="card">
+            <p style={{color: '#666', marginBottom: '0'}}>
+              <strong>Average:</strong> {apiStats.callsPerHour} calls per hour
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   if (showSubmissions) {
     return (
       <div className="gradient-bg">
@@ -198,8 +310,11 @@ function AdminPanel({ user, games, setGames, isSyncing, setIsSyncing, recentlyUp
         <div className="card">
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '12px' }}>
             <h1>{sport} Admin Panel <span className={`sync-indicator ${isSyncing ? 'syncing' : ''}`}></span></h1>
-            <div style={{display: 'flex', gap: '8px'}}>
+            <div style={{display: 'flex', gap: '8px', flexWrap: 'wrap'}}>
               <button className="btn btn-secondary" onClick={onBackToMenu}>← Back to Menu</button>
+              <button className="btn btn-info" onClick={() => setShowAPIStats(true)}>
+                📊 API Stats
+              </button>
               <button className="btn btn-primary" onClick={() => setShowSubmissions(true)}>
                 Submissions ({submissions.length})
               </button>
@@ -214,6 +329,11 @@ function AdminPanel({ user, games, setGames, isSyncing, setIsSyncing, recentlyUp
               {game.isFinal && (
                 <span style={{ color: '#666', fontWeight: '600' }}>
                   FINAL: {game.awayTeam} {game.awayScore} - {game.homeScore} {game.homeTeam}
+                </span>
+              )}
+              {game.status === 'in' && (
+                <span style={{ color: '#28a745', fontWeight: '600' }}>
+                  🔴 LIVE: {game.awayTeam} {game.awayScore} - {game.homeScore} {game.homeTeam}
                 </span>
               )}
             </div>
@@ -310,8 +430,8 @@ function WelcomeLandingPage({ onSelectSport }) {
   );
 }
 
-// Landing Page Component - NOW ACCEPTS SPORT PARAMETER
-function LandingPage({ games, loading, onBackToMenu, sport }) {
+// Landing Page Component - WITH MANUAL REFRESH BUTTON
+function LandingPage({ games, loading, onBackToMenu, sport, apiError, onManualRefresh, lastRefreshTime }) {
   const [selectedPicks, setSelectedPicks] = useState({});
   const [showConfirmation, setShowConfirmation] = useState(false);
   const [ticketNumber, setTicketNumber] = useState('');
@@ -319,11 +439,28 @@ function LandingPage({ games, loading, onBackToMenu, sport }) {
   const [contactInfo, setContactInfo] = useState({ name: '', email: '', betAmount: '', confirmMethod: 'email', freePlay: 0 });
   const [submissions, setSubmissions] = useState([]);
   const [hasSubmitted, setHasSubmitted] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   useEffect(() => {
     const stored = localStorage.getItem('marcs-parlays-submissions');
     if (stored) setSubmissions(JSON.parse(stored));
   }, []);
+
+  const handleManualRefresh = async () => {
+    setIsRefreshing(true);
+    await onManualRefresh();
+    setIsRefreshing(false);
+  };
+
+  const getTimeSinceRefresh = () => {
+    if (!lastRefreshTime) return '';
+    const seconds = Math.floor((Date.now() - lastRefreshTime) / 1000);
+    if (seconds < 60) return `${seconds}s ago`;
+    const minutes = Math.floor(seconds / 60);
+    if (minutes < 60) return `${minutes}m ago`;
+    const hours = Math.floor(minutes / 60);
+    return `${hours}h ago`;
+  };
 
   const saveSubmission = async (submission) => {
     const allSubmissions = [...submissions, submission];
@@ -490,7 +627,49 @@ function LandingPage({ games, loading, onBackToMenu, sport }) {
   if (loading) {
     return (
       <div className="gradient-bg" style={{display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh'}}>
-        <div className="text-white" style={{fontSize: '24px'}}>Loading games from ESPN...</div>
+        <div className="text-white" style={{fontSize: '24px'}}>Loading {sport} games from ESPN...</div>
+      </div>
+    );
+  }
+
+  // Show API Error if exists
+  if (apiError) {
+    return (
+      <div className="gradient-bg">
+        <div className="container" style={{maxWidth: '600px', paddingTop: '60px'}}>
+          <div className="card text-center">
+            <h2 style={{color: '#dc3545', marginBottom: '20px'}}>⚠️ Unable to Load Games</h2>
+            <p style={{marginBottom: '20px'}}>{apiError}</p>
+            <div style={{display: 'flex', gap: '12px', justifyContent: 'center'}}>
+              <button className="btn btn-primary" onClick={handleManualRefresh} disabled={isRefreshing}>
+                {isRefreshing ? 'Refreshing...' : '🔄 Retry'}
+              </button>
+              <button className="btn btn-secondary" onClick={onBackToMenu}>← Back to Menu</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Show message if no games available
+  if (games.length === 0) {
+    return (
+      <div className="gradient-bg">
+        <div className="container" style={{maxWidth: '600px', paddingTop: '60px'}}>
+          <div className="card text-center">
+            <h2 style={{marginBottom: '20px'}}>No {sport} Games Available</h2>
+            <p style={{marginBottom: '20px', color: '#666'}}>
+              There are currently no upcoming {sport} games. This could be due to the off-season or no scheduled games at this time.
+            </p>
+            <div style={{display: 'flex', gap: '12px', justifyContent: 'center'}}>
+              <button className="btn btn-primary" onClick={handleManualRefresh} disabled={isRefreshing}>
+                {isRefreshing ? 'Refreshing...' : '🔄 Refresh'}
+              </button>
+              <button className="btn btn-secondary" onClick={onBackToMenu}>← Back to Menu</button>
+            </div>
+          </div>
+        </div>
       </div>
     );
   }
@@ -505,6 +684,9 @@ function LandingPage({ games, loading, onBackToMenu, sport }) {
   const handleAdminClick = () => {
     window.location.href = `?admin=true&sport=${encodeURIComponent(sport)}`;
   };
+
+  // Count active games
+  const activeGamesCount = games.filter(g => g.status === 'in' || g.status === 'pre').length;
 
   if (hasSubmitted) {
     return (
@@ -629,12 +811,35 @@ function LandingPage({ games, loading, onBackToMenu, sport }) {
             <div style={{flex: 1, textAlign: 'center'}}>
               <h1 style={{fontSize: '42px'}}>{sport} Parlays</h1>
               <p style={{fontSize: '22px'}}>Make your selections below to get started.</p>
+              {activeGamesCount > 0 && (
+                <div style={{fontSize: '14px', color: '#ffc107', marginTop: '8px'}}>
+                  🔴 {activeGamesCount} live game{activeGamesCount > 1 ? 's' : ''}
+                </div>
+              )}
             </div>
             <button className="btn btn-secondary" onClick={handleAdminClick} style={{height: 'fit-content'}}>
               Admin Login
             </button>
           </div>
+          
+          {/* MANUAL REFRESH BUTTON */}
+          <div style={{display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '12px', marginBottom: '16px'}}>
+            <button 
+              className="btn btn-info" 
+              onClick={handleManualRefresh} 
+              disabled={isRefreshing}
+              style={{padding: '8px 20px', fontSize: '14px'}}
+            >
+              {isRefreshing ? '🔄 Refreshing...' : '🔄 Refresh Games'}
+            </button>
+            {lastRefreshTime && (
+              <span style={{fontSize: '12px', color: '#ddd'}}>
+                Updated {getTimeSinceRefresh()}
+              </span>
+            )}
+          </div>
         </div>
+        
         <div className="card">
           <h2 className="text-center mb-2">Payout Odds</h2>
           <div className="payout-grid">
@@ -659,8 +864,13 @@ function LandingPage({ games, loading, onBackToMenu, sport }) {
           const pickObj = selectedPicks[game.id] || {};
           return (
             <div key={game.id} className="game-card">
-              <div style={{display: 'flex', justifyContent: 'space-between', marginBottom: '16px', paddingBottom: '12px', borderBottom: '2px solid #f0f0f0', flexWrap: 'wrap', gap: '8px'}}>
+              <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', paddingBottom: '12px', borderBottom: '2px solid #f0f0f0', flexWrap: 'wrap', gap: '8px'}}>
                 <span>{game.date} - {game.time}</span>
+                {game.status === 'in' && (
+                  <span style={{padding: '4px 12px', background: '#28a745', color: 'white', borderRadius: '12px', fontSize: '12px', fontWeight: 'bold'}}>
+                    🔴 LIVE
+                  </span>
+                )}
               </div>
               {game.isFinal && (
                 <div className="final-header">
@@ -795,7 +1005,7 @@ function LandingPage({ games, loading, onBackToMenu, sport }) {
   );
 }
 
-// Main App Component - REFACTORED FOR MULTI-SPORT
+// Main App Component - WITH SMART REFRESH LOGIC
 function App() {
   const [authState, setAuthState] = useState({
     loading: true,
@@ -809,18 +1019,87 @@ function App() {
   });
   const [games, setGames] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [apiError, setApiError] = useState(null);
   const [isSyncing, setIsSyncing] = useState(false);
   const [recentlyUpdated, setRecentlyUpdated] = useState({});
   const [submissions, setSubmissions] = useState([]);
   const [selectedSport, setSelectedSport] = useState(null);
+  const [lastRefreshTime, setLastRefreshTime] = useState(null);
+  const [refreshInterval, setRefreshInterval] = useState(null);
 
-  // SPORT-SPECIFIC GAME LOADING
-  const loadGames = async (sport) => {
+  // IMPROVED: SPORT-SPECIFIC GAME LOADING WITH SMART REFRESH
+  const loadGames = async (sport, forceRefresh = false) => {
     setLoading(true);
+    setApiError(null);
+    
+    // Check cache first (unless force refresh)
+    if (!forceRefresh) {
+      const cached = gameCache[sport];
+      if (cached && Date.now() - cached.timestamp < CACHE_DURATION) {
+        console.log(`✅ Using cached data for ${sport}`);
+        apiCallCount.cacheHits++;
+        setGames(cached.data);
+        setLoading(false);
+        setLastRefreshTime(cached.timestamp);
+        logAPIUsage(sport, true, true);
+        return;
+      }
+    }
+    
     try {
       const apiEndpoint = ESPN_API_ENDPOINTS[sport];
+      console.log(`🔄 Fetching ${sport} games from ESPN API...`);
+      
+      // Track API call
+      apiCallCount.total++;
+      apiCallCount.byEndpoint[sport] = (apiCallCount.byEndpoint[sport] || 0) + 1;
+      
       const response = await fetch(apiEndpoint);
+      
+      // Handle rate limiting (429 status)
+      if (response.status === 429) {
+        console.error('⚠️ ESPN API rate limit exceeded');
+        apiCallCount.errors++;
+        setApiError('ESPN API is temporarily unavailable due to rate limiting. Please try again in a few minutes.');
+        
+        // Try to use stale cache if available
+        const cached = gameCache[sport];
+        if (cached) {
+          console.log('📦 Using stale cache due to rate limit');
+          setGames(cached.data);
+          setLastRefreshTime(cached.timestamp);
+        }
+        setLoading(false);
+        logAPIUsage(sport, false, false);
+        return;
+      }
+      
+      // Handle other HTTP errors
+      if (!response.ok) {
+        apiCallCount.errors++;
+        throw new Error(`ESPN API returned status ${response.status}`);
+      }
+      
       const data = await response.json();
+      
+      // Check if events exist
+      if (!data.events || data.events.length === 0) {
+        console.log(`ℹ️ No games available for ${sport}`);
+        setGames([]);
+        
+        // Cache empty result to avoid repeated API calls
+        const timestamp = Date.now();
+        gameCache[sport] = {
+          data: [],
+          timestamp: timestamp
+        };
+        
+        setLoading(false);
+        setLastRefreshTime(timestamp);
+        logAPIUsage(sport, true, false);
+        return;
+      }
+      
       const formattedGames = data.events.map((event, index) => {
         const competition = event.competitions[0];
         const awayTeam = competition.competitors[1];
@@ -845,9 +1124,39 @@ function App() {
           isFinal: status === 'post'
         };
       });
+      
+      // Cache the results
+      const timestamp = Date.now();
+      gameCache[sport] = {
+        data: formattedGames,
+        timestamp: timestamp
+      };
+      
+      console.log(`✅ Loaded ${formattedGames.length} ${sport} games`);
       setGames(formattedGames);
+      setLastRefreshTime(timestamp);
+      
+      // SMART REFRESH: Determine next refresh interval based on game states
+      const activeGames = hasActiveGames(formattedGames);
+      const newInterval = activeGames ? REFRESH_INTERVAL_ACTIVE : REFRESH_INTERVAL_INACTIVE;
+      setRefreshInterval(newInterval);
+      
+      console.log(`⏱️ Next refresh in ${newInterval / 60000} minutes (${activeGames ? 'games active' : 'no active games'})`);
+      
+      logAPIUsage(sport, true, false);
     } catch (error) {
-      console.error('Error loading games:', error);
+      console.error(`❌ Error loading ${sport} games:`, error);
+      apiCallCount.errors++;
+      setApiError(`Unable to load ${sport} games. ${error.message}`);
+      
+      // Try to use stale cache if available
+      const cached = gameCache[sport];
+      if (cached) {
+        console.log('📦 Using stale cache due to error');
+        setGames(cached.data);
+        setLastRefreshTime(cached.timestamp);
+      }
+      logAPIUsage(sport, false, false);
     }
     setLoading(false);
   };
@@ -894,6 +1203,12 @@ function App() {
             if (updated) {
               setIsSyncing(false);
             }
+            
+            // Update cache with Firebase data
+            if (gameCache[sport]) {
+              gameCache[sport].data = newGames;
+            }
+            
             return newGames;
           });
         }
@@ -903,19 +1218,28 @@ function App() {
     }
   };
 
-  // LOAD GAMES WHEN SPORT IS SELECTED
+  // LOAD GAMES WHEN SPORT IS SELECTED - WITH DYNAMIC REFRESH INTERVAL
   useEffect(() => {
+    let intervalId = null;
+    
     if (selectedSport) {
       loadGames(selectedSport);
       setTimeout(() => {
         setupFirebaseListener(selectedSport);
       }, 500);
-      const interval = setInterval(() => loadGames(selectedSport), 300000); // Refresh every 5 minutes
-      return () => {
-        clearInterval(interval);
-      };
+      
+      // Set up interval with current refresh interval
+      intervalId = setInterval(() => {
+        loadGames(selectedSport);
+      }, refreshInterval || REFRESH_INTERVAL_INACTIVE);
     }
-  }, [selectedSport]);
+    
+    return () => {
+      if (intervalId) {
+        clearInterval(intervalId);
+      }
+    };
+  }, [selectedSport, refreshInterval]);
 
   useEffect(() => {
     const stored = localStorage.getItem('marcs-parlays-submissions');
@@ -962,10 +1286,19 @@ function App() {
     }
   };
 
+  // Manual refresh handler
+  const handleManualRefresh = async () => {
+    if (selectedSport) {
+      await loadGames(selectedSport, true); // Force refresh
+    }
+  };
+
   // Render UI
-  if (authState.loading || (loading && selectedSport)) return (
+  if (authState.loading || (loading && selectedSport && !apiError)) return (
     <div className="gradient-bg" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh' }}>
-      <div className="text-white" style={{ fontSize: '24px' }}>Loading games from ESPN...</div>
+      <div className="text-white" style={{ fontSize: '24px' }}>
+        Loading {selectedSport ? `${selectedSport} games` : 'data'} from ESPN...
+      </div>
     </div>
   );
 
@@ -1054,7 +1387,15 @@ function App() {
   }
 
   // Show Sport-Specific Parlays page
-  return <LandingPage games={games} loading={loading} onBackToMenu={() => setSelectedSport(null)} sport={selectedSport} />;
+  return <LandingPage 
+    games={games} 
+    loading={loading} 
+    onBackToMenu={() => setSelectedSport(null)} 
+    sport={selectedSport}
+    apiError={apiError}
+    onManualRefresh={handleManualRefresh}
+    lastRefreshTime={lastRefreshTime}
+  />;
 }
 
 export default App;
