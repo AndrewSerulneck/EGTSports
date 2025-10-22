@@ -383,7 +383,7 @@ function WelcomeLandingPage({ onSelectSport }) {
       <div className="container" style={{ maxWidth: '800px', paddingTop: '60px' }}>
         <div className="text-center text-white mb-4">
           <h1 style={{ fontSize: '48px', marginBottom: '16px' }}>Welcome to EGT Sports</h1>
-          <p style={{ fontSize: '20px', marginBottom: '40px' }}>Select a sport to get started</p>
+          <p style={{ fontSize: '20px', marginBottom: '40px' }}>Select a sport below to get started</p>
         </div>
         
         <div className="card">
@@ -418,13 +418,6 @@ function WelcomeLandingPage({ onSelectSport }) {
               </button>
             ))}
           </div>
-        </div>
-        
-        <div className="card" style={{ marginTop: '40px' }}>
-          <h3 className="text-center mb-2">About EGT Sports</h3>
-          <p style={{ textAlign: 'center', color: '#666', lineHeight: '1.6' }}>
-           Private pool among friends. 
-          </p>
         </div>
       </div>
     </div>
@@ -1319,10 +1312,12 @@ Email: ${contactInfo.email}
           <h3 className="mb-2">Important Rules</h3>
           <ul style={{marginLeft: '20px', lineHeight: '1.8'}}>
             <li><strong>Minimum 3 picks required</strong></li>
-            <li><strong>Bet range: ${MIN_BET} - ${MAX_BET}</strong></li>
+            <li><strong>Minimum Bet = $5</strong></li>
+             <li><strong>Maximum Bet = $100</strong></li>
             <li>Missing info = voided ticket</li>
             <li>Funds must be deposited into players pool <strong>@{VENMO_USERNAME}</strong> prior to games starting or ticket is not valid</li>
              <li>A tie counts as a loss</li>
+            <li>Cross-sports parlays are not allowed</li>
             <li>Winners paid following Tuesday</li>
             <li>Cannot bet on games already completed</li>
              <li>When you place your bet, write down your ticket number or screenshot your ticket if you want a receipt</li>
