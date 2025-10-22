@@ -1,5 +1,5 @@
 import './App.css';
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { initializeApp } from "firebase/app";
 import { getDatabase, ref, set, onValue, push } from "firebase/database";
 import {
@@ -1375,8 +1375,88 @@ function App() {
   const [lastRefreshTime, setLastRefreshTime] = useState(null);
   const [refreshInterval, setRefreshInterval] = useState(null);
 
+  // Helper function to parse ESPN odds
+  const parseESPNOdds = useCallback((competition, sport) => {
+    let awaySpread = '';
+    let homeSpread = '';
+    let total = '';
+    
+    try {
+      if (!competition.odds || competition.odds.length === 0) {
+        console.log(`No odds data available for this game`);
+        return { awaySpread, homeSpread, total };
+      }
+      
+      const odds = competition.odds[0];
+      const gameName = `${competition.competitors[1].team.displayName} @ ${competition.competitors[0].team.displayName}`;
+      console.log(`\n=== Parsing odds for ${sport}: ${gameName} ===`);
+      console.log('Full odds object:', JSON.stringify(odds, null, 2));
+      
+      // Try different ESPN API structures
+      
+      // Method 1: Check if details string exists (e.g., "KC -3.5")
+      if (odds.details) {
+        console.log('Found odds.details:', odds.details);
+        // Parse details string to extract spreads if needed
+      }
+      
+      // Method 2: Check direct spread property
+      if (odds.spread !== undefined) {
+        console.log('Found odds.spread:', odds.spread);
+      }
+      
+      // Method 3: Check homeTeamOdds/awayTeamOdds structure
+      if (odds.homeTeamOdds || odds.awayTeamOdds) {
+        console.log('homeTeamOdds:', JSON.stringify(odds.homeTeamOdds, null, 2));
+        console.log('awayTeamOdds:', JSON.stringify(odds.awayTeamOdds, null, 2));
+        
+        // The issue: we were using 'spreadOdds' which is the betting odds (-110)
+        // We need the actual point spread which might be in 'line', 'point', or 'spread'
+        const homeSpreadValue = odds.homeTeamOdds?.line || odds.homeTeamOdds?.point || odds.homeTeamOdds?.spread;
+        const awaySpreadValue = odds.awayTeamOdds?.line || odds.awayTeamOdds?.point || odds.awayTeamOdds?.spread;
+        
+        console.log('Extracted home spread value:', homeSpreadValue);
+        console.log('Extracted away spread value:', awaySpreadValue);
+        
+        // Sanity check - spreads should be reasonable
+        if (homeSpreadValue !== undefined && Math.abs(homeSpreadValue) < 50) {
+          homeSpread = homeSpreadValue > 0 ? `+${homeSpreadValue}` : String(homeSpreadValue);
+        } else if (homeSpreadValue !== undefined) {
+          console.warn(`⚠️ Home spread ${homeSpreadValue} seems unrealistic, skipping`);
+        }
+        
+        if (awaySpreadValue !== undefined && Math.abs(awaySpreadValue) < 50) {
+          awaySpread = awaySpreadValue > 0 ? `+${awaySpreadValue}` : String(awaySpreadValue);
+        } else if (awaySpreadValue !== undefined) {
+          console.warn(`⚠️ Away spread ${awaySpreadValue} seems unrealistic, skipping`);
+        }
+      }
+      
+      // Method 4: Check for overUnder/total
+      if (odds.overUnder !== undefined) {
+        console.log('Found odds.overUnder:', odds.overUnder);
+        if (odds.overUnder > 30 && odds.overUnder < 300) { // Sanity check
+          total = String(odds.overUnder);
+        }
+      } else if (odds.total !== undefined) {
+        console.log('Found odds.total:', odds.total);
+        if (odds.total > 30 && odds.total < 300) { // Sanity check
+          total = String(odds.total);
+        }
+      }
+      
+      console.log('✅ Final parsed values:', { awaySpread, homeSpread, total });
+      console.log('=====================================\n');
+      
+    } catch (error) {
+      console.error('❌ Error parsing odds:', error);
+    }
+    
+    return { awaySpread, homeSpread, total };
+  }, []);
+
   // IMPROVED: SPORT-SPECIFIC GAME LOADING WITH SMART REFRESH
-  const loadGames = async (sport, forceRefresh = false) => {
+  const loadGames = useCallback(async (sport, forceRefresh = false) => {
     setLoading(true);
     setApiError(null);
     
@@ -1448,11 +1528,26 @@ function App() {
         return;
       }
       
+      // Debug: Log the entire odds structure for the first 2 games
+      data.events.forEach((event, index) => {
+        if (index < 2) {
+          const competition = event.competitions[0];
+          console.log('=== DEBUG: ESPN API Odds Structure ===');
+          console.log('Game:', competition.competitors[1].team.displayName, '@', competition.competitors[0].team.displayName);
+          console.log('Full odds object:', JSON.stringify(competition.odds, null, 2));
+          console.log('======================================');
+        }
+      });
+      
       const formattedGames = data.events.map((event, index) => {
         const competition = event.competitions[0];
         const awayTeam = competition.competitors[1];
         const homeTeam = competition.competitors[0];
         const status = event.status.type.state;
+        
+        // Parse odds from ESPN API
+        const { awaySpread, homeSpread, total } = parseESPNOdds(competition, sport);
+        
         return {
           id: index + 1,
           espnId: event.id,
@@ -1464,9 +1559,9 @@ function App() {
           homeTeamId: homeTeam.id,
           awayScore: awayTeam.score || '0',
           homeScore: homeTeam.score || '0',
-          awaySpread: '',
-          homeSpread: '',
-          total: '',
+          awaySpread: awaySpread,
+          homeSpread: homeSpread,
+          total: total,
           status: status,
           statusDetail: event.status.type.detail,
           isFinal: status === 'post'
@@ -1507,10 +1602,10 @@ function App() {
       logAPIUsage(sport, false, false);
     }
     setLoading(false);
-  };
+  }, [parseESPNOdds]);
 
   // SPORT-SPECIFIC FIREBASE LISTENER
-  const setupFirebaseListener = (sport) => {
+  const setupFirebaseListener = useCallback((sport) => {
     try {
       const spreadsRef = ref(database, `spreads/${sport}`);
       onValue(spreadsRef, (snapshot) => {
@@ -1564,7 +1659,7 @@ function App() {
     } catch (error) {
       console.error('Error setting up Firebase listener:', error);
     }
-  };
+  }, [setGames, setIsSyncing, setRecentlyUpdated]);
 
   // LOAD GAMES WHEN SPORT IS SELECTED - WITH DYNAMIC REFRESH INTERVAL
   useEffect(() => {
@@ -1587,7 +1682,7 @@ function App() {
         clearInterval(intervalId);
       }
     };
-  }, [selectedSport, refreshInterval]);
+  }, [selectedSport, refreshInterval, loadGames, setupFirebaseListener]);
 
   useEffect(() => {
     const stored = localStorage.getItem('marcs-parlays-submissions');
