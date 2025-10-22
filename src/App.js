@@ -1375,6 +1375,101 @@ function App() {
   const [lastRefreshTime, setLastRefreshTime] = useState(null);
   const [refreshInterval, setRefreshInterval] = useState(null);
 
+  // Auto-update spreads from ESPN API once per day
+  const autoUpdateSpreadsIfNeeded = async (sport) => {
+    try {
+      // Check last update time from Firebase
+      const lastUpdateRef = ref(database, `spreads/${sport}/lastAutoUpdate`);
+      const snapshot = await new Promise((resolve) => {
+        onValue(lastUpdateRef, resolve, { onlyOnce: true });
+      });
+      
+      const lastUpdate = snapshot.val();
+      const now = Date.now();
+      const oneDayMs = 24 * 60 * 60 * 1000;
+      
+      // Only update if more than 24 hours have passed
+      if (lastUpdate && (now - lastUpdate) < oneDayMs) {
+        console.log(`⏭️ Skipping auto-update for ${sport} - last updated ${Math.floor((now - lastUpdate) / (60 * 60 * 1000))} hours ago`);
+        return;
+      }
+      
+      console.log(`🔄 Auto-updating ${sport} spreads from ESPN API...`);
+      
+      // Fetch fresh data from ESPN
+      const apiEndpoint = ESPN_API_ENDPOINTS[sport];
+      const response = await fetch(apiEndpoint);
+      
+      if (!response.ok) {
+        console.error(`⚠️ Auto-update failed: ESPN API returned status ${response.status}`);
+        return;
+      }
+      
+      const data = await response.json();
+      
+      if (!data.events || data.events.length === 0) {
+        console.log(`ℹ️ No games to update for ${sport}`);
+        return;
+      }
+      
+      // Extract spreads and totals
+      const spreadsData = {};
+      let updatedCount = 0;
+      
+      data.events.forEach((event) => {
+        const competition = event.competitions[0];
+        let awaySpread = '';
+        let homeSpread = '';
+        let total = '';
+        
+        if (competition.odds && competition.odds.length > 0) {
+          const odds = competition.odds[0];
+          
+          if (odds.spread) {
+            const homeSpreadValue = odds.homeTeamOdds?.spreadOdds;
+            const awaySpreadValue = odds.awayTeamOdds?.spreadOdds;
+            
+            if (homeSpreadValue !== undefined) {
+              homeSpread = homeSpreadValue > 0 ? `+${homeSpreadValue}` : String(homeSpreadValue);
+            }
+            if (awaySpreadValue !== undefined) {
+              awaySpread = awaySpreadValue > 0 ? `+${awaySpreadValue}` : String(awaySpreadValue);
+            }
+          }
+          
+          if (odds.overUnder) {
+            total = String(odds.overUnder);
+          }
+          
+          // Only add if we have odds data
+          if (awaySpread || homeSpread || total) {
+            spreadsData[event.id] = {
+              awaySpread,
+              homeSpread,
+              total,
+              timestamp: new Date().toISOString()
+            };
+            updatedCount++;
+          }
+        }
+      });
+      
+      // Update Firebase if we have data
+      if (updatedCount > 0) {
+        await set(ref(database, `spreads/${sport}`), {
+          ...spreadsData,
+          lastAutoUpdate: now
+        });
+        console.log(`✅ Auto-updated ${updatedCount} games for ${sport}`);
+      } else {
+        console.log(`⚠️ No odds data available from ESPN for ${sport}`);
+      }
+      
+    } catch (error) {
+      console.error(`❌ Error in auto-update for ${sport}:`, error);
+    }
+  };
+
   // IMPROVED: SPORT-SPECIFIC GAME LOADING WITH SMART REFRESH
   const loadGames = async (sport, forceRefresh = false) => {
     setLoading(true);
@@ -1453,6 +1548,34 @@ function App() {
         const awayTeam = competition.competitors[1];
         const homeTeam = competition.competitors[0];
         const status = event.status.type.state;
+        
+        let awaySpread = '';
+        let homeSpread = '';
+        let total = '';
+
+        // Extract odds if available
+        if (competition.odds && competition.odds.length > 0) {
+          const odds = competition.odds[0];
+          
+          // Extract spreads
+          if (odds.spread) {
+            const homeSpreadValue = odds.homeTeamOdds?.spreadOdds;
+            const awaySpreadValue = odds.awayTeamOdds?.spreadOdds;
+            
+            if (homeSpreadValue !== undefined) {
+              homeSpread = homeSpreadValue > 0 ? `+${homeSpreadValue}` : String(homeSpreadValue);
+            }
+            if (awaySpreadValue !== undefined) {
+              awaySpread = awaySpreadValue > 0 ? `+${awaySpreadValue}` : String(awaySpreadValue);
+            }
+          }
+          
+          // Extract over/under
+          if (odds.overUnder) {
+            total = String(odds.overUnder);
+          }
+        }
+        
         return {
           id: index + 1,
           espnId: event.id,
@@ -1464,9 +1587,9 @@ function App() {
           homeTeamId: homeTeam.id,
           awayScore: awayTeam.score || '0',
           homeScore: homeTeam.score || '0',
-          awaySpread: '',
-          homeSpread: '',
-          total: '',
+          awaySpread: awaySpread,
+          homeSpread: homeSpread,
+          total: total,
           status: status,
           statusDetail: event.status.type.detail,
           isFinal: status === 'post'
@@ -1571,6 +1694,9 @@ function App() {
     let intervalId = null;
     
     if (selectedSport) {
+      // Auto-update spreads if needed (once per day)
+      autoUpdateSpreadsIfNeeded(selectedSport);
+      
       loadGames(selectedSport);
       setTimeout(() => {
         setupFirebaseListener(selectedSport);
