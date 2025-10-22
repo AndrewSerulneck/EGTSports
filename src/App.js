@@ -50,6 +50,7 @@ const database = getDatabase(app);
 const auth = getAuth(app);
 
 const VENMO_USERNAME = process.env.REACT_APP_VENMO_USERNAME || 'EGTSports';
+const ZELLE_EMAIL = process.env.REACT_APP_ZELLE_EMAIL || 'EGTSports@proton.me';
 const MIN_BET = parseInt(process.env.REACT_APP_MIN_BET) || 5;
 const MAX_BET = parseInt(process.env.REACT_APP_MAX_BET) || 100;
 const GOOGLE_SHEET_URL = process.env.REACT_APP_GOOGLE_SHEET_URL || 'https://script.google.com/macros/s/AKfycbzPastor8yKkWQxKx1z0p-0ZibwBJHkJCuVvHDqP9YX7Dv1-vwakdR9RU6Y6oNw4T2W2PA/exec';
@@ -436,7 +437,7 @@ function LandingPage({ games, loading, onBackToMenu, sport, apiError, onManualRe
   const [showConfirmation, setShowConfirmation] = useState(false);
   const [ticketNumber, setTicketNumber] = useState('');
   const [showCheckout, setShowCheckout] = useState(false);
-  const [contactInfo, setContactInfo] = useState({ name: '', email: '', betAmount: '', confirmMethod: 'email', freePlay: 0 });
+  const [contactInfo, setContactInfo] = useState({ name: '', email: '', betAmount: '', confirmMethod: 'email', freePlay: 0, paymentMethod: 'venmo' });
   const [submissions, setSubmissions] = useState([]);
   const [hasSubmitted, setHasSubmitted] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -614,14 +615,17 @@ function LandingPage({ games, loading, onBackToMenu, sport, apiError, onManualRe
       freePlay: 0,
       picks: picksFormatted,
       paymentStatus: 'pending',
+      paymentMethod: contactInfo.paymentMethod,
       sport: sport  // ADD SPORT TO SUBMISSION
     };
 
     saveSubmission(submission);
     setHasSubmitted(true);
 
-    // Open Venmo
-    openVenmo();
+    // Open Venmo only if Venmo is selected
+    if (contactInfo.paymentMethod === 'venmo') {
+      openVenmo();
+    }
   };
 
   if (loading) {
@@ -716,18 +720,35 @@ function LandingPage({ games, loading, onBackToMenu, sport, apiError, onManualRe
             <p style={{marginBottom: '20px', fontSize: '16px'}}>Your ticket has been submitted successfully!</p>
             
             {/* PAYMENT INSTRUCTIONS */}
-            <div style={{background: '#d1ecf1', border: '2px solid #0c5460', borderRadius: '8px', padding: '16px', marginBottom: '20px', fontSize: '14px', color: '#0c5460'}}>
-              <strong>Payment Required:</strong> Please send <strong>${contactInfo.betAmount}</strong> to <strong>{VENMO_USERNAME}</strong> on Venmo with note: <strong>"{ticketNumber}"</strong>
-            </div>
+            {contactInfo.paymentMethod === 'venmo' ? (
+              <>
+                <div style={{background: '#d1ecf1', border: '2px solid #0c5460', borderRadius: '8px', padding: '16px', marginBottom: '20px', fontSize: '14px', color: '#0c5460'}}>
+                  <strong>Payment Required:</strong> Please send <strong>${contactInfo.betAmount}</strong> to <strong>{VENMO_USERNAME}</strong> on Venmo with note: <strong>"{ticketNumber}"</strong>
+                </div>
 
-            {/* BUTTONS */}
-            <button
-              className="btn btn-primary"
-              onClick={openVenmo}
-              style={{width: '100%', padding: '16px 32px', fontSize: '18px', marginBottom: '12px'}}
-            >
-              Open Venmo to Pay
-            </button>
+                {/* BUTTONS */}
+                <button
+                  className="btn btn-primary"
+                  onClick={openVenmo}
+                  style={{width: '100%', padding: '16px 32px', fontSize: '18px', marginBottom: '12px'}}
+                >
+                  Open Venmo to Pay
+                </button>
+              </>
+            ) : (
+              <div style={{background: '#d1ecf1', border: '2px solid #0c5460', borderRadius: '8px', padding: '16px', marginBottom: '20px', fontSize: '14px', color: '#0c5460'}}>
+                <strong>Payment Required:</strong> Please send <strong>${contactInfo.betAmount}</strong> via Zelle to <strong>{ZELLE_EMAIL}</strong> with note: <strong>"{ticketNumber}"</strong>
+                <div style={{marginTop: '12px', paddingTop: '12px', borderTop: '1px solid #bee5eb'}}>
+                  <strong>Instructions:</strong>
+                  <ol style={{marginTop: '8px', marginBottom: '0', paddingLeft: '20px'}}>
+                    <li>Open your banking app and navigate to Zelle</li>
+                    <li>Send to: <strong>{ZELLE_EMAIL}</strong></li>
+                    <li>Amount: <strong>${contactInfo.betAmount}</strong></li>
+                    <li>Note/Memo: <strong>{ticketNumber}</strong></li>
+                  </ol>
+                </div>
+              </div>
+            )}
             <button 
               className="btn btn-secondary" 
               onClick={() => window.location.reload()}
@@ -791,6 +812,41 @@ function LandingPage({ games, loading, onBackToMenu, sport, apiError, onManualRe
               max={MAX_BET}
               step="0.01"
             />
+            
+            <h3 className="mb-2" style={{marginTop: '32px'}}>Payment Method</h3>
+            <div style={{display: 'flex', gap: '12px', marginBottom: '16px'}}>
+              <button
+                type="button"
+                className="btn"
+                style={{
+                  flex: 1,
+                  background: contactInfo.paymentMethod === 'venmo' ? '#007bff' : '#fff',
+                  color: contactInfo.paymentMethod === 'venmo' ? '#fff' : '#333',
+                  border: '2px solid #007bff',
+                  fontWeight: 'bold',
+                  padding: '12px 20px'
+                }}
+                onClick={() => setContactInfo({...contactInfo, paymentMethod: 'venmo'})}
+              >
+                Venmo
+              </button>
+              <button
+                type="button"
+                className="btn"
+                style={{
+                  flex: 1,
+                  background: contactInfo.paymentMethod === 'zelle' ? '#007bff' : '#fff',
+                  color: contactInfo.paymentMethod === 'zelle' ? '#fff' : '#333',
+                  border: '2px solid #007bff',
+                  fontWeight: 'bold',
+                  padding: '12px 20px'
+                }}
+                onClick={() => setContactInfo({...contactInfo, paymentMethod: 'zelle'})}
+              >
+                Zelle
+              </button>
+            </div>
+            
             <button className="btn btn-success" onClick={handleCheckoutSubmit} style={{width: '100%', fontSize: '18px', marginTop: '16px'}}>
               Continue to Payment
             </button>
