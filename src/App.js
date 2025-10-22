@@ -1370,30 +1370,8 @@ Email: ${contactInfo.email}
   );
 }
 
-// Main App Component - WITH SMART REFRESH LOGIC
-function App() {
-  const [authState, setAuthState] = useState({
-    loading: true,
-    user: null,
-    isAdmin: false,
-    error: "",
-  });
-  const [loginForm, setLoginForm] = useState({
-    email: "",
-    password: "",
-  });
-  const [games, setGames] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [apiError, setApiError] = useState(null);
-  const [isSyncing, setIsSyncing] = useState(false);
-  const [recentlyUpdated, setRecentlyUpdated] = useState({});
-  const [submissions, setSubmissions] = useState([]);
-  const [selectedSport, setSelectedSport] = useState(null);
-  const [lastRefreshTime, setLastRefreshTime] = useState(null);
-  const [refreshInterval, setRefreshInterval] = useState(null);
-
-  // Fetch College Basketball odds from The Odds API
-  const fetchCollegeBasketballOdds = async () => {
+// Fetch College Basketball odds from The Odds API
+const fetchCollegeBasketballOdds = async () => {
     try {
       const sportKey = ODDS_API_SPORT_KEYS['College Basketball'];
       const url = `${ODDS_API_BASE_URL}/sports/${sportKey}/odds/?apiKey=${ODDS_API_KEY}&regions=us&markets=spreads,totals&oddsFormat=american`;
@@ -1455,32 +1433,54 @@ function App() {
     }
   };
 
-  // Match ESPN game data with The Odds API odds data
-  const matchOddsToGame = (game, oddsMap) => {
-    if (!oddsMap) return { awaySpread: '', homeSpread: '', total: '' };
+// Match ESPN game data with The Odds API odds data
+const matchOddsToGame = (game, oddsMap) => {
+  if (!oddsMap) return { awaySpread: '', homeSpread: '', total: '' };
+  
+  // Try exact match
+  const gameKey = `${game.awayTeam}|${game.homeTeam}`;
+  if (oddsMap[gameKey]) {
+    return oddsMap[gameKey];
+  }
+  
+  // Try fuzzy match (remove common suffixes like "Wildcats", "Tar Heels", etc.)
+  for (const [key, value] of Object.entries(oddsMap)) {
+    const [oddsAway, oddsHome] = key.split('|');
     
-    // Try exact match
-    const gameKey = `${game.awayTeam}|${game.homeTeam}`;
-    if (oddsMap[gameKey]) {
-      return oddsMap[gameKey];
-    }
-    
-    // Try fuzzy match (remove common suffixes like "Wildcats", "Tar Heels", etc.)
-    for (const [key, value] of Object.entries(oddsMap)) {
-      const [oddsAway, oddsHome] = key.split('|');
-      
-      // Check if team names contain each other
-      if (game.awayTeam.includes(oddsAway) || oddsAway.includes(game.awayTeam)) {
-        if (game.homeTeam.includes(oddsHome) || oddsHome.includes(game.homeTeam)) {
-          console.log(`✅ Fuzzy matched: "${game.awayTeam} @ ${game.homeTeam}" with "${oddsAway} @ ${oddsHome}"`);
-          return value;
-        }
+    // Check if team names contain each other
+    if (game.awayTeam.includes(oddsAway) || oddsAway.includes(game.awayTeam)) {
+      if (game.homeTeam.includes(oddsHome) || oddsHome.includes(game.homeTeam)) {
+        console.log(`✅ Fuzzy matched: "${game.awayTeam} @ ${game.homeTeam}" with "${oddsAway} @ ${oddsHome}"`);
+        return value;
       }
     }
-    
-    console.warn(`⚠️ No odds found for ${game.awayTeam} @ ${game.homeTeam}`);
-    return { awaySpread: '', homeSpread: '', total: '' };
-  };
+  }
+  
+  console.warn(`⚠️ No odds found for ${game.awayTeam} @ ${game.homeTeam}`);
+  return { awaySpread: '', homeSpread: '', total: '' };
+};
+
+// Main App Component - WITH SMART REFRESH LOGIC
+function App() {
+  const [authState, setAuthState] = useState({
+    loading: true,
+    user: null,
+    isAdmin: false,
+    error: "",
+  });
+  const [loginForm, setLoginForm] = useState({
+    email: "",
+    password: "",
+  });
+  const [games, setGames] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [apiError, setApiError] = useState(null);
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [recentlyUpdated, setRecentlyUpdated] = useState({});
+  const [submissions, setSubmissions] = useState([]);
+  const [selectedSport, setSelectedSport] = useState(null);
+  const [lastRefreshTime, setLastRefreshTime] = useState(null);
+  const [refreshInterval, setRefreshInterval] = useState(null);
 
   // IMPROVED: SPORT-SPECIFIC GAME LOADING WITH SMART REFRESH
   const loadGames = async (sport, forceRefresh = false) => {
