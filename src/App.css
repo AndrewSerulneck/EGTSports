@@ -279,3 +279,67 @@ ul {
 ul li {
     margin-bottom: 8px;
 }
+/* Ticket Card Styles */
+.ticket-card {
+    position: relative;
+}
+.ticket-card::before,
+.ticket-card::after {
+    content: '';
+    position: absolute;
+    width: 20px;
+    height: 20px;
+    background: #1e3c72;
+    border-radius: 50%;
+}
+.ticket-card::before {
+    left: -10px;
+    top: 50%;
+    transform: translateY(-50%);
+}
+.ticket-card::after {
+    right: -10px;
+    top: 50%;
+    transform: translateY(-50%);
+}
+/* Info Button Styles */
+.btn-info {
+    background: #17a2b8;
+    color: white;
+}
+.btn-info:hover:not(:disabled) {
+    background: #138496;
+}
+/* Print Styles */
+@media print {
+    .gradient-bg {
+        background: white !important;
+        padding: 0 !important;
+    }
+    
+    .btn {
+        display: none !important;
+    }
+    
+    .ticket-card {
+        border: 3px solid #000 !important;
+        box-shadow: none !important;
+        page-break-inside: avoid;
+    }
+    
+    body {
+        margin: 0;
+        padding: 20px;
+    }
+}
+/* Mobile Responsive Styles for Ticket */
+@media (max-width: 768px) {
+    .ticket-card::before,
+    .ticket-card::after {
+        display: none;
+    }
+    
+    .ticket-card {
+        margin: 0 -10px;
+    }
+}

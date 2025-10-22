@@ -693,69 +693,361 @@ function LandingPage({ games, loading, onBackToMenu, sport, apiError, onManualRe
   const activeGamesCount = games.filter(g => g.status === 'in' || g.status === 'pre').length;
 
   if (hasSubmitted) {
+    // Calculate payout odds based on number of picks
+    let pickCount = 0;
+    const picksFormatted = [];
+    Object.entries(selectedPicks).forEach(([gameId, pickObj]) => {
+      const game = games.find(g => g.id === parseInt(gameId));
+      if (pickObj.spread) {
+        pickCount++;
+        const team = pickObj.spread === 'away' ? game.awayTeam : game.homeTeam;
+        const spread = pickObj.spread === 'away' ? game.awaySpread : game.homeSpread;
+        picksFormatted.push(`${team} ${spread}`);
+      }
+      if (pickObj.total) {
+        pickCount++;
+        picksFormatted.push(`${pickObj.total === 'over' ? 'Over' : 'Under'} ${game.total}`);
+      }
+    });
+
+    const payoutOdds = {
+      3: '8 to 1',
+      4: '15 to 1',
+      5: '25 to 1',
+      6: '50 to 1',
+      7: '100 to 1',
+      8: '150 to 1',
+      9: '200 to 1',
+      10: '250 to 1'
+    }[pickCount] || 'N/A';
+
+    const timestamp = new Date().toLocaleString('en-US', { 
+      month: 'short', 
+      day: 'numeric', 
+      year: 'numeric',
+      hour: 'numeric', 
+      minute: '2-digit',
+      hour12: true 
+    });
+
+    // Email functionality
+    const handleEmailTicket = () => {
+      const subject = `EGT Sports Betting Ticket - ${ticketNumber}`;
+      const body = `EGT SPORTS BETTING TICKET
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+CONFIRMATION NUMBER
+${ticketNumber}
+
+SUBMITTED
+${timestamp}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+BET DETAILS
+
+Sport: ${sport}
+Amount: $${contactInfo.betAmount}
+Picks: ${pickCount}
+Payout: ${payoutOdds}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+YOUR PICKS
+
+${picksFormatted.map((pick, idx) => `${idx + 1}. ${pick}`).join('\n')}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+PAYMENT REQUIRED
+
+${contactInfo.paymentMethod === 'venmo' 
+  ? `Send $${contactInfo.betAmount} to @${VENMO_USERNAME} on Venmo\nNote: "${ticketNumber}"`
+  : `Send $${contactInfo.betAmount} via Zelle to ${ZELLE_EMAIL}\nNote: "${ticketNumber}"`
+}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+IMPORTANT: Save this email for your records. You will need your ticket number to claim winnings.
+
+Contact: ${contactInfo.name}
+Email: ${contactInfo.email}
+`;
+      window.location.href = `mailto:${contactInfo.email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+    };
+
     return (
       <div className="gradient-bg">
-        <div className="container" style={{maxWidth: '600px'}}>
-          <div className="card text-center">
-            <h2 style={{color: '#28a745', marginBottom: '20px'}}>✅ Ticket Submitted!</h2>
-            
-            {/* TICKET NUMBER */}
-            <div style={{background: '#f8f9fa', padding: '20px', borderRadius: '8px', marginBottom: '24px'}}>
-              <div style={{fontSize: '12px', color: '#666', marginBottom: '8px'}}>TICKET NUMBER</div>
-              <div style={{fontSize: '24px', fontWeight: 'bold', color: '#28a745'}}>{ticketNumber}</div>
+        <div className="container" style={{maxWidth: '700px', paddingTop: '20px', paddingBottom: '40px'}}>
+          {/* SCREENSHOT INSTRUCTIONS - PROMINENT */}
+          <div style={{
+            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+            color: 'white',
+            padding: '20px',
+            borderRadius: '12px',
+            marginBottom: '20px',
+            textAlign: 'center',
+            boxShadow: '0 4px 15px rgba(0,0,0,0.2)'
+          }}>
+            <div style={{fontSize: '36px', marginBottom: '10px'}}>📸</div>
+            <h2 style={{fontSize: '24px', fontWeight: 'bold', marginBottom: '10px'}}>SAVE THIS SCREENSHOT!</h2>
+            <p style={{fontSize: '16px', marginBottom: '0'}}>
+              Take a screenshot now or email this ticket to yourself
+            </p>
+          </div>
+
+          {/* TICKET CARD - ENHANCED DESIGN */}
+          <div className="ticket-card" style={{
+            background: 'white',
+            borderRadius: '16px',
+            boxShadow: '0 10px 40px rgba(0,0,0,0.15)',
+            overflow: 'hidden',
+            border: '3px dashed #e0e0e0'
+          }}>
+            {/* TICKET HEADER */}
+            <div style={{
+              background: 'linear-gradient(135deg, #1e3c72 0%, #2a5298 100%)',
+              color: 'white',
+              padding: '24px',
+              textAlign: 'center',
+              borderBottom: '3px dashed #e0e0e0'
+            }}>
+              <div style={{fontSize: '24px', fontWeight: 'bold', marginBottom: '8px'}}>
+                🎯 EGT SPORTS BETTING TICKET
+              </div>
+              <div style={{fontSize: '14px', opacity: '0.9'}}>
+                {sport} • {timestamp}
+              </div>
             </div>
 
-            {/* IMPORTANT WARNING - SAVE YOUR TICKET */}
-            <div style={{background: '#fff3cd', border: '3px solid #ffc107', borderRadius: '12px', padding: '20px', marginBottom: '24px'}}>
-              <div style={{fontSize: '28px', marginBottom: '12px'}}>⚠️</div>
-              <h3 style={{color: '#856404', marginBottom: '12px', fontSize: '20px'}}>IMPORTANT: Save Your Ticket Number!</h3>
-              <p style={{color: '#856404', marginBottom: '12px', fontSize: '16px', fontWeight: 'bold'}}>
-                📸 Take a screenshot of this page or write down your confirmation number.
-              </p>
-              <p style={{color: '#856404', fontSize: '14px'}}>
-                You will need this number to verify your ticket and claim winnings. We do not send email confirmations at this time.
-              </p>
+            {/* TICKET NUMBER - PROMINENT */}
+            <div style={{
+              background: 'white',
+              padding: '32px 24px',
+              textAlign: 'center',
+              borderBottom: '2px solid #f0f0f0'
+            }}>
+              <div style={{fontSize: '14px', color: '#666', marginBottom: '12px', fontWeight: '600', letterSpacing: '1px'}}>
+                CONFIRMATION NUMBER
+              </div>
+              <div style={{
+                background: 'linear-gradient(135deg, #28a745 0%, #20c997 100%)',
+                color: 'white',
+                padding: '20px',
+                borderRadius: '12px',
+                fontSize: '28px',
+                fontWeight: 'bold',
+                letterSpacing: '1px',
+                fontFamily: 'monospace',
+                boxShadow: '0 4px 15px rgba(40, 167, 69, 0.3)',
+                border: '3px solid #1e7e34'
+              }}>
+                {ticketNumber}
+              </div>
             </div>
 
-            <p style={{marginBottom: '20px', fontSize: '16px'}}>Your ticket has been submitted successfully!</p>
-            
-            {/* PAYMENT INSTRUCTIONS */}
-            {contactInfo.paymentMethod === 'venmo' ? (
-              <>
-                <div style={{background: '#d1ecf1', border: '2px solid #0c5460', borderRadius: '8px', padding: '16px', marginBottom: '20px', fontSize: '14px', color: '#0c5460'}}>
-                  <strong>Payment Required:</strong> Please send <strong>${contactInfo.betAmount}</strong> to <strong>{VENMO_USERNAME}</strong> on Venmo with note: <strong>"{ticketNumber}"</strong>
+            {/* BET DETAILS SECTION */}
+            <div style={{
+              padding: '24px',
+              background: '#f8f9fa',
+              borderBottom: '2px solid #e0e0e0'
+            }}>
+              <h3 style={{fontSize: '18px', fontWeight: 'bold', marginBottom: '16px', color: '#333'}}>
+                📋 BET DETAILS
+              </h3>
+              <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px'}}>
+                <div style={{background: 'white', padding: '12px', borderRadius: '8px', border: '1px solid #e0e0e0'}}>
+                  <div style={{fontSize: '12px', color: '#666', marginBottom: '4px'}}>Sport</div>
+                  <div style={{fontSize: '16px', fontWeight: 'bold', color: '#333'}}>{sport}</div>
                 </div>
-
-                {/* BUTTONS */}
-                <button
-                  className="btn btn-primary"
-                  onClick={openVenmo}
-                  style={{width: '100%', padding: '16px 32px', fontSize: '18px', marginBottom: '12px'}}
-                >
-                  Open Venmo to Pay
-                </button>
-              </>
-            ) : (
-              <div style={{background: '#d1ecf1', border: '2px solid #0c5460', borderRadius: '8px', padding: '16px', marginBottom: '20px', fontSize: '14px', color: '#0c5460'}}>
-                <strong>Payment Required:</strong> Please send <strong>${contactInfo.betAmount}</strong> via Zelle to <strong>{ZELLE_EMAIL}</strong> with note: <strong>"{ticketNumber}"</strong>
-                <div style={{marginTop: '12px', paddingTop: '12px', borderTop: '1px solid #bee5eb'}}>
-                  <strong>Instructions:</strong>
-                  <ol style={{marginTop: '8px', marginBottom: '0', paddingLeft: '20px'}}>
-                    <li>Open your banking app and navigate to Zelle</li>
-                    <li>Send to: <strong>{ZELLE_EMAIL}</strong></li>
-                    <li>Amount: <strong>${contactInfo.betAmount}</strong></li>
-                    <li>Note/Memo: <strong>{ticketNumber}</strong></li>
-                  </ol>
+                <div style={{background: 'white', padding: '12px', borderRadius: '8px', border: '1px solid #e0e0e0'}}>
+                  <div style={{fontSize: '12px', color: '#666', marginBottom: '4px'}}>Bet Amount</div>
+                  <div style={{fontSize: '16px', fontWeight: 'bold', color: '#28a745'}}>${contactInfo.betAmount}</div>
+                </div>
+                <div style={{background: 'white', padding: '12px', borderRadius: '8px', border: '1px solid #e0e0e0'}}>
+                  <div style={{fontSize: '12px', color: '#666', marginBottom: '4px'}}>Total Picks</div>
+                  <div style={{fontSize: '16px', fontWeight: 'bold', color: '#333'}}>{pickCount}</div>
+                </div>
+                <div style={{background: 'white', padding: '12px', borderRadius: '8px', border: '1px solid #e0e0e0'}}>
+                  <div style={{fontSize: '12px', color: '#666', marginBottom: '4px'}}>Payout Odds</div>
+                  <div style={{fontSize: '16px', fontWeight: 'bold', color: '#007bff'}}>{payoutOdds}</div>
                 </div>
               </div>
+            </div>
+
+            {/* YOUR PICKS SECTION */}
+            <div style={{
+              padding: '24px',
+              background: 'white',
+              borderBottom: '2px solid #e0e0e0'
+            }}>
+              <h3 style={{fontSize: '18px', fontWeight: 'bold', marginBottom: '16px', color: '#333'}}>
+                🎲 YOUR PICKS
+              </h3>
+              <div style={{display: 'flex', flexDirection: 'column', gap: '8px'}}>
+                {picksFormatted.map((pick, idx) => (
+                  <div key={idx} style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    padding: '12px',
+                    background: '#f8f9fa',
+                    borderRadius: '8px',
+                    border: '1px solid #e0e0e0'
+                  }}>
+                    <div style={{
+                      width: '28px',
+                      height: '28px',
+                      background: '#007bff',
+                      color: 'white',
+                      borderRadius: '50%',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontWeight: 'bold',
+                      fontSize: '14px',
+                      marginRight: '12px',
+                      flexShrink: 0
+                    }}>
+                      {idx + 1}
+                    </div>
+                    <div style={{fontSize: '15px', fontWeight: '600', color: '#333'}}>
+                      {pick}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* PAYMENT SECTION */}
+            <div style={{
+              padding: '24px',
+              background: '#fff3cd',
+              borderBottom: '3px dashed #e0e0e0'
+            }}>
+              <h3 style={{fontSize: '18px', fontWeight: 'bold', marginBottom: '16px', color: '#856404'}}>
+                💳 PAYMENT REQUIRED
+              </h3>
+              {contactInfo.paymentMethod === 'venmo' ? (
+                <div style={{
+                  background: 'white',
+                  padding: '16px',
+                  borderRadius: '8px',
+                  border: '2px solid #ffc107'
+                }}>
+                  <div style={{marginBottom: '12px', fontSize: '15px', color: '#333'}}>
+                    <strong>Send:</strong> <span style={{fontSize: '18px', fontWeight: 'bold', color: '#28a745'}}>${contactInfo.betAmount}</span>
+                  </div>
+                  <div style={{marginBottom: '12px', fontSize: '15px', color: '#333'}}>
+                    <strong>To:</strong> <span style={{fontSize: '16px', fontWeight: 'bold', color: '#007bff'}}>@{VENMO_USERNAME}</span> on Venmo
+                  </div>
+                  <div style={{fontSize: '15px', color: '#333'}}>
+                    <strong>Note:</strong> <span style={{fontSize: '16px', fontWeight: 'bold', fontFamily: 'monospace', background: '#f8f9fa', padding: '4px 8px', borderRadius: '4px'}}>"{ticketNumber}"</span>
+                  </div>
+                </div>
+              ) : (
+                <div style={{
+                  background: 'white',
+                  padding: '16px',
+                  borderRadius: '8px',
+                  border: '2px solid #ffc107'
+                }}>
+                  <div style={{marginBottom: '12px', fontSize: '15px', color: '#333'}}>
+                    <strong>Send:</strong> <span style={{fontSize: '18px', fontWeight: 'bold', color: '#28a745'}}>${contactInfo.betAmount}</span>
+                  </div>
+                  <div style={{marginBottom: '12px', fontSize: '15px', color: '#333'}}>
+                    <strong>To:</strong> <span style={{fontSize: '16px', fontWeight: 'bold', color: '#007bff'}}>{ZELLE_EMAIL}</span> via Zelle
+                  </div>
+                  <div style={{fontSize: '15px', color: '#333'}}>
+                    <strong>Note:</strong> <span style={{fontSize: '16px', fontWeight: 'bold', fontFamily: 'monospace', background: '#f8f9fa', padding: '4px 8px', borderRadius: '4px'}}>"{ticketNumber}"</span>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* CONTACT INFO */}
+            <div style={{
+              padding: '16px 24px',
+              background: '#f8f9fa',
+              fontSize: '13px',
+              color: '#666',
+              textAlign: 'center'
+            }}>
+              Contact: {contactInfo.name} • {contactInfo.email}
+            </div>
+          </div>
+
+          {/* ACTION BUTTONS */}
+          <div style={{marginTop: '24px', display: 'flex', flexDirection: 'column', gap: '12px'}}>
+            <button
+              className="btn btn-info"
+              onClick={handleEmailTicket}
+              style={{
+                width: '100%',
+                padding: '16px',
+                fontSize: '18px',
+                fontWeight: 'bold',
+                background: '#17a2b8',
+                color: 'white',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '10px'
+              }}
+            >
+              <span>📧</span>
+              <span>Email This Ticket</span>
+            </button>
+
+            {contactInfo.paymentMethod === 'venmo' && (
+              <button
+                className="btn btn-primary"
+                onClick={openVenmo}
+                style={{
+                  width: '100%',
+                  padding: '16px',
+                  fontSize: '18px',
+                  fontWeight: 'bold',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '10px'
+                }}
+              >
+                <span>💰</span>
+                <span>Open Venmo to Pay</span>
+              </button>
             )}
+
             <button 
               className="btn btn-secondary" 
               onClick={() => window.location.reload()}
-              style={{width: '100%', fontSize: '18px'}}
+              style={{
+                width: '100%',
+                padding: '16px',
+                fontSize: '18px',
+                fontWeight: 'bold',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '10px'
+              }}
             >
-              Submit Another Ticket
+              <span>📄</span>
+              <span>Submit Another Ticket</span>
             </button>
+          </div>
+
+          {/* IMPORTANT NOTICE */}
+          <div style={{
+            marginTop: '24px',
+            background: 'rgba(255, 255, 255, 0.1)',
+            border: '2px solid rgba(255, 255, 255, 0.3)',
+            borderRadius: '12px',
+            padding: '16px',
+            textAlign: 'center',
+            color: 'white'
+          }}>
+            <p style={{fontSize: '14px', marginBottom: '0', lineHeight: '1.6'}}>
+              ⚠️ <strong>Keep your ticket number safe!</strong> You will need it to verify your ticket and claim winnings.
+              Payment must be received before games start or ticket will be voided.
+            </p>
           </div>
         </div>
       </div>
