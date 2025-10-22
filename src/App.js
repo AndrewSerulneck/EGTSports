@@ -1453,6 +1453,70 @@ function App() {
         const awayTeam = competition.competitors[1];
         const homeTeam = competition.competitors[0];
         const status = event.status.type.state;
+        
+        // Parse odds data from ESPN API
+        let homeSpread = '';
+        let awaySpread = '';
+        let total = '';
+        
+        // ESPN provides odds data in competition.odds array
+        const odds = competition.odds?.[0];
+        
+        if (odds) {
+          console.log('Found odds data:', JSON.stringify(odds, null, 2));
+          
+          // Parse total (over/under)
+          if (odds.overUnder !== undefined) {
+            total = String(odds.overUnder);
+            console.log('Found total:', total);
+          }
+          
+          // Method 3: Check for spread at top level (ESPN's actual structure)
+          if (odds.spread !== undefined) {
+            console.log('Using top-level odds.spread:', odds.spread);
+            
+            // odds.spread is from HOME team's perspective
+            // If negative, home is favored
+            // If positive, away is favored
+            const spreadValue = odds.spread;
+            
+            // Sanity check
+            if (Math.abs(spreadValue) < 50) {
+              homeSpread = spreadValue > 0 ? `+${spreadValue}` : String(spreadValue);
+              // Away spread is opposite
+              const awaySpreadValue = -spreadValue;
+              awaySpread = awaySpreadValue > 0 ? `+${awaySpreadValue}` : String(awaySpreadValue);
+              
+              console.log('Calculated spreads - Home:', homeSpread, 'Away:', awaySpread);
+            } else {
+              console.warn(`⚠️ Spread ${spreadValue} seems unrealistic, skipping`);
+            }
+          }
+          
+          // Fallback: Check homeTeamOdds/awayTeamOdds structure (for other sports that might be different)
+          if (!homeSpread && !awaySpread && (odds.homeTeamOdds || odds.awayTeamOdds)) {
+            console.log('Trying homeTeamOdds/awayTeamOdds structure');
+            console.log('homeTeamOdds:', JSON.stringify(odds.homeTeamOdds, null, 2));
+            console.log('awayTeamOdds:', JSON.stringify(odds.awayTeamOdds, null, 2));
+            
+            const homeSpreadValue = odds.homeTeamOdds?.line || odds.homeTeamOdds?.point || odds.homeTeamOdds?.spread;
+            const awaySpreadValue = odds.awayTeamOdds?.line || odds.awayTeamOdds?.point || odds.awayTeamOdds?.spread;
+            
+            console.log('Extracted home spread value:', homeSpreadValue);
+            console.log('Extracted away spread value:', awaySpreadValue);
+            
+            if (homeSpreadValue !== undefined && Math.abs(homeSpreadValue) < 50) {
+              homeSpread = homeSpreadValue > 0 ? `+${homeSpreadValue}` : String(homeSpreadValue);
+            }
+            
+            if (awaySpreadValue !== undefined && Math.abs(awaySpreadValue) < 50) {
+              awaySpread = awaySpreadValue > 0 ? `+${awaySpreadValue}` : String(awaySpreadValue);
+            }
+          }
+          
+          console.log('✅ Final parsed values:', { awaySpread, homeSpread, total });
+        }
+        
         return {
           id: index + 1,
           espnId: event.id,
@@ -1464,9 +1528,9 @@ function App() {
           homeTeamId: homeTeam.id,
           awayScore: awayTeam.score || '0',
           homeScore: homeTeam.score || '0',
-          awaySpread: '',
-          homeSpread: '',
-          total: '',
+          awaySpread: awaySpread,
+          homeSpread: homeSpread,
+          total: total,
           status: status,
           statusDetail: event.status.type.detail,
           isFinal: status === 'post'
