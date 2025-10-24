@@ -770,12 +770,12 @@ function LandingPage({ games, loading, onBackToMenu, sport, apiError, onManualRe
     // Open Venmo only if Venmo is selected
     if (contactInfo.paymentMethod === 'venmo') {
       openVenmo();
-    } else if (contactInfo.paymentMethod === 'zelle') {
+        } else if (contactInfo.paymentMethod === 'zelle') {
       // Copy Zelle email to clipboard
       navigator.clipboard.writeText(ZELLE_EMAIL).then(() => {
-        alert(`📋 Zelle email copied to clipboard!\n\nSend $${contactInfo.betAmount} to:\n${ZELLE_EMAIL}\n\nNote: ${ticketNumber}\n\nOpen your banking app to complete payment.`);
+        alert(`⚠️ IMPORTANT - PAYMENT REQUIRED ⚠️\n\n📋 Zelle email copied to clipboard!\n\nYou MUST open your banking app NOW and send $${contactInfo.betAmount} via Zelle to:\n\n${ZELLE_EMAIL}\n\nNote: ${ticketNumber}\n\n🚨 Tickets without payment before games start will be VOID 🚨`);
       }).catch(() => {
-        alert(`Open your banking app and send $${contactInfo.betAmount} to:\n\n${ZELLE_EMAIL}\n\nNote: ${ticketNumber}`);
+        alert(`⚠️ IMPORTANT - PAYMENT REQUIRED ⚠️\n\nYou MUST open your banking app NOW and send $${contactInfo.betAmount} via Zelle to:\n\n${ZELLE_EMAIL}\n\nNote: ${ticketNumber}\n\n🚨 Tickets without payment before games start will be VOID 🚨`);
       });
     }
   };
