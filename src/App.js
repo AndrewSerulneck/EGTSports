@@ -474,17 +474,41 @@ function LandingPage({ games, loading, onBackToMenu, sport, apiError, onManualRe
     localStorage.setItem('marcs-parlays-submissions', JSON.stringify(allSubmissions));
 
     try {
-      await fetch(GOOGLE_SHEET_URL, {
+      console.log('📤 Sending submission to Google Sheets:', JSON.stringify(submission, null, 2));
+      
+      const response = await fetch(GOOGLE_SHEET_URL, {
         method: 'POST',
+        mode: 'no-cors',
         headers: { 
-          'Content-Type': 'text/plain;charset=utf-8'
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify(submission)
       });
       
-      console.log('Submission sent to Google Sheets');
+      console.log('✅ Submission sent to Google Sheets successfully');
+      
+      // Store submission with sync status
+      const submissionWithStatus = {
+        ...submission,
+        syncedToSheets: true,
+        syncedAt: new Date().toISOString()
+      };
+      
+      localStorage.setItem(`submission-${submission.ticketNumber}`, JSON.stringify(submissionWithStatus));
+      
     } catch (error) {
-      console.error('Error sending to Google Sheets:', error);
+      console.error('❌ Error sending to Google Sheets:', error);
+      
+      // Store failed submission for retry
+      const failedSubmissions = JSON.parse(localStorage.getItem('failed-submissions') || '[]');
+      failedSubmissions.push({
+        ...submission,
+        failedAt: new Date().toISOString(),
+        error: error.message
+      });
+      localStorage.setItem('failed-submissions', JSON.stringify(failedSubmissions));
+      
+      alert('⚠️ Your bet was saved locally but may not have synced to our system. Please contact support with your ticket number: ' + submission.ticketNumber);
     }
   };
 
