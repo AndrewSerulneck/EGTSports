@@ -160,7 +160,28 @@ function AdminPanel({ user, games, setGames, isSyncing, setIsSyncing, recentlyUp
     }, 5000);
     return () => clearInterval(interval);
   }, []);
-
+  // Auto-update win/loss status when games finalize
+  useEffect(() => {
+    submissions.forEach(submission => {
+      const result = calculateResult(submission);
+      
+      // Check if this submission just finalized
+      const storedSubmission = localStorage.getItem(`submission-${submission.ticketNumber}`);
+      const wasFinalized = storedSubmission ? JSON.parse(storedSubmission).finalized : false;
+      
+      if (result.allGamesComplete && !wasFinalized) {
+        const status = result.parlayWon ? 'won' : 'lost';
+        updateSubmissionStatus(submission, status, result.wins, result.losses, submission.picks.length);
+        
+        // Mark as finalized
+        localStorage.setItem(`submission-${submission.ticketNumber}`, JSON.stringify({
+          ...submission,
+          finalized: true,
+          status: status
+        }));
+      }
+    });
+  }, [submissions, games]);
   const saveSpreadToFirebase = async () => {
     try {
       setIsSyncing(true);
