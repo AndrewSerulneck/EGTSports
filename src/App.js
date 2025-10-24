@@ -379,9 +379,23 @@ function AdminPanel({ user, games, setGames, isSyncing, setIsSyncing, recentlyUp
                     <div><strong>Email:</strong> {sub.contactInfo.email}</div>
                     <div><strong>Bet:</strong> ${sub.betAmount.toFixed(2)}</div>
                   </div>
-                  <div style={{marginBottom: '16px'}}>
+                                    <div style={{marginBottom: '16px'}}>
                     <strong>Record: {result.wins}-{result.losses}</strong>
                     {result.pending > 0 && <span style={{color: '#666'}}> ({result.pending} pending)</span>}
+                    {result.allGamesComplete && (
+                      <div style={{
+                        marginTop: '8px',
+                        padding: '8px 12px',
+                        borderRadius: '6px',
+                        display: 'inline-block',
+                        fontWeight: 'bold',
+                        background: result.parlayWon ? '#d4edda' : '#f8d7da',
+                        color: result.parlayWon ? '#155724' : '#721c24',
+                        border: result.parlayWon ? '1px solid #c3e6cb' : '1px solid #f5c6cb'
+                      }}>
+                        {result.parlayWon ? '✅ ALL PICKS WON' : '❌ SOME PICKS LOST'}
+                      </div>
+                    )}
                   </div>
                 </div>
               );
