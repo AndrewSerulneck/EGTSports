@@ -353,16 +353,24 @@ function AdminPanel({ user, games, setGames, isSyncing, setIsSyncing, recentlyUp
                       <strong style={{fontSize: '20px', color: '#28a745'}}>{sub.ticketNumber}</strong>
                       {sub.freePlay > 0 && <span className="free-play-badge">${sub.freePlay}</span>}
                       <div style={{color: '#666', fontSize: '14px'}}>{new Date(sub.timestamp).toLocaleString()}</div>
+                      <div style={{fontSize: '12px', color: '#999', marginTop: '4px'}}>Sport: {sub.sport}</div>
                     </div>
                     {result.allGamesComplete && (
-                      <div style={{
-                        padding: '8px 16px',
-                        borderRadius: '8px',
-                        fontWeight: 'bold',
-                        background: result.parlayWon ? '#28a745' : '#dc3545',
-                        color: 'white'
-                      }}>
-                        {result.parlayWon ? 'WON' : 'LOST'}
+                      <div style={{display: 'flex', flexDirection: 'column', gap: '8px', alignItems: 'flex-end'}}>
+                        <div style={{
+                          padding: '8px 16px',
+                          borderRadius: '8px',
+                          fontWeight: 'bold',
+                          background: result.parlayWon ? '#28a745' : '#dc3545',
+                          color: 'white'
+                        }}>
+                          {result.parlayWon ? 'WON' : 'LOST'}
+                        </div>
+                        {result.parlayWon && (
+                          <div style={{fontSize: '14px', fontWeight: 'bold', color: '#28a745'}}>
+                            Payout: ${(sub.betAmount * getPayoutMultiplier(sub.picks.length)).toFixed(2)}
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>
