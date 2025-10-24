@@ -556,6 +556,80 @@ function LandingPage({ games, loading, onBackToMenu, sport, apiError, onManualRe
     
     return () => unsubscribe();
   }, []);
+// ADD THIS NEW useEffect RIGHT AFTER THE ONE ABOVE:
+useEffect(() => {
+  // Auto-calculate and update win/loss status for finalized games
+  submissions.forEach(submission => {
+    // Only process submissions for the current sport
+    if (submission.sport !== sport) return;
+    
+    let wins = 0;
+    let losses = 0;
+    let pending = 0;
+
+    submission.picks.forEach(pick => {
+      const game = games.find(g => g.espnId === pick.gameId);
+      if (!game || !game.isFinal) {
+        pending++;
+        return;
+      }
+
+      if (pick.pickType === 'spread') {
+        const awayScore = parseInt(game.awayScore);
+        const homeScore = parseInt(game.homeScore);
+        const spread = parseFloat(pick.spread);
+        let won = false;
+
+        if (pick.pickedTeamType === 'away') {
+          const adjustedScore = awayScore + spread;
+          won = adjustedScore > homeScore;
+        } else {
+          const adjustedScore = homeScore + spread;
+          won = adjustedScore > awayScore;
+        }
+
+        if (won) wins++;
+        else losses++;
+      } else if (pick.pickType === 'total') {
+        const awayScore = parseInt(game.awayScore);
+        const homeScore = parseInt(game.homeScore);
+        const totalScore = awayScore + homeScore;
+        const total = parseFloat(pick.total);
+        let won = false;
+
+        if (pick.overUnder === 'over') {
+          won = totalScore > total;
+        } else {
+          won = totalScore < total;
+        }
+
+        if (won) wins++;
+        else losses++;
+      }
+    });
+
+    const allGamesComplete = pending === 0;
+    const parlayWon = allGamesComplete && losses === 0 && wins === submission.picks.length;
+    
+    // Check if this submission just finalized
+    const storedSubmission = localStorage.getItem(`submission-${submission.ticketNumber}`);
+    const wasFinalized = storedSubmission ? JSON.parse(storedSubmission).finalized : false;
+    
+    if (allGamesComplete && !wasFinalized) {
+      const status = parlayWon ? 'won' : 'lost';
+      console.log(`🎯 Ticket ${submission.ticketNumber} finalized: ${status.toUpperCase()}`);
+      
+      updateSubmissionStatus(submission, status, wins, losses, submission.picks.length);
+      
+      // Mark as finalized in localStorage
+      localStorage.setItem(`submission-${submission.ticketNumber}`, JSON.stringify({
+        ...submission,
+        finalized: true,
+        status: status
+      }));
+    }
+  });
+}, [submissions, games, sport]);
 
   const handleManualRefresh = async () => {
     setIsRefreshing(true);
