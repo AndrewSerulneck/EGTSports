@@ -523,8 +523,24 @@ function LandingPage({ games, loading, onBackToMenu, sport, apiError, onManualRe
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   useEffect(() => {
+    // Load from localStorage first (backup)
     const stored = localStorage.getItem('marcs-parlays-submissions');
     if (stored) setSubmissions(JSON.parse(stored));
+    
+    // Also listen to Firebase for real-time submissions
+    const submissionsRef = ref(database, 'submissions');
+    const unsubscribe = onValue(submissionsRef, (snapshot) => {
+      if (snapshot.exists()) {
+        const firebaseSubmissions = [];
+        snapshot.forEach((childSnapshot) => {
+          firebaseSubmissions.push(childSnapshot.val());
+        });
+        console.log(`📥 Loaded ${firebaseSubmissions.length} submissions from Firebase`);
+        setSubmissions(firebaseSubmissions);
+      }
+    });
+    
+    return () => unsubscribe();
   }, []);
 
   const handleManualRefresh = async () => {
