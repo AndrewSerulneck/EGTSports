@@ -379,9 +379,23 @@ function AdminPanel({ user, games, setGames, isSyncing, setIsSyncing, recentlyUp
                     <div><strong>Email:</strong> {sub.contactInfo.email}</div>
                     <div><strong>Bet:</strong> ${sub.betAmount.toFixed(2)}</div>
                   </div>
-                  <div style={{marginBottom: '16px'}}>
+                                    <div style={{marginBottom: '16px'}}>
                     <strong>Record: {result.wins}-{result.losses}</strong>
                     {result.pending > 0 && <span style={{color: '#666'}}> ({result.pending} pending)</span>}
+                    {result.allGamesComplete && (
+                      <div style={{
+                        marginTop: '8px',
+                        padding: '8px 12px',
+                        borderRadius: '6px',
+                        display: 'inline-block',
+                        fontWeight: 'bold',
+                        background: result.parlayWon ? '#d4edda' : '#f8d7da',
+                        color: result.parlayWon ? '#155724' : '#721c24',
+                        border: result.parlayWon ? '1px solid #c3e6cb' : '1px solid #f5c6cb'
+                      }}>
+                        {result.parlayWon ? '✅ ALL PICKS WON' : '❌ SOME PICKS LOST'}
+                      </div>
+                    )}
                   </div>
                 </div>
               );
@@ -523,8 +537,24 @@ function LandingPage({ games, loading, onBackToMenu, sport, apiError, onManualRe
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   useEffect(() => {
+    // Load from localStorage first (backup)
     const stored = localStorage.getItem('marcs-parlays-submissions');
     if (stored) setSubmissions(JSON.parse(stored));
+    
+    // Also listen to Firebase for real-time submissions
+    const submissionsRef = ref(database, 'submissions');
+    const unsubscribe = onValue(submissionsRef, (snapshot) => {
+      if (snapshot.exists()) {
+        const firebaseSubmissions = [];
+        snapshot.forEach((childSnapshot) => {
+          firebaseSubmissions.push(childSnapshot.val());
+        });
+        console.log(`📥 Loaded ${firebaseSubmissions.length} submissions from Firebase`);
+        setSubmissions(firebaseSubmissions);
+      }
+    });
+    
+    return () => unsubscribe();
   }, []);
 
   const handleManualRefresh = async () => {
@@ -544,11 +574,18 @@ function LandingPage({ games, loading, onBackToMenu, sport, apiError, onManualRe
   };
 
   const saveSubmission = async (submission) => {
+    // Save to localStorage (backup)
     const allSubmissions = [...submissions, submission];
     setSubmissions(allSubmissions);
     localStorage.setItem('marcs-parlays-submissions', JSON.stringify(allSubmissions));
 
     try {
+      // Save to Firebase for admin access
+      const submissionsRef = ref(database, `submissions/${submission.ticketNumber}`);
+      await set(submissionsRef, submission);
+      console.log('✅ Submission saved to Firebase');
+      
+      // Send to Google Sheets
       console.log('📤 Sending submission to Google Sheets:', JSON.stringify(submission, null, 2));
       
       const response = await fetch(GOOGLE_SHEET_URL, {
@@ -572,21 +609,26 @@ function LandingPage({ games, loading, onBackToMenu, sport, apiError, onManualRe
       localStorage.setItem(`submission-${submission.ticketNumber}`, JSON.stringify(submissionWithStatus));
       
     } catch (error) {
-      console.error('❌ Error sending to Google Sheets:', error);
+      console.error('❌ Error saving submission:', error);
       
-      // Store failed submission for retry
-      const failedSubmissions = JSON.parse(localStorage.getItem('failed-submissions') || '[]');
-      failedSubmissions.push({
-        ...submission,
-        failedAt: new Date().toISOString(),
-        error: error.message
-      });
-      localStorage.setItem('failed-submissions', JSON.stringify(failedSubmissions));
-      
-      alert('⚠️ Your bet was saved locally but may not have synced to our system. Please contact support with your ticket number: ' + submission.ticketNumber);
+      // Only alert if it's a Firebase error (not Google Sheets)
+      if (error.message.includes('Firebase') || error.message.includes('database')) {
+        // Store failed submission for retry
+        const failedSubmissions = JSON.parse(localStorage.getItem('failed-submissions') || '[]');
+        failedSubmissions.push({
+          ...submission,
+          failedAt: new Date().toISOString(),
+          error: error.message
+        });
+        localStorage.setItem('failed-submissions', JSON.stringify(failedSubmissions));
+        
+        alert('⚠️ Your bet was saved locally but may not have synced to our system. Please contact support with your ticket number: ' + submission.ticketNumber);
+      } else {
+        // Google Sheets error - not critical, just log it
+        console.warn('⚠️ Google Sheets sync may have failed, but submission is saved to Firebase');
+      }
     }
   };
-
   const toggleSpread = (gameId, teamType) => {
     setSelectedPicks(prev => {
       const prevPick = prev[gameId] || {};
@@ -722,13 +764,19 @@ function LandingPage({ games, loading, onBackToMenu, sport, apiError, onManualRe
       paymentMethod: contactInfo.paymentMethod,
       sport: sport  // ADD SPORT TO SUBMISSION
     };
-
     saveSubmission(submission);
     setHasSubmitted(true);
 
     // Open Venmo only if Venmo is selected
     if (contactInfo.paymentMethod === 'venmo') {
       openVenmo();
+        } else if (contactInfo.paymentMethod === 'zelle') {
+      // Copy Zelle email to clipboard
+      navigator.clipboard.writeText(ZELLE_EMAIL).then(() => {
+        alert(`⚠️ IMPORTANT - PAYMENT REQUIRED ⚠️\n\n📋 Zelle email copied to clipboard!\n\nYou MUST open your banking app NOW and send $${contactInfo.betAmount} via Zelle to:\n\n${ZELLE_EMAIL}\n\nNote: ${ticketNumber}\n\n🚨 Tickets without payment before games start will be VOID 🚨`);
+      }).catch(() => {
+        alert(`⚠️ IMPORTANT - PAYMENT REQUIRED ⚠️\n\nYou MUST open your banking app NOW and send $${contactInfo.betAmount} via Zelle to:\n\n${ZELLE_EMAIL}\n\nNote: ${ticketNumber}\n\n🚨 Tickets without payment before games start will be VOID 🚨`);
+      });
     }
   };
 
@@ -810,7 +858,7 @@ function LandingPage({ games, loading, onBackToMenu, sport, apiError, onManualRe
       }
       if (pickObj.total) {
         pickCount++;
-        picksFormatted.push(`${pickObj.total === 'over' ? 'Over' : 'Under'} ${game.total}`);
+        picksFormatted.push(`[TOTAL] ${pickObj.total === 'over' ? 'OVER' : 'UNDER'} ${game.total} total points - ${game.awayTeam} @ ${game.homeTeam}`);
       }
     });
 
