@@ -100,6 +100,52 @@ const getAPIStats = () => {
     byEndpoint: apiCallCount.byEndpoint
   };
 };
+// Send win/loss status update to Google Sheets
+const updateSubmissionStatus = async (submission, status, wins, losses, pickCount) => {
+  try {
+    const statusUpdate = {
+      ticketNumber: submission.ticketNumber,
+      status: status,
+      wins: wins,
+      losses: losses,
+      finalizedAt: new Date().toISOString(),
+      payout: status === 'won' ? (submission.betAmount * getPayoutMultiplier(pickCount)) : 0
+    };
+    
+    console.log('📤 Sending status update to Google Sheets:', statusUpdate);
+    
+    await fetch(GOOGLE_SHEET_URL, {
+      method: 'POST',
+      mode: 'no-cors',
+      headers: { 
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        type: 'status_update',
+        ...statusUpdate
+      })
+    });
+    
+    console.log('✅ Status update sent successfully');
+  } catch (error) {
+    console.error('❌ Error updating status:', error);
+  }
+};
+
+// Helper function to get payout multiplier
+const getPayoutMultiplier = (pickCount) => {
+  const multipliers = {
+    3: 8,
+    4: 15,
+    5: 25,
+    6: 50,
+    7: 100,
+    8: 150,
+    9: 200,
+    10: 250
+  };
+  return multipliers[pickCount] || 0;
+};
 
 // Admin Panel Component - NOW SPORT-SPECIFIC WITH API STATS
 function AdminPanel({ user, games, setGames, isSyncing, setIsSyncing, recentlyUpdated, setRecentlyUpdated, submissions, sport, onBackToMenu }) {
