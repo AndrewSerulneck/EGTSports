@@ -858,7 +858,7 @@ function LandingPage({ games, loading, onBackToMenu, sport, apiError, onManualRe
       }
       if (pickObj.total) {
         pickCount++;
-        picksFormatted.push(`${pickObj.total === 'over' ? 'Over' : 'Under'} ${game.total} (${game.awayTeam} @ ${game.homeTeam})`);
+        picksFormatted.push(`[TOTAL] ${pickObj.total === 'over' ? 'OVER' : 'UNDER'} ${game.total} total points - ${game.awayTeam} @ ${game.homeTeam}`);
       }
     });
 
