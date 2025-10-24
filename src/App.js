@@ -560,11 +560,18 @@ function LandingPage({ games, loading, onBackToMenu, sport, apiError, onManualRe
   };
 
   const saveSubmission = async (submission) => {
+    // Save to localStorage (backup)
     const allSubmissions = [...submissions, submission];
     setSubmissions(allSubmissions);
     localStorage.setItem('marcs-parlays-submissions', JSON.stringify(allSubmissions));
 
     try {
+      // Save to Firebase for admin access
+      const submissionsRef = ref(database, `submissions/${submission.ticketNumber}`);
+      await set(submissionsRef, submission);
+      console.log('✅ Submission saved to Firebase');
+      
+      // Send to Google Sheets
       console.log('📤 Sending submission to Google Sheets:', JSON.stringify(submission, null, 2));
       
       const response = await fetch(GOOGLE_SHEET_URL, {
@@ -588,7 +595,7 @@ function LandingPage({ games, loading, onBackToMenu, sport, apiError, onManualRe
       localStorage.setItem(`submission-${submission.ticketNumber}`, JSON.stringify(submissionWithStatus));
       
     } catch (error) {
-      console.error('❌ Error sending to Google Sheets:', error);
+      console.error('❌ Error saving submission:', error);
       
       // Store failed submission for retry
       const failedSubmissions = JSON.parse(localStorage.getItem('failed-submissions') || '[]');
@@ -602,7 +609,6 @@ function LandingPage({ games, loading, onBackToMenu, sport, apiError, onManualRe
       alert('⚠️ Your bet was saved locally but may not have synced to our system. Please contact support with your ticket number: ' + submission.ticketNumber);
     }
   };
-
   const toggleSpread = (gameId, teamType) => {
     setSelectedPicks(prev => {
       const prevPick = prev[gameId] || {};
