@@ -343,3 +343,39 @@ ul li {
         margin: 0 -10px;
     }
 }
+/* Mobile Responsive Fixes - Header Layout */
+@media (max-width: 768px) {
+  /* Header improvements for mobile */
+  .text-center.text-white.mb-4 > div:first-child {
+    flex-direction: column !important;
+    align-items: center !important;
+    gap: 12px;
+  }
+  
+  .text-center.text-white.mb-4 h1 {
+    font-size: 28px !important;
+    text-align: center;
+    width: 100%;
+    order: 2;
+    margin: 12px 0 !important;
+  }
+  
+  .text-center.text-white.mb-4 button {
+    width: 100%;
+    max-width: 300px;
+    margin: 0 0 8px 0 !important;
+  }
+  
+  .text-center.text-white.mb-4 > div:first-child > button:first-child {
+    order: 1;
+  }
+  
+  .text-center.text-white.mb-4 > div:first-child > button:last-child {
+    order: 3;
+  }
+  
+  .text-center.text-white.mb-4 > div:first-child > div {
+    order: 2;
+    width: 100%;
+  }
+}
