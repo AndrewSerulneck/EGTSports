@@ -609,7 +609,6 @@ function LandingPage({ games, loading, onBackToMenu, sport, apiError, onManualRe
       localStorage.setItem(`submission-${submission.ticketNumber}`, JSON.stringify(submissionWithStatus));
       
     } catch (error) {
-    } catch (error) {
       console.error('❌ Error saving submission:', error);
       
       // Only alert if it's a Firebase error (not Google Sheets)
