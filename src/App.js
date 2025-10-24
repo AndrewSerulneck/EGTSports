@@ -595,18 +595,25 @@ function LandingPage({ games, loading, onBackToMenu, sport, apiError, onManualRe
       localStorage.setItem(`submission-${submission.ticketNumber}`, JSON.stringify(submissionWithStatus));
       
     } catch (error) {
+    } catch (error) {
       console.error('❌ Error saving submission:', error);
       
-      // Store failed submission for retry
-      const failedSubmissions = JSON.parse(localStorage.getItem('failed-submissions') || '[]');
-      failedSubmissions.push({
-        ...submission,
-        failedAt: new Date().toISOString(),
-        error: error.message
-      });
-      localStorage.setItem('failed-submissions', JSON.stringify(failedSubmissions));
-      
-      alert('⚠️ Your bet was saved locally but may not have synced to our system. Please contact support with your ticket number: ' + submission.ticketNumber);
+      // Only alert if it's a Firebase error (not Google Sheets)
+      if (error.message.includes('Firebase') || error.message.includes('database')) {
+        // Store failed submission for retry
+        const failedSubmissions = JSON.parse(localStorage.getItem('failed-submissions') || '[]');
+        failedSubmissions.push({
+          ...submission,
+          failedAt: new Date().toISOString(),
+          error: error.message
+        });
+        localStorage.setItem('failed-submissions', JSON.stringify(failedSubmissions));
+        
+        alert('⚠️ Your bet was saved locally but may not have synced to our system. Please contact support with your ticket number: ' + submission.ticketNumber);
+      } else {
+        // Google Sheets error - not critical, just log it
+        console.warn('⚠️ Google Sheets sync may have failed, but submission is saved to Firebase');
+      }
     }
   };
   const toggleSpread = (gameId, teamType) => {
