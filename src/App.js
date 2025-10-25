@@ -648,62 +648,78 @@ useEffect(() => {
     return `${hours}h ago`;
   };
 
-  const saveSubmission = async (submission) => {
-    // Save to localStorage (backup)
-    const allSubmissions = [...submissions, submission];
-    setSubmissions(allSubmissions);
-    localStorage.setItem('marcs-parlays-submissions', JSON.stringify(allSubmissions));
+const saveSubmission = async (submission) => {
+  console.log('🚀 saveSubmission function called');
+  console.log('📋 Submission data:', submission);
+  
+  // Save to localStorage (backup)
+  const allSubmissions = [...submissions, submission];
+  setSubmissions(allSubmissions);
+  localStorage.setItem('marcs-parlays-submissions', JSON.stringify(allSubmissions));
+  console.log('✅ Saved to localStorage');
 
-    try {
-      // Save to Firebase for admin access
-      const submissionsRef = ref(database, `submissions/${submission.ticketNumber}`);
-      await set(submissionsRef, submission);
-      console.log('✅ Submission saved to Firebase');
-      
-      // Send to Google Sheets
-      console.log('📤 Sending submission to Google Sheets:', JSON.stringify(submission, null, 2));
-      
-      const response = await fetch(GOOGLE_SHEET_URL, {
-        method: 'POST',
-        mode: 'no-cors',
-        headers: { 
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(submission)
-      });
-      
-      console.log('✅ Submission sent to Google Sheets successfully');
-      
-      // Store submission with sync status
-      const submissionWithStatus = {
+  try {
+    // Save to Firebase for admin access
+    console.log('💾 Attempting to save to Firebase...');
+    const submissionsRef = ref(database, `submissions/${submission.ticketNumber}`);
+    await set(submissionsRef, submission);
+    console.log('✅ Submission saved to Firebase');
+    
+    // Send to Google Sheets
+    console.log('📤 Attempting to send to Google Sheets...');
+    console.log('🔗 Target URL:', GOOGLE_SHEET_URL);
+    console.log('📦 Payload being sent:', JSON.stringify(submission, null, 2));
+    
+    const fetchStartTime = Date.now();
+    const response = await fetch(GOOGLE_SHEET_URL, {
+      method: 'POST',
+      mode: 'no-cors',
+      headers: { 
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(submission)
+    });
+    const fetchDuration = Date.now() - fetchStartTime;
+    
+    console.log(`✅ Fetch request completed in ${fetchDuration}ms`);
+    console.log('📊 Response status:', response.status);
+    console.log('📊 Response type:', response.type);
+    console.log('📊 Full response object:', response);
+    
+    // Store submission with sync status
+    const submissionWithStatus = {
+      ...submission,
+      syncedToSheets: true,
+      syncedAt: new Date().toISOString()
+    };
+    
+    localStorage.setItem(`submission-${submission.ticketNumber}`, JSON.stringify(submissionWithStatus));
+    console.log('✅ Marked as synced in localStorage');
+    
+  } catch (error) {
+    console.error('❌ Error in saveSubmission:', error);
+    console.error('❌ Error name:', error.name);
+    console.error('❌ Error message:', error.message);
+    console.error('❌ Error stack:', error.stack);
+    
+    // Only alert if it's a Firebase error (not Google Sheets)
+    if (error.message.includes('Firebase') || error.message.includes('database')) {
+      // Store failed submission for retry
+      const failedSubmissions = JSON.parse(localStorage.getItem('failed-submissions') || '[]');
+      failedSubmissions.push({
         ...submission,
-        syncedToSheets: true,
-        syncedAt: new Date().toISOString()
-      };
+        failedAt: new Date().toISOString(),
+        error: error.message
+      });
+      localStorage.setItem('failed-submissions', JSON.stringify(failedSubmissions));
       
-      localStorage.setItem(`submission-${submission.ticketNumber}`, JSON.stringify(submissionWithStatus));
-      
-    } catch (error) {
-      console.error('❌ Error saving submission:', error);
-      
-      // Only alert if it's a Firebase error (not Google Sheets)
-      if (error.message.includes('Firebase') || error.message.includes('database')) {
-        // Store failed submission for retry
-        const failedSubmissions = JSON.parse(localStorage.getItem('failed-submissions') || '[]');
-        failedSubmissions.push({
-          ...submission,
-          failedAt: new Date().toISOString(),
-          error: error.message
-        });
-        localStorage.setItem('failed-submissions', JSON.stringify(failedSubmissions));
-        
-        alert('⚠️ Your bet was saved locally but may not have synced to our system. Please contact support with your ticket number: ' + submission.ticketNumber);
-      } else {
-        // Google Sheets error - not critical, just log it
-        console.warn('⚠️ Google Sheets sync may have failed, but submission is saved to Firebase');
-      }
+      alert('⚠️ Your bet was saved locally but may not have synced to our system. Please contact support with your ticket number: ' + submission.ticketNumber);
+    } else {
+      // Google Sheets error - not critical, just log it
+      console.warn('⚠️ Google Sheets sync may have failed, but submission is saved to Firebase');
     }
-  };
+  }
+};
   const toggleSpread = (gameId, teamType) => {
     setSelectedPicks(prev => {
       const prevPick = prev[gameId] || {};
