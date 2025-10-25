@@ -66,6 +66,7 @@ const ZELLE_EMAIL = process.env.REACT_APP_ZELLE_EMAIL || 'EGTSports@proton.me';
 const MIN_BET = parseInt(process.env.REACT_APP_MIN_BET) || 5;
 const MAX_BET = parseInt(process.env.REACT_APP_MAX_BET) || 100;
 const GOOGLE_SHEET_URL = process.env.REACT_APP_GOOGLE_SHEET_URL || 'https://script.google.com/macros/s/AKfycbzPastor8yKkWQxKx1z0p-0ZibwBJHkJCuVvHDqP9YX7Dv1-vwakdR9RU6Y6oNw4T2W2PA/exec';
+console.log('🔗 GOOGLE_SHEET_URL:', GOOGLE_SHEET_URL);
 
 // Utility: Log API usage to Firebase (for admin monitoring)
 const logAPIUsage = async (sport, success, fromCache) => {
