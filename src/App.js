@@ -1,7 +1,7 @@
 import './App.css';
 import React, { useState, useEffect, useCallback } from "react";
 import { initializeApp } from "firebase/app";
-import { getDatabase, ref, set, onValue, push } from "firebase/database";
+import { getDatabase, ref, set, onValue, push, get } from "firebase/database";
 import {
   getAuth,
   signInWithEmailAndPassword,
