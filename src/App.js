@@ -858,7 +858,7 @@ const saveSubmission = async (submission) => {
     saveSubmission(submission);
     // Send confirmation email
 try {
-  const emailResponse = await fetch('http://185.193.126.40:3001/api/send-ticket-confirmation', {
+  const emailResponse = await fetch('https://api.egtsports.ws/api/send-ticket-confirmation', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
