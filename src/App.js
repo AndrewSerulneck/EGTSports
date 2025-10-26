@@ -1611,7 +1611,7 @@ Email: ${contactInfo.email}
             <li>Cross-sports parlays are not allowed</li>
             <li>Winners paid following Tuesday</li>
             <li>Cannot bet on games already completed</li>
-             <li>When you place your bet, write down your ticket number or screenshot your ticket if you want a receipt</li>
+             <li>If you have questions or issues, please contact support@EGTSports.ws</li>
             <li>Each time you participate, your club membership is renewed</li>
           </ul>
           <div style={{background: '#fff3cd', border: '2px solid #ffc107', borderRadius: '8px', padding: '16px', marginTop: '20px', fontSize: '14px', color: '#856404'}}>
