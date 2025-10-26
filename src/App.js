@@ -486,6 +486,7 @@ function WelcomeLandingPage({ onSelectSport }) {
         <div className="text-center text-white mb-4">
           <h1 style={{ fontSize: '48px', marginBottom: '16px' }}>Welcome to EGT Sports</h1>
           <p style={{ fontSize: '20px', marginBottom: '40px' }}>Select a sport below to get started</p>
+         <p style={{ fontSize: '20px', marginBottom: '40px' }}>Reminder: Please add no-reply@EGTSports.ws to your contacts to avoid your confirmation ticket going to your spam folder!</p>
         </div>
         
         <div className="card">
