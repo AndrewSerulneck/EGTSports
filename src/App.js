@@ -1,7 +1,7 @@
 import './App.css';
 import React, { useState, useEffect, useCallback } from "react";
 import { initializeApp } from "firebase/app";
-import { getDatabase, ref, set, onValue, push } from "firebase/database";
+import { getDatabase, ref, set, onValue, push, get } from "firebase/database";
 import {
   getAuth,
   signInWithEmailAndPassword,
@@ -148,9 +148,254 @@ const getPayoutMultiplier = (pickCount) => {
   return multipliers[pickCount] || 0;
 };
 
+// Ticket Lookup Component for debugging missing submissions
+function TicketLookup({ onBack }) {
+  const [ticketNumber, setTicketNumber] = useState('');
+  const [ticketData, setTicketData] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [searchPerformed, setSearchPerformed] = useState(false);
+
+  const handleSearch = async () => {
+    if (!ticketNumber.trim()) {
+      setError('Please enter a ticket number');
+      return;
+    }
+
+    setLoading(true);
+    setError('');
+    setSearchPerformed(true);
+    setTicketData(null);
+
+    try {
+      // Check Firebase first
+      const ticketRef = ref(database, `submissions/${ticketNumber.trim()}`);
+      const snapshot = await get(ticketRef);
+
+      if (snapshot.exists()) {
+        const firebaseData = snapshot.val();
+        
+        // Also check localStorage for sync status
+        const localData = localStorage.getItem(`submission-${ticketNumber.trim()}`);
+        const localParsed = localData ? JSON.parse(localData) : null;
+
+        setTicketData({
+          source: 'firebase',
+          data: firebaseData,
+          syncStatus: localParsed
+        });
+      } else {
+        // Check localStorage as fallback
+        const localData = localStorage.getItem(`submission-${ticketNumber.trim()}`);
+        
+        if (localData) {
+          const parsed = JSON.parse(localData);
+          setTicketData({
+            source: 'localStorage',
+            data: parsed,
+            syncStatus: parsed
+          });
+        } else {
+          setError('Ticket not found in Firebase or localStorage');
+        }
+      }
+    } catch (err) {
+      setError(`Error searching for ticket: ${err.message}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="gradient-bg">
+      <div className="container">
+        <div className="card">
+          <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px'}}>
+            <h1>🔍 Ticket Lookup</h1>
+            <button className="btn btn-secondary" onClick={onBack}>Back</button>
+          </div>
+          
+          {/* Search Box */}
+          <div style={{marginBottom: '20px'}}>
+            <label style={{display: 'block', marginBottom: '8px', fontWeight: 'bold'}}>
+              Enter Ticket Number
+            </label>
+            <div style={{display: 'flex', gap: '12px'}}>
+              <input
+                type="text"
+                value={ticketNumber}
+                onChange={(e) => setTicketNumber(e.target.value)}
+                placeholder="TKT-XXXXX-XXXXX"
+                style={{flex: 1, padding: '12px', fontSize: '16px'}}
+                onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
+              />
+              <button 
+                className="btn btn-primary" 
+                onClick={handleSearch}
+                disabled={loading}
+                style={{padding: '12px 32px'}}
+              >
+                {loading ? 'Searching...' : 'Search'}
+              </button>
+            </div>
+          </div>
+
+          {error && (
+            <div style={{
+              background: '#f8d7da',
+              color: '#721c24',
+              padding: '16px',
+              borderRadius: '8px',
+              marginTop: '16px',
+              border: '1px solid #f5c6cb'
+            }}>
+              ❌ {error}
+            </div>
+          )}
+        </div>
+
+        {/* Results */}
+        {ticketData && (
+          <>
+            {/* Source Badge */}
+            <div className="card">
+              <div style={{display: 'flex', alignItems: 'center', gap: '12px'}}>
+                <span style={{
+                  padding: '8px 16px',
+                  background: ticketData.source === 'firebase' ? '#28a745' : '#ffc107',
+                  color: 'white',
+                  borderRadius: '6px',
+                  fontWeight: 'bold'
+                }}>
+                  📍 Found in: {ticketData.source.toUpperCase()}
+                </span>
+                {ticketData.syncStatus?.syncedToSheets && (
+                  <span style={{
+                    padding: '8px 16px',
+                    background: '#17a2b8',
+                    color: 'white',
+                    borderRadius: '6px',
+                    fontWeight: 'bold'
+                  }}>
+                    ✅ Synced to Google Sheets
+                  </span>
+                )}
+                {ticketData.syncStatus?.syncedToSheets === false && (
+                  <span style={{
+                    padding: '8px 16px',
+                    background: '#dc3545',
+                    color: 'white',
+                    borderRadius: '6px',
+                    fontWeight: 'bold'
+                  }}>
+                    ⚠️ NOT synced to Google Sheets
+                  </span>
+                )}
+              </div>
+            </div>
+
+            {/* Ticket Details */}
+            <div className="card">
+              <h2 style={{marginBottom: '20px'}}>📋 Ticket Details</h2>
+              
+              <div style={{background: '#f8f9fa', padding: '16px', borderRadius: '8px', marginBottom: '16px'}}>
+                <div style={{fontSize: '14px', color: '#666', marginBottom: '4px'}}>Ticket Number</div>
+                <div style={{fontSize: '24px', fontWeight: 'bold', color: '#28a745', fontFamily: 'monospace'}}>
+                  {ticketData.data.ticketNumber}
+                </div>
+              </div>
+
+              <div style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px', marginBottom: '20px'}}>
+                <div style={{background: '#f8f9fa', padding: '12px', borderRadius: '8px'}}>
+                  <div style={{fontSize: '12px', color: '#666', marginBottom: '4px'}}>Submitted</div>
+                  <div style={{fontWeight: 'bold'}}>{new Date(ticketData.data.timestamp).toLocaleString()}</div>
+                </div>
+                <div style={{background: '#f8f9fa', padding: '12px', borderRadius: '8px'}}>
+                  <div style={{fontSize: '12px', color: '#666', marginBottom: '4px'}}>Sport</div>
+                  <div style={{fontWeight: 'bold'}}>{ticketData.data.sport}</div>
+                </div>
+                <div style={{background: '#f8f9fa', padding: '12px', borderRadius: '8px'}}>
+                  <div style={{fontSize: '12px', color: '#666', marginBottom: '4px'}}>Bet Amount</div>
+                  <div style={{fontWeight: 'bold', color: '#28a745'}}>${ticketData.data.betAmount}</div>
+                </div>
+                <div style={{background: '#f8f9fa', padding: '12px', borderRadius: '8px'}}>
+                  <div style={{fontSize: '12px', color: '#666', marginBottom: '4px'}}>Payment Method</div>
+                  <div style={{fontWeight: 'bold'}}>{ticketData.data.paymentMethod || 'N/A'}</div>
+                </div>
+              </div>
+
+              <h3 style={{marginTop: '24px', marginBottom: '12px'}}>Contact Information</h3>
+              <div style={{background: '#f8f9fa', padding: '16px', borderRadius: '8px', marginBottom: '20px'}}>
+                <div><strong>Name:</strong> {ticketData.data.contactInfo?.name}</div>
+                <div><strong>Email:</strong> {ticketData.data.contactInfo?.email}</div>
+              </div>
+
+              <h3 style={{marginTop: '24px', marginBottom: '12px'}}>Picks ({ticketData.data.picks?.length})</h3>
+              {ticketData.data.picks?.map((pick, idx) => (
+                <div key={idx} style={{
+                  background: '#f8f9fa',
+                  padding: '12px',
+                  borderRadius: '8px',
+                  marginBottom: '8px',
+                  border: '1px solid #e0e0e0'
+                }}>
+                  <div style={{display: 'flex', alignItems: 'center', gap: '12px'}}>
+                    <div style={{
+                      width: '28px',
+                      height: '28px',
+                      background: '#007bff',
+                      color: 'white',
+                      borderRadius: '50%',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontWeight: 'bold',
+                      fontSize: '14px',
+                      flexShrink: 0
+                    }}>
+                      {idx + 1}
+                    </div>
+                    <div style={{flex: 1}}>
+                      <div style={{fontWeight: 'bold', marginBottom: '4px'}}>{pick.gameName}</div>
+                      {pick.pickType === 'spread' && (
+                        <div style={{fontSize: '14px', color: '#666'}}>
+                          <strong>SPREAD:</strong> {pick.team} {pick.spread}
+                        </div>
+                      )}
+                      {pick.pickType === 'total' && (
+                        <div style={{fontSize: '14px', color: '#666'}}>
+                          <strong>TOTAL:</strong> {pick.overUnder?.toUpperCase()} {pick.total}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))}
+
+              {ticketData.syncStatus?.syncedAt && (
+                <div style={{marginTop: '20px', padding: '12px', background: '#d1ecf1', borderRadius: '8px', border: '1px solid #bee5eb'}}>
+                  <strong>ℹ️ Sync Info:</strong> Last synced at {new Date(ticketData.syncStatus.syncedAt).toLocaleString()}
+                </div>
+              )}
+            </div>
+          </>
+        )}
+
+        {searchPerformed && !ticketData && !loading && !error && (
+          <div className="card text-center">
+            <h3>No Results Found</h3>
+            <p>This ticket number does not exist in the system.</p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // Admin Panel Component - NOW SPORT-SPECIFIC WITH API STATS
 function AdminPanel({ user, games, setGames, isSyncing, setIsSyncing, recentlyUpdated, setRecentlyUpdated, submissions, sport, onBackToMenu }) {
   const [showSubmissions, setShowSubmissions] = useState(false);
+  const [showTicketLookup, setShowTicketLookup] = useState(false); // ADD THIS
   const [showAPIStats, setShowAPIStats] = useState(false);
   const [apiStats, setApiStats] = useState(getAPIStats());
 
@@ -329,7 +574,9 @@ function AdminPanel({ user, games, setGames, isSyncing, setIsSyncing, recentlyUp
       </div>
     );
   }
-
+  if (showTicketLookup) {
+  return <TicketLookup onBack={() => setShowTicketLookup(false)} />;
+  }
   if (showSubmissions) {
     return (
       <div className="gradient-bg">
@@ -418,6 +665,9 @@ function AdminPanel({ user, games, setGames, isSyncing, setIsSyncing, recentlyUp
               <button className="btn btn-info" onClick={() => setShowAPIStats(true)}>
                 📊 API Stats
               </button>
+                    <button className="btn btn-warning" onClick={() => setShowTicketLookup(true)}>
+                  🔍 Ticket Lookup
+                  </button>
               <button className="btn btn-primary" onClick={() => setShowSubmissions(true)}>
                 Submissions ({submissions.length})
               </button>
