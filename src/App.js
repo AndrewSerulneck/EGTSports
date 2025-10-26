@@ -785,7 +785,7 @@ const saveSubmission = async (submission) => {
     }, 1000);
   };
 
-  const handleCheckoutSubmit = () => {
+  const handleCheckoutSubmit = async () => {
     const betAmount = parseFloat(contactInfo.betAmount);
 
     // Validate contact information
@@ -856,6 +856,39 @@ const saveSubmission = async (submission) => {
       sport: sport  // ADD SPORT TO SUBMISSION
     };
     saveSubmission(submission);
+    // Send confirmation email
+try {
+  const emailResponse = await fetch('https://api.egtsports.ws/api/send-ticket-confirmation', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      ticketNumber: ticketNumber,
+      contactInfo: {
+        name: contactInfo.name,
+        email: contactInfo.email,
+        paymentMethod: contactInfo.paymentMethod
+      },
+      picks: picksFormatted,
+      betAmount: betAmount,
+      sport: sport,
+      timestamp: submission.timestamp
+    })
+  });
+
+  const emailResult = await emailResponse.json();
+  
+  if (emailResult.success) {
+    console.log('✅ Confirmation email sent to', contactInfo.email);
+  } else {
+    console.error('❌ Email failed:', emailResult.error);
+  }
+} catch (emailError) {
+  console.error('❌ Email error:', emailError);
+  // Don't block ticket submission if email fails
+}
+    
     setHasSubmitted(true);
 
     // Open Venmo only if Venmo is selected
