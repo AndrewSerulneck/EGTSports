@@ -1465,12 +1465,6 @@ Email: ${contactInfo.email}
             )}
           </div>
           
-          {/* COLLEGE BASKETBALL CACHE WARNING */}
-          {sport === 'College Basketball' && lastRefreshTime && (
-            <div style={{fontSize: '12px', color: '#ffc107', marginTop: '4px', textAlign: 'center'}}>
-              ⚠️ Odds cached for 1 hour to conserve API calls
-            </div>
-          )}
         </div>
         
         <div className="card">
