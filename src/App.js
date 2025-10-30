@@ -892,15 +892,15 @@ try {
     
     setHasSubmitted(true);
 
-    // Open Venmo only if Venmo is selected
+        // Open Venmo only if Venmo is selected
     if (contactInfo.paymentMethod === 'venmo') {
       openVenmo();
-        } else if (contactInfo.paymentMethod === 'zelle') {
+    } else if (contactInfo.paymentMethod === 'zelle') {
       // Copy Zelle email to clipboard
       navigator.clipboard.writeText(ZELLE_EMAIL).then(() => {
-        alert(`⚠️ IMPORTANT - PAYMENT REQUIRED ⚠️\n\n📋 Zelle email copied to clipboard!\n\nYou MUST open your banking app NOW and send $${contactInfo.betAmount} via Zelle to:\n\n${ZELLE_EMAIL}\n\nNote: ${ticketNumber}\n\n🚨 Tickets without payment before games start will be VOID 🚨`);
+        alert(`⚠️ IMPORTANT - PAYMENT REQUIRED ⚠️\n\n📋 Zelle email copied to clipboard!\n\nYou MUST open your banking app NOW and send $${contactInfo.betAmount} via Zelle to:\n\n${ZELLE_EMAIL}\n\nNote: ${ticketNumber}\n\n🚨 Tickets without payment will be voided!`);
       }).catch(() => {
-        alert(`⚠️ IMPORTANT - PAYMENT REQUIRED ⚠️\n\nYou MUST open your banking app NOW and send $${contactInfo.betAmount} via Zelle to:\n\n${ZELLE_EMAIL}\n\nNote: ${ticketNumber}\n\n🚨 Tickets without payment before games start will be VOID 🚨`);
+        alert(`⚠️ IMPORTANT - PAYMENT REQUIRED ⚠️\n\nYou MUST open your banking app NOW and send $${contactInfo.betAmount} via Zelle to:\n\n${ZELLE_EMAIL}\n\nNote: ${ticketNumber}\n\n🚨 Tickets without payment will be voided!`);
       });
     }
   };
