@@ -1,3 +1,4 @@
+
 import './App.css';
 import React, { useState, useEffect, useCallback } from "react";
 import { initializeApp } from "firebase/app";
@@ -892,15 +893,15 @@ try {
     
     setHasSubmitted(true);
 
-        // Open Venmo only if Venmo is selected
+    // Open Venmo only if Venmo is selected
     if (contactInfo.paymentMethod === 'venmo') {
       openVenmo();
-    } else if (contactInfo.paymentMethod === 'zelle') {
+        } else if (contactInfo.paymentMethod === 'zelle') {
       // Copy Zelle email to clipboard
       navigator.clipboard.writeText(ZELLE_EMAIL).then(() => {
-        alert(`⚠️ IMPORTANT - PAYMENT REQUIRED ⚠️\n\n📋 Zelle email copied to clipboard!\n\nYou MUST open your banking app NOW and send $${contactInfo.betAmount} via Zelle to:\n\n${ZELLE_EMAIL}\n\nNote: ${ticketNumber}\n\n🚨 Tickets without payment will be voided!`);
+        alert(`⚠️ IMPORTANT - PAYMENT REQUIRED ⚠️\n\n📋 Zelle email copied to clipboard!\n\nYou MUST open your banking app NOW and send $${contactInfo.betAmount} via Zelle to:\n\n${ZELLE_EMAIL}\n\nNote: ${ticketNumber}\n\n🚨 Tickets without payment before games start will be VOID 🚨`);
       }).catch(() => {
-        alert(`⚠️ IMPORTANT - PAYMENT REQUIRED ⚠️\n\nYou MUST open your banking app NOW and send $${contactInfo.betAmount} via Zelle to:\n\n${ZELLE_EMAIL}\n\nNote: ${ticketNumber}\n\n🚨 Tickets without payment will be voided!`);
+        alert(`⚠️ IMPORTANT - PAYMENT REQUIRED ⚠️\n\nYou MUST open your banking app NOW and send $${contactInfo.betAmount} via Zelle to:\n\n${ZELLE_EMAIL}\n\nNote: ${ticketNumber}\n\n🚨 Tickets without payment before games start will be VOID 🚨`);
       });
     }
   };
@@ -1463,6 +1464,14 @@ Email: ${contactInfo.email}
               </span>
             )}
           </div>
+          
+          {/* COLLEGE BASKETBALL CACHE WARNING */}
+          {sport === 'College Basketball' && lastRefreshTime && (
+            <div style={{fontSize: '12px', color: '#ffc107', marginTop: '4px', textAlign: 'center'}}>
+              ⚠️ Odds cached for 1 hour to conserve API calls
+            </div>
+          )}
+        </div>
         
         <div className="card">
           <h2 className="text-center mb-2">Payout Odds</h2>
@@ -1607,7 +1616,9 @@ Email: ${contactInfo.email}
             <li>Each time you participate, your club membership is renewed</li>
           </ul>
           <div style={{background: '#fff3cd', border: '2px solid #ffc107', borderRadius: '8px', padding: '16px', marginTop: '20px', fontSize: '14px', color: '#856404'}}>
-<strong>Legal Disclaimer:</strong> For entertainment only. 21+ only. Private pool among friends. Check local laws. By participating, you acknowledge responsibility for compliance with local laws.        </div>
+            <strong>Legal Disclaimer:</strong> For entertainment only. 21+ only. Private pool among friends. Check local laws. By participating, you acknowledge responsibility for compliance with local laws.
+          </div>
+        </div>
       </div>
       <div className={`modal ${showConfirmation ? 'active' : ''}`}>
         <div className="modal-content">
