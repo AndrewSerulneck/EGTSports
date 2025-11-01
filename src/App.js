@@ -473,11 +473,11 @@ function AdminPanel({ user, games, setGames, isSyncing, setIsSyncing, recentlyUp
 function WelcomeLandingPage({ onSelectSport }) {
   const sports = [
     { name: 'NFL 🏈', available: true },
-    { name: 'NBA', available: true },
-    { name: 'College Football', available: true },
-    { name: 'College Basketball', available: true },
-    { name: 'Major League Baseball', available: true },
-    { name: 'NHL', available: true }
+    { name: 'NBA 🏀', available: true },
+    { name: 'College Football 🎓🏈', available: true },
+    { name: 'College Basketball 🎓🏀', available: true },
+    { name: 'Major League Baseball ⚾', available: true },
+    { name: 'NHL 🏒', available: true }
   ];
 
   return (
