@@ -1,4 +1,3 @@
-
 import './App.css';
 import React, { useState, useEffect, useCallback } from "react";
 import { initializeApp } from "firebase/app";
@@ -473,7 +472,7 @@ function AdminPanel({ user, games, setGames, isSyncing, setIsSyncing, recentlyUp
 // Welcome Landing Page Component - ALL SPORTS ENABLED
 function WelcomeLandingPage({ onSelectSport }) {
   const sports = [
-    { name: 'NFL', available: true },
+    { name: 'NFL 🏈', available: true },
     { name: 'NBA', available: true },
     { name: 'College Football', available: true },
     { name: 'College Basketball', available: true },
