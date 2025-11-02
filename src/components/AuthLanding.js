@@ -35,32 +35,8 @@ function AuthLanding({ onSelectRole }) {
                 Place wagers without immediate payment
               </span>
             </button>
-
-            <button
-              className="btn"
-              onClick={() => onSelectRole('admin')}
-              style={{
-                padding: '32px 24px',
-                fontSize: '20px',
-                fontWeight: 'bold',
-                background: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
-                color: 'white',
-                border: 'none',
-                cursor: 'pointer',
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                gap: '12px'
-              }}
-            >
-              <span style={{ fontSize: '48px' }}>🔐</span>
-              <span>Login as Admin</span>
-              <span style={{ fontSize: '14px', opacity: '0.9', fontWeight: 'normal' }}>
-                Manage users and verify payments
-              </span>
-            </button>
-
-            <button
+                  
+           <button
               className="btn"
               onClick={() => onSelectRole('guest')}
               style={{
@@ -83,6 +59,30 @@ function AuthLanding({ onSelectRole }) {
                 Pay via Venmo/Zelle to place wagers
               </span>
             </button>
+                  
+                  <button
+              className="btn"
+              onClick={() => onSelectRole('admin')}
+              style={{
+                padding: '32px 24px',
+                fontSize: '20px',
+                fontWeight: 'bold',
+                background: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
+                color: 'white',
+                border: 'none',
+                cursor: 'pointer',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                gap: '12px'
+              }}
+            >
+              <span style={{ fontSize: '48px' }}>🔐</span>
+              <span>Login as Admin</span>
+              <span style={{ fontSize: '14px', opacity: '0.9', fontWeight: 'normal' }}>
+                Manage users and verify payments
+              </span>
+            </button>  
           </div>
         </div>
 
