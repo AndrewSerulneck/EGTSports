@@ -30,7 +30,7 @@ function AuthLanding({ onSelectRole }) {
               }}
             >
               <span style={{ fontSize: '48px' }}>👤</span>
-              <span>Login as User</span>
+              <span>Member login</span>
               <span style={{ fontSize: '14px', opacity: '0.9', fontWeight: 'normal' }}>
                 Place wagers without immediate payment
               </span>
@@ -56,7 +56,7 @@ function AuthLanding({ onSelectRole }) {
               <span style={{ fontSize: '48px' }}>🎲</span>
               <span>Continue as Guest</span>
               <span style={{ fontSize: '14px', opacity: '0.9', fontWeight: 'normal' }}>
-                Pay via Venmo/Zelle to place wagers
+                Advance payment required via Venmo/Zelle
               </span>
             </button>
                   
@@ -80,7 +80,6 @@ function AuthLanding({ onSelectRole }) {
               <span style={{ fontSize: '48px' }}>🔐</span>
               <span>Login as Admin</span>
               <span style={{ fontSize: '14px', opacity: '0.9', fontWeight: 'normal' }}>
-                Manage users and verify payments
               </span>
             </button>  
           </div>
