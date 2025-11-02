@@ -1449,7 +1449,6 @@ Email: ${contactInfo.email}
                 </div>
               )}
             </div>
-            <div style={{width: '140px'}}></div>
           </div>
           
           {/* MANUAL REFRESH BUTTON */}
