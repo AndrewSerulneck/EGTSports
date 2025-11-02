@@ -154,7 +154,6 @@ const getPayoutMultiplier = (pickCount) => {
 function AdminPanel({ user, games, setGames, isSyncing, setIsSyncing, recentlyUpdated, setRecentlyUpdated, submissions, sport, onBackToMenu }) {
   const [showSubmissions, setShowSubmissions] = useState(false);
   const [showAPIStats, setShowAPIStats] = useState(false);
-  const [showUserManagement, setShowUserManagement] = useState(false);
   const [apiStats, setApiStats] = useState(getAPIStats());
 
   // Update API stats every 5 seconds
@@ -334,10 +333,6 @@ function AdminPanel({ user, games, setGames, isSyncing, setIsSyncing, recentlyUp
     );
   }
 
-  if (showUserManagement) {
-    return <UserManagement onBack={() => setShowUserManagement(false)} />;
-  }
-
   if (showSubmissions) {
     return (
       <div className="gradient-bg">
@@ -422,17 +417,13 @@ function AdminPanel({ user, games, setGames, isSyncing, setIsSyncing, recentlyUp
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '12px' }}>
             <h1>{sport} Admin Panel <span className={`sync-indicator ${isSyncing ? 'syncing' : ''}`}></span></h1>
             <div style={{display: 'flex', gap: '8px', flexWrap: 'wrap'}}>
-              <button className="btn btn-secondary" onClick={onBackToMenu}>← Back to Menu</button>
-              <button className="btn btn-success" onClick={() => setShowUserManagement(true)}>
-                👥 Users
-              </button>
+              <button className="btn btn-secondary" onClick={onBackToMenu}>← Back to Admin Menu</button>
               <button className="btn btn-info" onClick={() => setShowAPIStats(true)}>
                 📊 API Stats
               </button>
               <button className="btn btn-primary" onClick={() => setShowSubmissions(true)}>
                 Submissions ({submissions.length})
               </button>
-              <button className="btn btn-secondary" onClick={() => signOut(auth)}>Sign Out</button>
             </div>
           </div>
         </div>
@@ -480,8 +471,106 @@ function AdminPanel({ user, games, setGames, isSyncing, setIsSyncing, recentlyUp
   );
 }
 
+// Admin Landing Page Component - Admin menu before sport selection
+function AdminLandingPage({ onSelectSport, onManageUsers, onSignOut }) {
+  const sports = [
+    { name: 'NFL', available: true },
+    { name: 'NBA', available: true },
+    { name: 'College Football', available: true },
+    { name: 'College Basketball', available: true },
+    { name: 'Major League Baseball', available: true },
+    { name: 'NHL', available: true }
+  ];
+
+  return (
+    <div className="gradient-bg">
+      <div className="container" style={{ maxWidth: '800px', paddingTop: '60px' }}>
+        <div className="text-center text-white mb-4">
+          <h1 style={{ fontSize: '48px', marginBottom: '16px' }}>Admin Dashboard</h1>
+          <p style={{ fontSize: '20px', marginBottom: '40px' }}>Manage users or select a sport to adjust odds</p>
+        </div>
+        
+        {/* Admin Actions */}
+        <div className="card" style={{ marginBottom: '24px' }}>
+          <h2 style={{ marginBottom: '16px' }}>Admin Actions</h2>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px' }}>
+            <button
+              className="btn btn-success"
+              onClick={onManageUsers}
+              style={{
+                padding: '32px 24px',
+                fontSize: '18px',
+                fontWeight: 'bold',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                gap: '8px'
+              }}
+            >
+              <span style={{ fontSize: '48px' }}>👥</span>
+              <span>Manage Users</span>
+            </button>
+            <button
+              className="btn btn-secondary"
+              onClick={onSignOut}
+              style={{
+                padding: '32px 24px',
+                fontSize: '18px',
+                fontWeight: 'bold',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                gap: '8px'
+              }}
+            >
+              <span style={{ fontSize: '48px' }}>🚪</span>
+              <span>Sign Out</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Sport Selection */}
+        <div className="card">
+          <h2 style={{ marginBottom: '16px' }}>Select Sport to Manage Odds</h2>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px' }}>
+            {sports.map((sport) => (
+              <button
+                key={sport.name}
+                className="btn"
+                onClick={() => sport.available && onSelectSport(sport.name)}
+                disabled={!sport.available}
+                style={{
+                  padding: '32px 24px',
+                  fontSize: '18px',
+                  fontWeight: 'bold',
+                  background: sport.available ? '#007bff' : '#e9ecef',
+                  color: sport.available ? 'white' : '#6c757d',
+                  border: 'none',
+                  cursor: sport.available ? 'pointer' : 'not-allowed',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  gap: '8px',
+                  position: 'relative'
+                }}
+              >
+                <span>{sport.name}</span>
+                {!sport.available && (
+                  <span style={{ fontSize: '12px', fontStyle: 'italic', color: '#999' }}>
+                    Coming Soon
+                  </span>
+                )}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // Welcome Landing Page Component - ALL SPORTS ENABLED
-function WelcomeLandingPage({ onSelectSport }) {
+function WelcomeLandingPage({ onSelectSport, onSignOut, isAuthenticated }) {
   const sports = [
     { name: 'NFL', available: true },
     { name: 'NBA', available: true },
@@ -497,9 +586,18 @@ function WelcomeLandingPage({ onSelectSport }) {
         <div className="text-center text-white mb-4">
           <h1 style={{ fontSize: '48px', marginBottom: '16px' }}>Welcome to EGT Sports</h1>
           <p style={{ fontSize: '20px', marginBottom: '40px' }}>Select a sport below to get started</p>
-         <p style={{ fontSize: '20px', marginBottom: '40px' }}>Reminder: Please add no-reply@EGTSports.ws to your contacts to avoid your confirmation ticket going to your spam folder!</p>
+          <p style={{ fontSize: '20px', marginBottom: '40px' }}>Reminder: Please add no-reply@EGTSports.ws to your contacts to avoid your confirmation ticket going to your spam folder!</p>
         </div>
         
+        {/* Sign Out Button for authenticated users */}
+        {isAuthenticated && (
+          <div style={{ textAlign: 'center', marginBottom: '24px' }}>
+            <button className="btn btn-secondary" onClick={onSignOut} style={{ padding: '12px 32px', fontSize: '16px' }}>
+              🚪 Sign Out
+            </button>
+          </div>
+        )}
+
         <div className="card">
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px' }}>
             {sports.map((sport) => (
@@ -1646,6 +1744,7 @@ function App() {
     error: "",
   });
   const [userRole, setUserRole] = useState(null); // 'user', 'admin', 'guest', or null
+  const [showAdminUserManagement, setShowAdminUserManagement] = useState(false);
   const [loginForm, setLoginForm] = useState({
     email: "",
     password: "",
@@ -2144,6 +2243,14 @@ function App() {
     }
   };
 
+  // Sign out handler
+  const handleSignOut = async () => {
+    await signOut(auth);
+    setUserRole(null);
+    setSelectedSport(null);
+    setShowAdminUserManagement(false);
+  };
+
   // Render UI
   if (authState.loading) return (
     <div className="gradient-bg" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh' }}>
@@ -2152,6 +2259,11 @@ function App() {
       </div>
     </div>
   );
+
+  // Show user management if admin selected it
+  if (authState.user && authState.isAdmin && showAdminUserManagement) {
+    return <UserManagement onBack={() => setShowAdminUserManagement(false)} />;
+  }
 
   // Show admin panel if logged in as admin and sport is selected
   if (authState.user && authState.isAdmin && selectedSport) {
@@ -2169,9 +2281,22 @@ function App() {
     />;
   }
 
+  // Show admin landing page if logged in as admin (no sport selected)
+  if (authState.user && authState.isAdmin && !selectedSport) {
+    return <AdminLandingPage 
+      onSelectSport={(sport) => setSelectedSport(sport)}
+      onManageUsers={() => setShowAdminUserManagement(true)}
+      onSignOut={handleSignOut}
+    />;
+  }
+
   // Show user welcome screen if logged in as non-admin user
   if (authState.user && !authState.isAdmin && !selectedSport) {
-    return <WelcomeLandingPage onSelectSport={(sport) => setSelectedSport(sport)} />;
+    return <WelcomeLandingPage 
+      onSelectSport={(sport) => setSelectedSport(sport)} 
+      onSignOut={handleSignOut}
+      isAuthenticated={true}
+    />;
   }
 
   // Show role selection if not determined yet
@@ -2267,7 +2392,11 @@ function App() {
 
   // Show sport selection if no sport selected (for guest and logged-in user)
   if (!selectedSport) {
-    return <WelcomeLandingPage onSelectSport={(sport) => setSelectedSport(sport)} />;
+    return <WelcomeLandingPage 
+      onSelectSport={(sport) => setSelectedSport(sport)} 
+      onSignOut={handleSignOut}
+      isAuthenticated={false}
+    />;
   }
 
   // Show loading while games are loading
