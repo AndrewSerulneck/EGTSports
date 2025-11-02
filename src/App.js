@@ -570,7 +570,7 @@ function AdminLandingPage({ onSelectSport, onManageUsers, onSignOut }) {
 }
 
 // Welcome Landing Page Component - ALL SPORTS ENABLED
-function WelcomeLandingPage({ onSelectSport, onSignOut, isAuthenticated }) {
+function WelcomeLandingPage({ onSelectSport, onSignOut, onBack, isAuthenticated }) {
   const sports = [
     { name: 'NFL', available: true },
     { name: 'NBA', available: true },
@@ -589,14 +589,19 @@ function WelcomeLandingPage({ onSelectSport, onSignOut, isAuthenticated }) {
           <p style={{ fontSize: '20px', marginBottom: '40px' }}>Reminder: Please add no-reply@EGTSports.ws to your contacts to avoid your confirmation ticket going to your spam folder!</p>
         </div>
         
-        {/* Sign Out Button for authenticated users */}
-        {isAuthenticated && (
-          <div style={{ textAlign: 'center', marginBottom: '24px' }}>
+        {/* Back/Sign Out Buttons */}
+        <div style={{ textAlign: 'center', marginBottom: '24px', display: 'flex', justifyContent: 'center', gap: '12px' }}>
+          {onBack && (
+            <button className="btn btn-secondary" onClick={onBack} style={{ padding: '12px 32px', fontSize: '16px' }}>
+              ← Back
+            </button>
+          )}
+          {isAuthenticated && (
             <button className="btn btn-secondary" onClick={onSignOut} style={{ padding: '12px 32px', fontSize: '16px' }}>
               🚪 Sign Out
             </button>
-          </div>
-        )}
+          )}
+        </div>
 
         <div className="card">
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px' }}>
@@ -2295,6 +2300,7 @@ function App() {
     return <WelcomeLandingPage 
       onSelectSport={(sport) => setSelectedSport(sport)} 
       onSignOut={handleSignOut}
+      onBack={null}
       isAuthenticated={true}
     />;
   }
@@ -2395,6 +2401,7 @@ function App() {
     return <WelcomeLandingPage 
       onSelectSport={(sport) => setSelectedSport(sport)} 
       onSignOut={handleSignOut}
+      onBack={() => setUserRole(null)}
       isAuthenticated={false}
     />;
   }
