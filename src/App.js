@@ -8,6 +8,8 @@ import {
   signOut,
   onAuthStateChanged,
 } from "firebase/auth";
+import AuthLanding from './components/AuthLanding';
+import UserManagement from './components/UserManagement';
 
 // ESPN API Endpoints for all sports
 const ESPN_API_ENDPOINTS = {
@@ -152,6 +154,7 @@ const getPayoutMultiplier = (pickCount) => {
 function AdminPanel({ user, games, setGames, isSyncing, setIsSyncing, recentlyUpdated, setRecentlyUpdated, submissions, sport, onBackToMenu }) {
   const [showSubmissions, setShowSubmissions] = useState(false);
   const [showAPIStats, setShowAPIStats] = useState(false);
+  const [showUserManagement, setShowUserManagement] = useState(false);
   const [apiStats, setApiStats] = useState(getAPIStats());
 
   // Update API stats every 5 seconds
@@ -161,71 +164,8 @@ function AdminPanel({ user, games, setGames, isSyncing, setIsSyncing, recentlyUp
     }, 5000);
     return () => clearInterval(interval);
   }, []);
-  // Auto-update win/loss status when games finalize
-  useEffect(() => {
-    submissions.forEach(submission => {
-      const result = calculateResult(submission);
-      
-      // Check if this submission just finalized
-      const storedSubmission = localStorage.getItem(`submission-${submission.ticketNumber}`);
-      const wasFinalized = storedSubmission ? JSON.parse(storedSubmission).finalized : false;
-      
-      if (result.allGamesComplete && !wasFinalized) {
-        const status = result.parlayWon ? 'won' : 'lost';
-        updateSubmissionStatus(submission, status, result.wins, result.losses, submission.picks.length);
-        
-        // Mark as finalized
-        localStorage.setItem(`submission-${submission.ticketNumber}`, JSON.stringify({
-          ...submission,
-          finalized: true,
-          status: status
-        }));
-      }
-    });
-  }, [submissions, games]);
-  const saveSpreadToFirebase = async () => {
-    try {
-      setIsSyncing(true);
-      const spreadsData = {};
-      games.forEach(game => {
-        spreadsData[game.espnId] = {
-          awaySpread: game.awaySpread || '',
-          homeSpread: game.homeSpread || '',
-          total: game.total || '',
-          timestamp: new Date().toISOString()
-        };
-      });
-      // SPORT-SPECIFIC FIREBASE PATH
-      await set(ref(database, `spreads/${sport}`), spreadsData);
-      alert('✅ Spreads saved! All devices will update in real-time.');
-      setIsSyncing(false);
-    } catch (error) {
-      alert('❌ Error saving spreads:\n' + error.message);
-      setIsSyncing(false);
-    }
-  };
 
-  const updateSpread = (gameId, team, value) => {
-    setGames(prevGames =>
-      prevGames.map(game =>
-        game.id === gameId
-          ? { ...game, [team === 'away' ? 'awaySpread' : 'homeSpread']: value }
-          : game
-      )
-    );
-  };
-
-  const updateTotal = (gameId, value) => {
-    setGames(prevGames =>
-      prevGames.map(game =>
-        game.id === gameId
-          ? { ...game, total: value }
-          : game
-      )
-    );
-  };
-
-  const calculateResult = (submission) => {
+  const calculateResult = useCallback((submission) => {
     let wins = 0;
     let losses = 0;
     let pending = 0;
@@ -275,6 +215,70 @@ function AdminPanel({ user, games, setGames, isSyncing, setIsSyncing, recentlyUp
     const parlayWon = allGamesComplete && losses === 0 && wins === submission.picks.length;
 
     return { wins, losses, pending, allGamesComplete, parlayWon };
+  }, [games]);
+
+  // Auto-update win/loss status when games finalize
+  useEffect(() => {
+    submissions.forEach(submission => {
+      const result = calculateResult(submission);
+      
+      // Check if this submission just finalized
+      const storedSubmission = localStorage.getItem(`submission-${submission.ticketNumber}`);
+      const wasFinalized = storedSubmission ? JSON.parse(storedSubmission).finalized : false;
+      
+      if (result.allGamesComplete && !wasFinalized) {
+        const status = result.parlayWon ? 'won' : 'lost';
+        updateSubmissionStatus(submission, status, result.wins, result.losses, submission.picks.length);
+        
+        // Mark as finalized
+        localStorage.setItem(`submission-${submission.ticketNumber}`, JSON.stringify({
+          ...submission,
+          finalized: true,
+          status: status
+        }));
+      }
+    });
+  }, [submissions, games, calculateResult]);
+  const saveSpreadToFirebase = async () => {
+    try {
+      setIsSyncing(true);
+      const spreadsData = {};
+      games.forEach(game => {
+        spreadsData[game.espnId] = {
+          awaySpread: game.awaySpread || '',
+          homeSpread: game.homeSpread || '',
+          total: game.total || '',
+          timestamp: new Date().toISOString()
+        };
+      });
+      // SPORT-SPECIFIC FIREBASE PATH
+      await set(ref(database, `spreads/${sport}`), spreadsData);
+      alert('✅ Spreads saved! All devices will update in real-time.');
+      setIsSyncing(false);
+    } catch (error) {
+      alert('❌ Error saving spreads:\n' + error.message);
+      setIsSyncing(false);
+    }
+  };
+
+  const updateSpread = (gameId, team, value) => {
+    setGames(prevGames =>
+      prevGames.map(game =>
+        game.id === gameId
+          ? { ...game, [team === 'away' ? 'awaySpread' : 'homeSpread']: value }
+          : game
+      )
+    );
+  };
+
+  const updateTotal = (gameId, value) => {
+    setGames(prevGames =>
+      prevGames.map(game =>
+        game.id === gameId
+          ? { ...game, total: value }
+          : game
+      )
+    );
   };
 
   if (showAPIStats) {
@@ -328,6 +332,10 @@ function AdminPanel({ user, games, setGames, isSyncing, setIsSyncing, recentlyUp
         </div>
       </div>
     );
+  }
+
+  if (showUserManagement) {
+    return <UserManagement onBack={() => setShowUserManagement(false)} />;
   }
 
   if (showSubmissions) {
@@ -415,6 +423,9 @@ function AdminPanel({ user, games, setGames, isSyncing, setIsSyncing, recentlyUp
             <h1>{sport} Admin Panel <span className={`sync-indicator ${isSyncing ? 'syncing' : ''}`}></span></h1>
             <div style={{display: 'flex', gap: '8px', flexWrap: 'wrap'}}>
               <button className="btn btn-secondary" onClick={onBackToMenu}>← Back to Menu</button>
+              <button className="btn btn-success" onClick={() => setShowUserManagement(true)}>
+                👥 Users
+              </button>
               <button className="btn btn-info" onClick={() => setShowAPIStats(true)}>
                 📊 API Stats
               </button>
@@ -962,10 +973,6 @@ try {
   });
   const canSubmit = pickCount >= 3;
 
-  const handleAdminClick = () => {
-    window.location.href = `?admin=true&sport=${encodeURIComponent(sport)}`;
-  };
-
   // Count active games
   const activeGamesCount = games.filter(g => g.status === 'in' || g.status === 'pre').length;
 
@@ -1442,9 +1449,7 @@ Email: ${contactInfo.email}
                 </div>
               )}
             </div>
-            <button className="btn btn-secondary" onClick={handleAdminClick} style={{height: 'fit-content'}}>
-              Admin Login
-            </button>
+            <div style={{width: '140px'}}></div>
           </div>
           
           {/* MANUAL REFRESH BUTTON */}
@@ -1641,6 +1646,7 @@ function App() {
     isAdmin: false,
     error: "",
   });
+  const [userRole, setUserRole] = useState(null); // 'user', 'admin', 'guest', or null
   const [loginForm, setLoginForm] = useState({
     email: "",
     password: "",
@@ -2140,15 +2146,16 @@ function App() {
   };
 
   // Render UI
-  if (authState.loading || (loading && selectedSport && !apiError)) return (
+  if (authState.loading) return (
     <div className="gradient-bg" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh' }}>
       <div className="text-white" style={{ fontSize: '24px' }}>
-        Loading {selectedSport ? `${selectedSport} games` : 'data'} from ESPN...
+        Loading...
       </div>
     </div>
   );
 
-  if (authState.user && authState.isAdmin)
+  // Show admin panel if logged in as admin and sport is selected
+  if (authState.user && authState.isAdmin && selectedSport) {
     return <AdminPanel 
       user={authState.user} 
       games={games} 
@@ -2161,29 +2168,63 @@ function App() {
       sport={selectedSport}
       onBackToMenu={() => setSelectedSport(null)}
     />;
+  }
 
-  if (authState.user && !authState.isAdmin)
+  // Show user welcome screen if logged in as non-admin user
+  if (authState.user && !authState.isAdmin && !selectedSport) {
+    return <WelcomeLandingPage onSelectSport={(sport) => setSelectedSport(sport)} />;
+  }
+
+  // Show role selection if not determined yet
+  if (!userRole) {
+    return <AuthLanding onSelectRole={(role) => setUserRole(role)} />;
+  }
+
+  // Handle user login
+  if (userRole === 'user' && !authState.user) {
     return (
       <div className="gradient-bg" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh' }}>
         <div className="card" style={{ maxWidth: '400px', width: '100%', margin: '0 auto', padding: 40 }}>
-          <h2 className="text-center mb-4">Not Authorized</h2>
-          <p style={{ textAlign: 'center', marginBottom: '20px' }}>You do not have admin access.</p>
-          <button className="btn btn-secondary" onClick={() => signOut(auth)} style={{ width: '100%' }}>Sign Out</button>
+          <h2 className="text-center mb-4">User Login</h2>
+          <form onSubmit={handleLogin} style={{ maxWidth: 300 }}>
+            <input
+              type="email"
+              placeholder="Email"
+              required
+              value={loginForm.email}
+              onChange={(e) =>
+                setLoginForm((f) => ({ ...f, email: e.target.value }))
+              }
+            />
+            <input
+              type="password"
+              placeholder="Password"
+              required
+              value={loginForm.password}
+              onChange={(e) =>
+                setLoginForm((f) => ({ ...f, password: e.target.value }))
+              }
+            />
+            <button className="btn btn-primary" type="submit" style={{ width: '100%', marginBottom: '12px' }}>Login</button>
+            <button 
+              className="btn btn-secondary" 
+              type="button" 
+              onClick={() => setUserRole(null)} 
+              style={{ width: '100%' }}
+            >
+              Back
+            </button>
+            {authState.error && (
+              <div style={{ color: "red", marginTop: 10, textAlign: 'center' }}>{authState.error}</div>
+            )}
+          </form>
         </div>
       </div>
     );
+  }
 
-  // Check if they clicked admin login button
-  const urlParams = new URLSearchParams(window.location.search);
-  const showAdminLogin = urlParams.get('admin') === 'true';
-  const adminSport = urlParams.get('sport');
-
-  if (showAdminLogin || authState.user) {
-    // If admin login with a sport, set selected sport
-    if (adminSport && !selectedSport) {
-      setSelectedSport(decodeURIComponent(adminSport));
-    }
-    
+  // Handle admin login
+  if (userRole === 'admin' && !authState.user) {
     return (
       <div className="gradient-bg" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh' }}>
         <div className="card" style={{ maxWidth: '400px', width: '100%', margin: '0 auto', padding: 40 }}>
@@ -2211,9 +2252,7 @@ function App() {
             <button 
               className="btn btn-secondary" 
               type="button" 
-              onClick={() => {
-                window.history.back();
-              }} 
+              onClick={() => setUserRole(null)} 
               style={{ width: '100%' }}
             >
               Back
@@ -2227,9 +2266,20 @@ function App() {
     );
   }
 
-  // Show welcome landing page or sport-specific page
+  // Show sport selection if no sport selected (for guest and logged-in user)
   if (!selectedSport) {
     return <WelcomeLandingPage onSelectSport={(sport) => setSelectedSport(sport)} />;
+  }
+
+  // Show loading while games are loading
+  if (loading && !apiError) {
+    return (
+      <div className="gradient-bg" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh' }}>
+        <div className="text-white" style={{ fontSize: '24px' }}>
+          Loading {selectedSport} games from ESPN...
+        </div>
+      </div>
+    );
   }
 
   // Show Sport-Specific Parlays page
