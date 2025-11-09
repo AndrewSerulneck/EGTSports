@@ -170,6 +170,11 @@ function AdminPanel({ user, games, setGames, isSyncing, setIsSyncing, recentlyUp
       return { wins: 0, losses: 0, pending: submission.picks ? submission.picks.length : 0 };
     }
     
+    // Return early if submission has no picks
+    if (!submission || !submission.picks || !Array.isArray(submission.picks)) {
+      return { wins: 0, losses: 0, pending: 0 };
+    }
+    
     let wins = 0;
     let losses = 0;
     let pending = 0;
@@ -223,7 +228,13 @@ function AdminPanel({ user, games, setGames, isSyncing, setIsSyncing, recentlyUp
 
   // Auto-update win/loss status when games finalize
   useEffect(() => {
+    // Only run if submissions array is available
+    if (!submissions || !Array.isArray(submissions)) return;
+    
     submissions.forEach(submission => {
+      // Skip if submission is invalid
+      if (!submission || !submission.picks || !Array.isArray(submission.picks)) return;
+      
       const result = calculateResult(submission);
       
       // Check if this submission just finalized
@@ -808,7 +819,13 @@ useEffect(() => {
   // Only run if games array is available
   if (!games || !Array.isArray(games)) return;
   
+  // Only run if submissions array is available
+  if (!submissions || !Array.isArray(submissions)) return;
+  
   submissions.forEach(submission => {
+    // Skip if submission is invalid
+    if (!submission || !submission.picks || !Array.isArray(submission.picks)) return;
+    
     // Skip if already processed
     if (processedTicketsRef.current.has(submission.ticketNumber)) return;
     
