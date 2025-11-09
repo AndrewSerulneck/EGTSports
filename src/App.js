@@ -1323,6 +1323,15 @@ try {
     );
   }
 
+  // Debug logging
+  console.log('🎮 LandingPage render:', {
+    gamesCount: games ? games.length : 'undefined',
+    allSportsGamesKeys: allSportsGames ? Object.keys(allSportsGames) : 'undefined',
+    betType,
+    sport,
+    selectedPicksCount: Object.keys(selectedPicks).length
+  });
+
   let pickCount = 0;
   Object.values(selectedPicks).forEach(obj => {
     if (obj.spread) pickCount++;
@@ -2321,6 +2330,51 @@ Email: ${contactInfo.email}
   );
 }
 
+// Error Boundary Component to catch React errors
+class ErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false, error: null, errorInfo: null };
+  }
+
+  static getDerivedStateFromError(error) {
+    return { hasError: true };
+  }
+
+  componentDidCatch(error, errorInfo) {
+    console.error('Error caught by boundary:', error, errorInfo);
+    this.setState({
+      error: error,
+      errorInfo: errorInfo
+    });
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div style={{padding: '40px', textAlign: 'center', fontFamily: 'Arial'}}>
+          <h1 style={{color: '#dc3545'}}>Something went wrong</h1>
+          <p>We're sorry for the inconvenience. The application encountered an error.</p>
+          <details style={{whiteSpace: 'pre-wrap', textAlign: 'left', maxWidth: '800px', margin: '20px auto', padding: '20px', background: '#f8f9fa', borderRadius: '8px'}}>
+            <summary style={{cursor: 'pointer', fontWeight: 'bold', marginBottom: '10px'}}>Error Details</summary>
+            {this.state.error && this.state.error.toString()}
+            <br />
+            {this.state.errorInfo && this.state.errorInfo.componentStack}
+          </details>
+          <button 
+            onClick={() => window.location.reload()} 
+            style={{padding: '12px 24px', fontSize: '16px', background: '#007bff', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer'}}
+          >
+            Reload Page
+          </button>
+        </div>
+      );
+    }
+
+    return this.props.children;
+  }
+}
+
 // Main App Component - WITH SMART REFRESH LOGIC
 function App() {
   const [authState, setAuthState] = useState({
@@ -3228,4 +3282,13 @@ function App() {
   />;
 }
 
-export default App;
+// Wrap App with ErrorBoundary
+function AppWithErrorBoundary() {
+  return (
+    <ErrorBoundary>
+      <App />
+    </ErrorBoundary>
+  );
+}
+
+export default AppWithErrorBoundary;
