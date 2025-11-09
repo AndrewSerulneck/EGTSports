@@ -764,8 +764,8 @@ function WelcomeLandingPage({ onSelectSport, onSignOut, onBack, isAuthenticated,
   );
 }
 
-// Landing Page Component - WITH MANUAL REFRESH BUTTON
-function LandingPage({ games, loading, onBackToMenu, sport, betType, apiError, onManualRefresh, lastRefreshTime }) {
+// Landing Page Component - WITH MANUAL REFRESH BUTTON AND CROSS-SPORT SUPPORT
+function LandingPage({ games, allSportsGames, currentViewSport, onChangeSport, loading, onBackToMenu, sport, betType, apiError, onManualRefresh, lastRefreshTime }) {
   const [selectedPicks, setSelectedPicks] = useState({});
   const [showConfirmation, setShowConfirmation] = useState(false);
   const [ticketNumber, setTicketNumber] = useState('');
@@ -1052,15 +1052,31 @@ const saveSubmission = async (submission) => {
 
     const picksFormatted = [];
     Object.entries(selectedPicks).forEach(([gameId, pickObj]) => {
-      const game = games.find(g => g.id === parseInt(gameId));
+      // Find game in either single sport games or all sports games
+      let game = games.find(g => g.id === gameId);
+      if (!game && betType === 'parlay' && allSportsGames) {
+        // For cross-sport parlays, search across all sports
+        for (const sportGames of Object.values(allSportsGames)) {
+          game = sportGames.find(g => g.id === gameId);
+          if (game) break;
+        }
+      }
+      
+      if (!game) {
+        console.error(`Could not find game with ID: ${gameId}`);
+        return;
+      }
+      
       const gameName = `${game.awayTeam} @ ${game.homeTeam}`;
+      const sportLabel = game.sport ? ` (${game.sport})` : '';
       
       if (pickObj.spread) {
         const team = pickObj.spread === 'away' ? game.awayTeam : game.homeTeam;
         const spread = pickObj.spread === 'away' ? game.awaySpread : game.homeSpread;
         picksFormatted.push({
           gameId: game.espnId,
-          gameName: gameName,
+          gameName: gameName + sportLabel,
+          sport: game.sport,
           pickType: 'spread',
           team,
           spread,
@@ -1070,7 +1086,8 @@ const saveSubmission = async (submission) => {
       if (pickObj.total) {
         picksFormatted.push({
           gameId: game.espnId,
-          gameName: gameName,
+          gameName: gameName + sportLabel,
+          sport: game.sport,
           pickType: 'total',
           overUnder: pickObj.total,
           total: game.total
@@ -1091,7 +1108,8 @@ const saveSubmission = async (submission) => {
       picks: picksFormatted,
       paymentStatus: 'pending',
       paymentMethod: contactInfo.paymentMethod,
-      sport: sport  // ADD SPORT TO SUBMISSION
+      sport: betType === 'parlay' ? 'Multi-Sport' : sport, // Cross-sport or single sport
+      betType: betType // Add bet type to submission
     };
     saveSubmission(submission);
     // Send confirmation email
@@ -1579,18 +1597,46 @@ Email: ${contactInfo.email}
             </div>
             <h3 className="mb-2">Your Picks ({pickCount})</h3>
             {Object.entries(selectedPicks).map(([gameId, pickObj]) => {
-              const game = games.find(g => g.id === parseInt(gameId));
+              // Find game in either single sport games or all sports games
+              let game = games.find(g => g.id === gameId);
+              if (!game && betType === 'parlay' && allSportsGames) {
+                for (const sportGames of Object.values(allSportsGames)) {
+                  game = sportGames.find(g => g.id === gameId);
+                  if (game) break;
+                }
+              }
+              if (!game) return null;
+              
+              const sportBadge = game.sport && betType === 'parlay' ? (
+                <span style={{
+                  fontSize: '10px',
+                  background: '#007bff',
+                  color: 'white',
+                  padding: '2px 6px',
+                  borderRadius: '4px',
+                  marginLeft: '8px'
+                }}>
+                  {game.sport}
+                </span>
+              ) : null;
+              
               return (
                 <div key={gameId}>
                   {pickObj.spread && (
-                    <div style={{display: 'flex', justifyContent: 'space-between', padding: '12px', background: '#f8f9fa', borderRadius: '8px', marginBottom: '4px'}}>
-                      <strong>[SPREAD] {pickObj.spread === 'away' ? game.awayTeam : game.homeTeam}</strong>
+                    <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px', background: '#f8f9fa', borderRadius: '8px', marginBottom: '4px'}}>
+                      <div>
+                        <strong>[SPREAD] {pickObj.spread === 'away' ? game.awayTeam : game.homeTeam}</strong>
+                        {sportBadge}
+                      </div>
                       <span>{pickObj.spread === 'away' ? game.awaySpread : game.homeSpread}</span>
                     </div>
                   )}
                   {pickObj.total && (
-                    <div style={{display: 'flex', justifyContent: 'space-between', padding: '12px', background: '#f8f9fa', borderRadius: '8px', marginBottom: '4px'}}>
-                      <strong>[TOTAL] {pickObj.total === 'over' ? 'Over' : 'Under'} {game.total}</strong>
+                    <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px', background: '#f8f9fa', borderRadius: '8px', marginBottom: '4px'}}>
+                      <div>
+                        <strong>[TOTAL] {pickObj.total === 'over' ? 'Over' : 'Under'} {game.total}</strong>
+                        {sportBadge}
+                      </div>
                       <span>{game.awayTeam} @ {game.homeTeam}</span>
                     </div>
                   )}
@@ -1667,8 +1713,14 @@ Email: ${contactInfo.email}
               ← Back to Menu
             </button>
             <div style={{flex: 1, textAlign: 'center'}}>
-              <h1 style={{fontSize: '42px'}}>{sport} Parlays</h1>
-              <p style={{fontSize: '22px'}}>Make your selections below to get started.</p>
+              <h1 style={{fontSize: '42px'}}>
+                {betType === 'parlay' ? 'Multi-Sport Parlays' : `${sport} ${betType === 'straight' ? 'Straight Bets' : 'Bets'}`}
+              </h1>
+              <p style={{fontSize: '22px'}}>
+                {betType === 'parlay' 
+                  ? 'Select picks across multiple sports for bigger payouts'
+                  : 'Make your selections below to get started.'}
+              </p>
               {activeGamesCount > 0 && (
                 <div style={{fontSize: '14px', color: '#ffc107', marginTop: '8px'}}>
                   🔴 {activeGamesCount} live game{activeGamesCount > 1 ? 's' : ''}
@@ -1676,6 +1728,98 @@ Email: ${contactInfo.email}
               )}
             </div>
           </div>
+          
+          {/* SPORT TABS FOR CROSS-SPORT PARLAYS */}
+          {betType === 'parlay' && allSportsGames && Object.keys(allSportsGames).length > 0 && (
+            <div style={{
+              background: 'rgba(255, 255, 255, 0.1)',
+              borderRadius: '12px',
+              padding: '12px',
+              marginBottom: '16px',
+              backdropFilter: 'blur(10px)'
+            }}>
+              <div style={{
+                display: 'flex',
+                flexWrap: 'wrap',
+                gap: '8px',
+                justifyContent: 'center'
+              }}>
+                {Object.keys(allSportsGames).map((sportName) => {
+                  const gamesInSport = allSportsGames[sportName] || [];
+                  const pickCountInSport = Object.values(selectedPicks).filter(pick => 
+                    gamesInSport.some(g => g.id === pick.gameId)
+                  ).length;
+                  
+                  return (
+                    <button
+                      key={sportName}
+                      onClick={() => onChangeSport(sportName)}
+                      style={{
+                        padding: '10px 20px',
+                        fontSize: '14px',
+                        fontWeight: 'bold',
+                        background: currentViewSport === sportName 
+                          ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
+                          : 'rgba(255, 255, 255, 0.2)',
+                        color: 'white',
+                        border: currentViewSport === sportName ? '2px solid white' : '2px solid transparent',
+                        borderRadius: '8px',
+                        cursor: 'pointer',
+                        transition: 'all 0.2s',
+                        position: 'relative',
+                        minWidth: '120px'
+                      }}
+                      onMouseEnter={(e) => {
+                        if (currentViewSport !== sportName) {
+                          e.currentTarget.style.background = 'rgba(255, 255, 255, 0.3)';
+                        }
+                      }}
+                      onMouseLeave={(e) => {
+                        if (currentViewSport !== sportName) {
+                          e.currentTarget.style.background = 'rgba(255, 255, 255, 0.2)';
+                        }
+                      }}
+                    >
+                      {sportName}
+                      {pickCountInSport > 0 && (
+                        <span style={{
+                          position: 'absolute',
+                          top: '-8px',
+                          right: '-8px',
+                          background: '#28a745',
+                          color: 'white',
+                          borderRadius: '50%',
+                          width: '24px',
+                          height: '24px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          fontSize: '12px',
+                          fontWeight: 'bold',
+                          border: '2px solid white'
+                        }}>
+                          {pickCountInSport}
+                        </span>
+                      )}
+                      <div style={{fontSize: '10px', opacity: 0.8, marginTop: '2px'}}>
+                        {gamesInSport.length} games
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+              <div style={{
+                marginTop: '12px',
+                padding: '8px',
+                background: 'rgba(255, 255, 255, 0.15)',
+                borderRadius: '8px',
+                fontSize: '13px',
+                textAlign: 'center'
+              }}>
+                💡 <strong>Cross-Sport Parlays Enabled!</strong> Switch between sports to add picks from multiple leagues
+              </div>
+            </div>
+          )}
           
           {/* MANUAL REFRESH BUTTON */}
           <div style={{display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '12px', marginBottom: '16px'}}>
@@ -1832,7 +1976,7 @@ Email: ${contactInfo.email}
             <li>Missing info = voided ticket</li>
             <li>Funds must be deposited into players pool <strong>@{VENMO_USERNAME}</strong> prior to games starting or ticket is not valid</li>
              <li>A tie counts as a loss</li>
-            <li>Cross-sports parlays are not allowed</li>
+            {betType === 'parlay' && <li><strong>✨ NEW: Cross-sports parlays are now allowed!</strong> Mix picks from different leagues</li>}
             <li>Winners paid following Tuesday</li>
             <li>Cannot bet on games already completed</li>
              <li>If you have questions or issues, please contact support@EGTSports.ws</li>
@@ -1879,6 +2023,8 @@ function App() {
     password: "",
   });
   const [games, setGames] = useState([]);
+  const [allSportsGames, setAllSportsGames] = useState({}); // For cross-sport parlays
+  const [currentViewSport, setCurrentViewSport] = useState(null); // Currently displayed sport in tabs
   const [loading, setLoading] = useState(true);
   const [apiError, setApiError] = useState(null);
   const [isSyncing, setIsSyncing] = useState(false);
@@ -2297,20 +2443,164 @@ function App() {
     }
   }, [setGames, setIsSyncing, setRecentlyUpdated]);
 
+  // NEW: Load all sports for cross-sport parlays
+  const loadAllSports = useCallback(async (initialSport, forceRefresh = false) => {
+    const allSports = ['NFL', 'NBA', 'College Football', 'College Basketball', 'Major League Baseball', 'NHL'];
+    const sportsData = {};
+    
+    setLoading(true);
+    setApiError(null);
+    
+    // Load all sports in parallel
+    await Promise.all(allSports.map(async (sport) => {
+      try {
+        // Check cache first unless force refresh
+        if (!forceRefresh) {
+          const cached = gameCache[sport];
+          const cacheExpiry = sport === 'College Basketball' 
+            ? COLLEGE_BASKETBALL_CACHE_DURATION 
+            : CACHE_DURATION;
+          
+          if (cached && Date.now() - cached.timestamp < cacheExpiry) {
+            console.log(`✅ Using cached data for ${sport}`);
+            apiCallCount.cacheHits++;
+            sportsData[sport] = cached.data;
+            logAPIUsage(sport, true, true);
+            return;
+          }
+        }
+        
+        const apiEndpoint = ESPN_API_ENDPOINTS[sport];
+        console.log(`🔄 Fetching ${sport} games for cross-sport parlay...`);
+        
+        apiCallCount.total++;
+        apiCallCount.byEndpoint[sport] = (apiCallCount.byEndpoint[sport] || 0) + 1;
+        
+        const response = await fetch(apiEndpoint);
+        
+        if (response.status === 429) {
+          console.error(`⚠️ ESPN API rate limit exceeded for ${sport}`);
+          apiCallCount.errors++;
+          const cached = gameCache[sport];
+          if (cached) {
+            sportsData[sport] = cached.data;
+          } else {
+            sportsData[sport] = [];
+          }
+          return;
+        }
+        
+        if (!response.ok) {
+          apiCallCount.errors++;
+          sportsData[sport] = [];
+          return;
+        }
+        
+        const data = await response.json();
+        
+        if (!data.events || data.events.length === 0) {
+          console.log(`ℹ️ No games available for ${sport}`);
+          sportsData[sport] = [];
+          const timestamp = Date.now();
+          gameCache[sport] = { data: [], timestamp };
+          return;
+        }
+        
+        const formattedGames = data.events.map((event, index) => {
+          const competition = event.competitions[0];
+          const awayTeam = competition.competitors[1];
+          const homeTeam = competition.competitors[0];
+          const status = event.status.type.state;
+          
+          const { awaySpread, homeSpread, total } = parseESPNOdds(competition, sport);
+          
+          return {
+            id: `${sport}-${index + 1}`, // Unique ID with sport prefix
+            espnId: event.id,
+            sport: sport, // Add sport identifier
+            date: new Date(event.date).toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' }),
+            time: new Date(event.date).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }) + ' ET',
+            awayTeam: awayTeam.team.displayName,
+            homeTeam: homeTeam.team.displayName,
+            awayTeamId: awayTeam.id,
+            homeTeamId: homeTeam.id,
+            awayScore: awayTeam.score || '0',
+            homeScore: homeTeam.score || '0',
+            awaySpread: awaySpread,
+            homeSpread: homeSpread,
+            total: total,
+            status: status,
+            statusDetail: event.status.type.detail,
+            isFinal: status === 'post'
+          };
+        });
+        
+        // Special handling for College Basketball
+        if (sport === 'College Basketball') {
+          const oddsMap = await fetchCollegeBasketballOdds();
+          if (oddsMap) {
+            const finalFormattedGames = formattedGames.map(game => {
+              const odds = matchOddsToGame(game, oddsMap);
+              return { ...game, awaySpread: odds.awaySpread, homeSpread: odds.homeSpread, total: odds.total };
+            });
+            sportsData[sport] = finalFormattedGames;
+          } else {
+            sportsData[sport] = formattedGames;
+          }
+        } else {
+          sportsData[sport] = formattedGames;
+        }
+        
+        const timestamp = Date.now();
+        gameCache[sport] = { data: sportsData[sport], timestamp };
+        console.log(`✅ Loaded ${sportsData[sport].length} ${sport} games`);
+        logAPIUsage(sport, true, false);
+        
+      } catch (error) {
+        console.error(`❌ Error loading ${sport} games:`, error);
+        apiCallCount.errors++;
+        sportsData[sport] = [];
+        logAPIUsage(sport, false, false);
+      }
+    }));
+    
+    setAllSportsGames(sportsData);
+    setCurrentViewSport(initialSport);
+    setGames(sportsData[initialSport] || []);
+    setLoading(false);
+    setLastRefreshTime(Date.now());
+  }, [parseESPNOdds]);
+
   // LOAD GAMES WHEN SPORT IS SELECTED - WITH DYNAMIC REFRESH INTERVAL
   useEffect(() => {
     let intervalId = null;
     
     if (selectedSport) {
-      loadGames(selectedSport);
-      setTimeout(() => {
-        setupFirebaseListener(selectedSport);
-      }, 500);
-      
-      // Set up interval with current refresh interval
-      intervalId = setInterval(() => {
+      // If parlay mode, load all sports
+      if (betType === 'parlay') {
+        loadAllSports(selectedSport);
+        // Setup Firebase listeners for all sports
+        setTimeout(() => {
+          Object.keys(ESPN_API_ENDPOINTS).forEach(sport => {
+            setupFirebaseListener(sport);
+          });
+        }, 500);
+        
+        // Set up interval
+        intervalId = setInterval(() => {
+          loadAllSports(selectedSport);
+        }, refreshInterval || REFRESH_INTERVAL_INACTIVE);
+      } else {
+        // If straight bets, load only selected sport
         loadGames(selectedSport);
-      }, refreshInterval || REFRESH_INTERVAL_INACTIVE);
+        setTimeout(() => {
+          setupFirebaseListener(selectedSport);
+        }, 500);
+        
+        intervalId = setInterval(() => {
+          loadGames(selectedSport);
+        }, refreshInterval || REFRESH_INTERVAL_INACTIVE);
+      }
     }
     
     return () => {
@@ -2318,7 +2608,7 @@ function App() {
         clearInterval(intervalId);
       }
     };
-  }, [selectedSport, refreshInterval, loadGames, setupFirebaseListener]);
+  }, [selectedSport, betType, refreshInterval, loadGames, loadAllSports, setupFirebaseListener]);
 
   useEffect(() => {
     const stored = localStorage.getItem('marcs-parlays-submissions');
@@ -2567,6 +2857,12 @@ function App() {
   // Show Sport-Specific Parlays page
   return <LandingPage 
     games={games} 
+    allSportsGames={allSportsGames}
+    currentViewSport={currentViewSport}
+    onChangeSport={(sport) => {
+      setCurrentViewSport(sport);
+      setGames(allSportsGames[sport] || []);
+    }}
     loading={loading} 
     onBackToMenu={() => setSelectedSport(null)} 
     sport={selectedSport}
