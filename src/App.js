@@ -1327,7 +1327,7 @@ try {
     Object.entries(selectedPicks).forEach(([gameId, pickObj]) => {
       // Find game in either single sport games or all sports games
       let game = games.find(g => g.id === gameId);
-      if (!game && betType === 'parlay' && allSportsGames) {
+      if (!game && allSportsGames) {
         for (const sportGames of Object.values(allSportsGames)) {
           game = sportGames.find(g => g.id === gameId);
           if (game) break;
