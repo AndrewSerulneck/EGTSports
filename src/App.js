@@ -996,8 +996,9 @@ const saveSubmission = async (submission) => {
       if (obj.spread) pickCount++;
       if (obj.total) pickCount++;
     });
-    if (pickCount < 3) {
-      alert('Please select at least 3 picks!');
+    const minPicks = betType === 'straight' ? 1 : 3;
+    if (pickCount < minPicks) {
+      alert(`Please select at least ${minPicks} pick${minPicks > 1 ? 's' : ''}!`);
       return;
     }
     setTicketNumber(generateTicketNumber());
@@ -1073,13 +1074,18 @@ const saveSubmission = async (submission) => {
       if (pickObj.spread) {
         const team = pickObj.spread === 'away' ? game.awayTeam : game.homeTeam;
         const spread = pickObj.spread === 'away' ? game.awaySpread : game.homeSpread;
+        const moneyline = betType === 'straight' 
+          ? (pickObj.spread === 'away' ? game.awayMoneyline : game.homeMoneyline)
+          : undefined;
+        
         picksFormatted.push({
           gameId: game.espnId,
           gameName: gameName + sportLabel,
           sport: game.sport,
-          pickType: 'spread',
+          pickType: betType === 'straight' ? 'moneyline' : 'spread',
           team,
           spread,
+          moneyline,
           pickedTeamType: pickObj.spread
         });
       }
@@ -1215,7 +1221,8 @@ try {
     if (obj.spread) pickCount++;
     if (obj.total) pickCount++;
   });
-  const canSubmit = pickCount >= 3;
+  const minPicks = betType === 'straight' ? 1 : 3;
+  const canSubmit = pickCount >= minPicks;
 
   // Count active games
   const activeGamesCount = games.filter(g => g.status === 'in' || g.status === 'pre').length;
@@ -1841,24 +1848,37 @@ Email: ${contactInfo.email}
         </div>
         
         <div className="card">
-          <h2 className="text-center mb-2">Payout Odds</h2>
-          <div className="payout-grid">
-            {[
-              {picks: 3, payout: '8 to 1'}, 
-              {picks: 4, payout: '15 to 1'}, 
-              {picks: 5, payout: '25 to 1'}, 
-              {picks: 6, payout: '50 to 1'}, 
-              {picks: 7, payout: '100 to 1'}, 
-              {picks: 8, payout: '150 to 1'}, 
-              {picks: 9, payout: '200 to 1'}, 
-              {picks: 10, payout: '250 to 1'}
-            ].map(item => (
-              <div key={item.picks} style={{background: '#f8f9fa', padding: '14px', borderRadius: '8px', textAlign: 'center', border: '2px solid #e0e0e0'}}>
-                <div style={{fontSize: '14px'}}>{item.picks} for {item.picks} pays</div>
-                <div style={{fontSize: '18px', fontWeight: 'bold', color: '#28a745'}}>{item.payout}</div>
+          {betType === 'parlay' ? (
+            <>
+              <h2 className="text-center mb-2">Payout Odds</h2>
+              <div className="payout-grid">
+                {[
+                  {picks: 3, payout: '8 to 1'}, 
+                  {picks: 4, payout: '15 to 1'}, 
+                  {picks: 5, payout: '25 to 1'}, 
+                  {picks: 6, payout: '50 to 1'}, 
+                  {picks: 7, payout: '100 to 1'}, 
+                  {picks: 8, payout: '150 to 1'}, 
+                  {picks: 9, payout: '200 to 1'}, 
+                  {picks: 10, payout: '250 to 1'}
+                ].map(item => (
+                  <div key={item.picks} style={{background: '#f8f9fa', padding: '14px', borderRadius: '8px', textAlign: 'center', border: '2px solid #e0e0e0'}}>
+                    <div style={{fontSize: '14px'}}>{item.picks} for {item.picks} pays</div>
+                    <div style={{fontSize: '18px', fontWeight: 'bold', color: '#28a745'}}>{item.payout}</div>
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
+            </>
+          ) : (
+            <>
+              <h2 className="text-center mb-2">Straight Bet Odds</h2>
+              <p style={{textAlign: 'center', color: '#666', fontSize: '14px', marginBottom: '0'}}>
+                Each selection shows moneyline odds. Your payout will be calculated based on these odds.
+                <br />
+                <strong>Example:</strong> A $100 bet at +150 returns $150 profit ($250 total). At -110, returns $91 profit ($191 total).
+              </p>
+            </>
+          )}
         </div>
         {games.map(game => {
           const pickObj = selectedPicks[game.id] || {};
@@ -1900,7 +1920,13 @@ Email: ${contactInfo.email}
                 </div>
                 <div style={{display: 'flex', alignItems: 'center', gap: '8px'}}>
                   <span className="badge">AWAY</span>
-                  <span className="team-spread">{game.awaySpread || '--'}</span>
+                  {betType === 'straight' && game.awayMoneyline ? (
+                    <span className="team-spread" style={{fontWeight: 'bold', color: '#007bff'}}>
+                      {game.awayMoneyline}
+                    </span>
+                  ) : (
+                    <span className="team-spread">{game.awaySpread || '--'}</span>
+                  )}
                 </div>
               </div>
               <div style={{textAlign: 'center', color: '#999', margin: '8px 0', fontSize: '14px'}}>@</div>
@@ -1914,7 +1940,13 @@ Email: ${contactInfo.email}
                 </div>
                 <div style={{display: 'flex', alignItems: 'center', gap: '8px'}}>
                   <span className="badge">HOME</span>
-                  <span className="team-spread">{game.homeSpread || '--'}</span>
+                  {betType === 'straight' && game.homeMoneyline ? (
+                    <span className="team-spread" style={{fontWeight: 'bold', color: '#007bff'}}>
+                      {game.homeMoneyline}
+                    </span>
+                  ) : (
+                    <span className="team-spread">{game.homeSpread || '--'}</span>
+                  )}
                 </div>
               </div>
               {game.total && (
@@ -1956,7 +1988,7 @@ Email: ${contactInfo.email}
         <div className="text-center mb-4">
           <div className="text-white mb-2" style={{fontSize: '20px'}}>
             Selected: {pickCount} pick{pickCount !== 1 ? 's' : ''}
-            {!canSubmit && <div style={{color: '#ffc107'}}>( minimum 3 required)</div>}
+            {!canSubmit && <div style={{color: '#ffc107'}}>( minimum {minPicks} required)</div>}
           </div>
           <button
             className="btn btn-success"
@@ -1964,19 +1996,20 @@ Email: ${contactInfo.email}
             disabled={!canSubmit}
             style={{padding: '18px 56px', fontSize: '20px'}}
           >
-            {canSubmit ? 'Submit Picks' : `Select ${3 - pickCount} More`}
+            {canSubmit ? 'Submit Picks' : `Select ${minPicks - pickCount} More`}
           </button>
         </div>
         <div className="card">
           <h3 className="mb-2">Important Rules</h3>
           <ul style={{marginLeft: '20px', lineHeight: '1.8'}}>
-            <li><strong>Minimum 3 picks required</strong></li>
+            <li><strong>Minimum {minPicks} pick{minPicks > 1 ? 's' : ''} required</strong></li>
             <li><strong>Minimum Bet = $5</strong></li>
              <li><strong>Maximum Bet = $100</strong></li>
             <li>Missing info = voided ticket</li>
             <li>Funds must be deposited into players pool <strong>@{VENMO_USERNAME}</strong> prior to games starting or ticket is not valid</li>
              <li>A tie counts as a loss</li>
             {betType === 'parlay' && <li><strong>✨ NEW: Cross-sports parlays are now allowed!</strong> Mix picks from different leagues</li>}
+            {betType === 'straight' && <li><strong>Straight Bet Payouts:</strong> Based on moneyline odds shown for each game</li>}
             <li>Winners paid following Tuesday</li>
             <li>Cannot bet on games already completed</li>
              <li>If you have questions or issues, please contact support@EGTSports.ws</li>
@@ -2129,11 +2162,13 @@ function App() {
     let awaySpread = '';
     let homeSpread = '';
     let total = '';
+    let awayMoneyline = '';
+    let homeMoneyline = '';
     
     try {
       if (!competition.odds || competition.odds.length === 0) {
         console.log(`No odds data available for this game`);
-        return { awaySpread, homeSpread, total };
+        return { awaySpread, homeSpread, total, awayMoneyline, homeMoneyline };
       }
       
       const odds = competition.odds[0];
@@ -2202,14 +2237,49 @@ function App() {
         }
       }
       
-      console.log('✅ Final parsed values:', { awaySpread, homeSpread, total });
+      // Method 5: Check for moneyline odds (for straight bets)
+      // Moneyline odds are typically in homeTeamOdds.moneyLine or awayTeamOdds.moneyLine
+      if (odds.homeTeamOdds?.moneyLine !== undefined) {
+        const ml = parseInt(odds.homeTeamOdds.moneyLine);
+        if (!isNaN(ml) && ml >= -10000 && ml <= 10000) {
+          homeMoneyline = ml > 0 ? `+${ml}` : String(ml);
+          console.log('✅ Found home moneyline:', homeMoneyline);
+        }
+      }
+      
+      if (odds.awayTeamOdds?.moneyLine !== undefined) {
+        const ml = parseInt(odds.awayTeamOdds.moneyLine);
+        if (!isNaN(ml) && ml >= -10000 && ml <= 10000) {
+          awayMoneyline = ml > 0 ? `+${ml}` : String(ml);
+          console.log('✅ Found away moneyline:', awayMoneyline);
+        }
+      }
+      
+      // Alternative: Check for 'price' or 'odds' fields
+      if (!homeMoneyline && odds.homeTeamOdds?.price !== undefined) {
+        const price = parseInt(odds.homeTeamOdds.price);
+        if (!isNaN(price) && price >= -10000 && price <= 10000) {
+          homeMoneyline = price > 0 ? `+${price}` : String(price);
+          console.log('✅ Found home moneyline from price:', homeMoneyline);
+        }
+      }
+      
+      if (!awayMoneyline && odds.awayTeamOdds?.price !== undefined) {
+        const price = parseInt(odds.awayTeamOdds.price);
+        if (!isNaN(price) && price >= -10000 && price <= 10000) {
+          awayMoneyline = price > 0 ? `+${price}` : String(price);
+          console.log('✅ Found away moneyline from price:', awayMoneyline);
+        }
+      }
+      
+      console.log('✅ Final parsed values:', { awaySpread, homeSpread, total, awayMoneyline, homeMoneyline });
       console.log('=====================================\n');
       
     } catch (error) {
       console.error('❌ Error parsing odds:', error);
     }
     
-    return { awaySpread, homeSpread, total };
+    return { awaySpread, homeSpread, total, awayMoneyline, homeMoneyline };
   }, []);
 
   // IMPROVED: SPORT-SPECIFIC GAME LOADING WITH SMART REFRESH
@@ -2307,7 +2377,7 @@ function App() {
         const status = event.status.type.state;
         
         // Parse odds from ESPN API
-        const { awaySpread, homeSpread, total } = parseESPNOdds(competition, sport);
+        const { awaySpread, homeSpread, total, awayMoneyline, homeMoneyline } = parseESPNOdds(competition, sport);
         
         return {
           id: index + 1,
@@ -2323,6 +2393,8 @@ function App() {
           awaySpread: awaySpread,
           homeSpread: homeSpread,
           total: total,
+          awayMoneyline: awayMoneyline,
+          homeMoneyline: homeMoneyline,
           status: status,
           statusDetail: event.status.type.detail,
           isFinal: status === 'post'
@@ -2512,7 +2584,7 @@ function App() {
           const homeTeam = competition.competitors[0];
           const status = event.status.type.state;
           
-          const { awaySpread, homeSpread, total } = parseESPNOdds(competition, sport);
+          const { awaySpread, homeSpread, total, awayMoneyline, homeMoneyline } = parseESPNOdds(competition, sport);
           
           return {
             id: `${sport}-${index + 1}`, // Unique ID with sport prefix
@@ -2529,6 +2601,8 @@ function App() {
             awaySpread: awaySpread,
             homeSpread: homeSpread,
             total: total,
+            awayMoneyline: awayMoneyline,
+            homeMoneyline: homeMoneyline,
             status: status,
             statusDetail: event.status.type.detail,
             isFinal: status === 'post'
