@@ -569,8 +569,116 @@ function AdminLandingPage({ onSelectSport, onManageUsers, onSignOut }) {
   );
 }
 
-// Welcome Landing Page Component - ALL SPORTS ENABLED
-function WelcomeLandingPage({ onSelectSport, onSignOut, onBack, isAuthenticated }) {
+// Bet Type Selection Component - NEW for Requirement 1
+function BetTypeSelectionPage({ onSelectBetType, onBack, onSignOut, isAuthenticated }) {
+  return (
+    <div className="gradient-bg">
+      <div className="container" style={{ maxWidth: '800px', paddingTop: '60px' }}>
+        <div className="text-center text-white mb-4">
+          <h1 style={{ fontSize: '48px', marginBottom: '16px' }}>Choose Your Bet Type</h1>
+          <p style={{ fontSize: '20px', marginBottom: '40px' }}>Select how you'd like to place your bets</p>
+        </div>
+        
+        {/* Back/Sign Out Buttons */}
+        <div style={{ textAlign: 'center', marginBottom: '24px', display: 'flex', justifyContent: 'center', gap: '12px' }}>
+          {onBack && (
+            <button className="btn btn-secondary" onClick={onBack} style={{ padding: '12px 32px', fontSize: '16px' }}>
+              ← Back
+            </button>
+          )}
+          {isAuthenticated && (
+            <button className="btn btn-secondary" onClick={onSignOut} style={{ padding: '12px 32px', fontSize: '16px' }}>
+              🚪 Sign Out
+            </button>
+          )}
+        </div>
+
+        <div className="card">
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '20px' }}>
+            <button
+              className="btn"
+              onClick={() => onSelectBetType('straight')}
+              style={{
+                padding: '48px 32px',
+                fontSize: '20px',
+                fontWeight: 'bold',
+                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                color: 'white',
+                border: 'none',
+                cursor: 'pointer',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                gap: '16px',
+                borderRadius: '12px',
+                boxShadow: '0 4px 15px rgba(0,0,0,0.2)',
+                transition: 'transform 0.2s',
+              }}
+              onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.05)'}
+              onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
+            >
+              <span style={{ fontSize: '64px' }}>🎯</span>
+              <span>Straight Bets</span>
+              <span style={{ fontSize: '14px', opacity: '0.9', fontWeight: 'normal', lineHeight: '1.6' }}>
+                Bet on individual games with dynamic odds
+              </span>
+            </button>
+            
+            <button
+              className="btn"
+              onClick={() => onSelectBetType('parlay')}
+              style={{
+                padding: '48px 32px',
+                fontSize: '20px',
+                fontWeight: 'bold',
+                background: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
+                color: 'white',
+                border: 'none',
+                cursor: 'pointer',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                gap: '16px',
+                borderRadius: '12px',
+                boxShadow: '0 4px 15px rgba(0,0,0,0.2)',
+                transition: 'transform 0.2s',
+              }}
+              onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.05)'}
+              onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
+            >
+              <span style={{ fontSize: '64px' }}>🎲</span>
+              <span>Parlays</span>
+              <span style={{ fontSize: '14px', opacity: '0.9', fontWeight: 'normal', lineHeight: '1.6' }}>
+                Combine multiple picks across sports for bigger payouts
+              </span>
+            </button>
+          </div>
+        </div>
+
+        <div style={{
+          marginTop: '40px',
+          textAlign: 'center',
+          color: 'white',
+          fontSize: '16px',
+          opacity: '0.9',
+          padding: '20px',
+          background: 'rgba(255, 255, 255, 0.1)',
+          borderRadius: '12px'
+        }}>
+          <p style={{ marginBottom: '12px' }}>
+            <strong>Straight Bets:</strong> Single wagers on individual games with varying odds based on the matchup
+          </p>
+          <p style={{ marginBottom: '0' }}>
+            <strong>Parlays:</strong> Combine 3+ picks for higher payouts - all selections must win
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Welcome Landing Page Component - ALL SPORTS ENABLED (Updated for cross-sport parlays)
+function WelcomeLandingPage({ onSelectSport, onSignOut, onBack, isAuthenticated, betType }) {
   const sports = [
     { name: 'NFL', available: true },
     { name: 'NBA', available: true },
@@ -585,8 +693,23 @@ function WelcomeLandingPage({ onSelectSport, onSignOut, onBack, isAuthenticated 
       <div className="container" style={{ maxWidth: '800px', paddingTop: '60px' }}>
         <div className="text-center text-white mb-4">
           <h1 style={{ fontSize: '48px', marginBottom: '16px' }}>Welcome to EGT Sports</h1>
-          <p style={{ fontSize: '20px', marginBottom: '40px' }}>Select a sport below to get started</p>
-          <p style={{ fontSize: '20px', marginBottom: '40px' }}>Reminder: Please add no-reply@EGTSports.ws to your contacts to avoid your confirmation ticket going to your spam folder!</p>
+          <p style={{ fontSize: '20px', marginBottom: '16px' }}>Select a sport to get started</p>
+          {betType && (
+            <div style={{ 
+              display: 'inline-block',
+              padding: '12px 24px',
+              background: 'rgba(255, 255, 255, 0.2)',
+              borderRadius: '20px',
+              marginBottom: '24px'
+            }}>
+              <span style={{ fontSize: '16px' }}>
+                Bet Type: <strong>{betType === 'straight' ? 'Straight Bets' : 'Parlays'}</strong>
+              </span>
+            </div>
+          )}
+          <p style={{ fontSize: '16px', marginBottom: '40px', opacity: '0.9' }}>
+            Reminder: Please add no-reply@EGTSports.ws to your contacts to avoid your confirmation ticket going to your spam folder!
+          </p>
         </div>
         
         {/* Back/Sign Out Buttons */}
@@ -642,7 +765,7 @@ function WelcomeLandingPage({ onSelectSport, onSignOut, onBack, isAuthenticated 
 }
 
 // Landing Page Component - WITH MANUAL REFRESH BUTTON
-function LandingPage({ games, loading, onBackToMenu, sport, apiError, onManualRefresh, lastRefreshTime }) {
+function LandingPage({ games, loading, onBackToMenu, sport, betType, apiError, onManualRefresh, lastRefreshTime }) {
   const [selectedPicks, setSelectedPicks] = useState({});
   const [showConfirmation, setShowConfirmation] = useState(false);
   const [ticketNumber, setTicketNumber] = useState('');
@@ -1750,6 +1873,7 @@ function App() {
   });
   const [userRole, setUserRole] = useState(null); // 'user', 'admin', 'guest', or null
   const [showAdminUserManagement, setShowAdminUserManagement] = useState(false);
+  const [betType, setBetType] = useState(null); // 'straight' or 'parlay'
   const [loginForm, setLoginForm] = useState({
     email: "",
     password: "",
@@ -2252,6 +2376,7 @@ function App() {
   const handleSignOut = async () => {
     await signOut(auth);
     setUserRole(null);
+    setBetType(null);
     setSelectedSport(null);
     setShowAdminUserManagement(false);
   };
@@ -2296,12 +2421,23 @@ function App() {
   }
 
   // Show user welcome screen if logged in as non-admin user
-  if (authState.user && !authState.isAdmin && !selectedSport) {
-    return <WelcomeLandingPage 
-      onSelectSport={(sport) => setSelectedSport(sport)} 
+  if (authState.user && !authState.isAdmin && !betType) {
+    return <BetTypeSelectionPage 
+      onSelectBetType={(type) => setBetType(type)} 
       onSignOut={handleSignOut}
       onBack={null}
       isAuthenticated={true}
+    />;
+  }
+
+  // Show user sport selection if logged in as non-admin user and bet type selected
+  if (authState.user && !authState.isAdmin && betType && !selectedSport) {
+    return <WelcomeLandingPage 
+      onSelectSport={(sport) => setSelectedSport(sport)} 
+      onSignOut={handleSignOut}
+      onBack={() => setBetType(null)}
+      isAuthenticated={true}
+      betType={betType}
     />;
   }
 
@@ -2397,12 +2533,23 @@ function App() {
   }
 
   // Show sport selection if no sport selected (for guest and logged-in user)
+  if (!betType) {
+    return <BetTypeSelectionPage 
+      onSelectBetType={(type) => setBetType(type)} 
+      onSignOut={handleSignOut}
+      onBack={() => setUserRole(null)}
+      isAuthenticated={false}
+    />;
+  }
+
+  // Show sport selection after bet type selected
   if (!selectedSport) {
     return <WelcomeLandingPage 
       onSelectSport={(sport) => setSelectedSport(sport)} 
       onSignOut={handleSignOut}
-      onBack={() => setUserRole(null)}
+      onBack={() => setBetType(null)}
       isAuthenticated={false}
+      betType={betType}
     />;
   }
 
@@ -2423,6 +2570,7 @@ function App() {
     loading={loading} 
     onBackToMenu={() => setSelectedSport(null)} 
     sport={selectedSport}
+    betType={betType}
     apiError={apiError}
     onManualRefresh={handleManualRefresh}
     lastRefreshTime={lastRefreshTime}
