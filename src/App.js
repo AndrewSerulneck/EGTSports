@@ -165,6 +165,11 @@ function AdminPanel({ user, games, setGames, isSyncing, setIsSyncing, recentlyUp
   }, []);
 
   const calculateResult = useCallback((submission) => {
+    // Return early if games array is not available
+    if (!games || !Array.isArray(games)) {
+      return { wins: 0, losses: 0, pending: submission.picks ? submission.picks.length : 0 };
+    }
+    
     let wins = 0;
     let losses = 0;
     let pending = 0;
@@ -799,6 +804,9 @@ function LandingPage({ games, allSportsGames, currentViewSport, onChangeSport, l
 // ADD THIS NEW useEffect RIGHT AFTER THE ONE ABOVE:
 useEffect(() => {
   // Auto-calculate and update win/loss status for finalized games
+  // Only run if games array is available
+  if (!games || !Array.isArray(games)) return;
+  
   submissions.forEach(submission => {
     // Only process submissions for the current sport
     if (submission.sport !== sport) return;
@@ -1316,8 +1324,8 @@ try {
   const minPicks = betType === 'straight' ? 1 : 3;
   const canSubmit = pickCount >= minPicks;
 
-  // Count active games
-  const activeGamesCount = games.filter(g => g.status === 'in' || g.status === 'pre').length;
+  // Count active games - with null check
+  const activeGamesCount = (games && Array.isArray(games)) ? games.filter(g => g.status === 'in' || g.status === 'pre').length : 0;
 
   if (hasSubmitted) {
     // Helper function to generate unique pick ID
@@ -2146,7 +2154,7 @@ Email: ${contactInfo.email}
             </>
           )}
         </div>
-        {games.map(game => {
+        {games && Array.isArray(games) && games.map(game => {
           const pickObj = selectedPicks[game.id] || {};
           return (
             <div key={game.id} className="game-card">
