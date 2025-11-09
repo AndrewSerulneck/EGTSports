@@ -1045,10 +1045,12 @@ const saveSubmission = async (submission) => {
       
       Object.entries(selectedPicks).forEach(([gameId, pickObj]) => {
         // Find game in either single sport games or all sports games
-        let game = games.find(g => g.id === gameId);
+        // Convert gameId to match type (string for cross-sport, number for single sport)
+        const numericGameId = Number(gameId);
+        let game = games.find(g => g.id === gameId || g.id === numericGameId);
         if (!game && allSportsGames) {
           for (const sportGames of Object.values(allSportsGames)) {
-            game = sportGames.find(g => g.id === gameId);
+            game = sportGames.find(g => g.id === gameId || g.id === numericGameId);
             if (game) break;
           }
         }
@@ -1146,10 +1148,12 @@ const saveSubmission = async (submission) => {
       
       Object.entries(selectedPicks).forEach(([gameId, pickObj]) => {
         // Find game in either single sport games or all sports games
-        let game = games.find(g => g.id === gameId);
+        // Convert gameId to match type (string for cross-sport, number for single sport)
+        const numericGameId = Number(gameId);
+        let game = games.find(g => g.id === gameId || g.id === numericGameId);
         if (!game && allSportsGames) {
           for (const sportGames of Object.values(allSportsGames)) {
-            game = sportGames.find(g => g.id === gameId);
+            game = sportGames.find(g => g.id === gameId || g.id === numericGameId);
             if (game) break;
           }
         }
@@ -1326,10 +1330,12 @@ try {
     
     Object.entries(selectedPicks).forEach(([gameId, pickObj]) => {
       // Find game in either single sport games or all sports games
-      let game = games.find(g => g.id === gameId);
+      // Convert gameId to match type (string for cross-sport, number for single sport)
+      const numericGameId = Number(gameId);
+      let game = games.find(g => g.id === gameId || g.id === numericGameId);
       if (!game && allSportsGames) {
         for (const sportGames of Object.values(allSportsGames)) {
-          game = sportGames.find(g => g.id === gameId);
+          game = sportGames.find(g => g.id === gameId || g.id === numericGameId);
           if (game) break;
         }
       }
@@ -1742,10 +1748,12 @@ Email: ${contactInfo.email}
                 </div>
                 {Object.entries(selectedPicks).map(([gameId, pickObj]) => {
                   // Find game in either single sport games or all sports games
-                  let game = games.find(g => g.id === gameId);
+                  // Convert gameId to match type (string for cross-sport, number for single sport)
+                  const numericGameId = Number(gameId);
+                  let game = games.find(g => g.id === gameId || g.id === numericGameId);
                   if (!game && allSportsGames) {
                     for (const sportGames of Object.values(allSportsGames)) {
-                      game = sportGames.find(g => g.id === gameId);
+                      game = sportGames.find(g => g.id === gameId || g.id === numericGameId);
                       if (game) break;
                     }
                   }
@@ -1854,10 +1862,12 @@ Email: ${contactInfo.email}
                 <h3 className="mb-2">Your Picks ({pickCount})</h3>
                 {Object.entries(selectedPicks).map(([gameId, pickObj]) => {
                   // Find game in either single sport games or all sports games
-                  let game = games.find(g => g.id === gameId);
+                  // Convert gameId to match type (string for cross-sport, number for single sport)
+                  const numericGameId = Number(gameId);
+                  let game = games.find(g => g.id === gameId || g.id === numericGameId);
                   if (!game && betType === 'parlay' && allSportsGames) {
                     for (const sportGames of Object.values(allSportsGames)) {
-                      game = sportGames.find(g => g.id === gameId);
+                      game = sportGames.find(g => g.id === gameId || g.id === numericGameId);
                       if (game) break;
                     }
                   }
