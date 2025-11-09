@@ -1,5 +1,5 @@
 import './App.css';
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { initializeApp } from "firebase/app";
 import { getDatabase, ref, set, onValue, push } from "firebase/database";
 import {
@@ -780,6 +780,7 @@ function LandingPage({ games, allSportsGames, currentViewSport, onChangeSport, l
   const [submissions, setSubmissions] = useState([]);
   const [hasSubmitted, setHasSubmitted] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const processedTicketsRef = useRef(new Set()); // Track processed tickets to avoid re-processing
 
   useEffect(() => {
     // Load from localStorage first (backup)
@@ -808,6 +809,9 @@ useEffect(() => {
   if (!games || !Array.isArray(games)) return;
   
   submissions.forEach(submission => {
+    // Skip if already processed
+    if (processedTicketsRef.current.has(submission.ticketNumber)) return;
+    
     // Only process submissions for the current sport
     if (submission.sport !== sport) return;
     
@@ -866,6 +870,9 @@ useEffect(() => {
     if (allGamesComplete && !wasFinalized) {
       const status = parlayWon ? 'won' : 'lost';
       console.log(`🎯 Ticket ${submission.ticketNumber} finalized: ${status.toUpperCase()}`);
+      
+      // Mark as processed immediately to prevent duplicate calls
+      processedTicketsRef.current.add(submission.ticketNumber);
       
       updateSubmissionStatus(submission, status, wins, losses, submission.picks.length);
       
