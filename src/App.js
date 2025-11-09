@@ -1006,8 +1006,8 @@ const saveSubmission = async (submission) => {
     setShowConfirmation(true);
   };
 
-  const openVenmo = () => {
-    const betAmount = contactInfo.betAmount;
+  const openVenmo = (amount) => {
+    const betAmount = amount || contactInfo.betAmount;
     const note = encodeURIComponent("EGT Sports - " + ticketNumber);
     
     // Try mobile app first
@@ -1243,7 +1243,7 @@ try {
 
     // Open Venmo only if Venmo is selected
     if (contactInfo.paymentMethod === 'venmo') {
-      openVenmo();
+      openVenmo(totalBetAmount);
         } else if (contactInfo.paymentMethod === 'zelle') {
       // Copy Zelle email to clipboard
       navigator.clipboard.writeText(ZELLE_EMAIL).then(() => {
