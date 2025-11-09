@@ -771,6 +771,7 @@ function LandingPage({ games, allSportsGames, currentViewSport, onChangeSport, l
   const [ticketNumber, setTicketNumber] = useState('');
   const [showCheckout, setShowCheckout] = useState(false);
   const [contactInfo, setContactInfo] = useState({ name: '', email: '', betAmount: '', confirmMethod: 'email', freePlay: 0, paymentMethod: 'venmo' });
+  const [individualBetAmounts, setIndividualBetAmounts] = useState({}); // For straight bets: {pickId: amount}
   const [submissions, setSubmissions] = useState([]);
   const [hasSubmitted, setHasSubmitted] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -1025,81 +1026,168 @@ const saveSubmission = async (submission) => {
   };
 
   const handleCheckoutSubmit = async () => {
-    const betAmount = parseFloat(contactInfo.betAmount);
-
+    // Helper function to generate unique pick ID
+    const getPickId = (gameId, pickType) => `${gameId}-${pickType}`;
+    
     // Validate contact information
     if (!contactInfo.name || !contactInfo.email) {
       alert('Please fill in all contact information');
       return;
     }
     
-    // Validate bet amount exists and is positive
-    if (!betAmount || betAmount <= 0) {
-      alert('Please enter a valid bet amount');
-      return;
-    }
-    
-    // Validate minimum bet
-    if (betAmount < MIN_BET) {
-      alert(`Minimum bet is $${MIN_BET.toFixed(2)}`);
-      return;
-    }
-    
-    // Validate maximum bet
-    if (betAmount > MAX_BET) {
-      alert(`Maximum bet is $${MAX_BET}`);
-      return;
-    }
-
+    let totalBetAmount = 0;
     const picksFormatted = [];
-    Object.entries(selectedPicks).forEach(([gameId, pickObj]) => {
-      // Find game in either single sport games or all sports games
-      let game = games.find(g => g.id === gameId);
-      if (!game && betType === 'parlay' && allSportsGames) {
-        // For cross-sport parlays, search across all sports
-        for (const sportGames of Object.values(allSportsGames)) {
-          game = sportGames.find(g => g.id === gameId);
-          if (game) break;
-        }
-      }
+    
+    if (betType === 'straight') {
+      // For straight bets: validate individual bet amounts
+      let hasInvalidBet = false;
+      let missingBetAmount = false;
       
-      if (!game) {
-        console.error(`Could not find game with ID: ${gameId}`);
+      Object.entries(selectedPicks).forEach(([gameId, pickObj]) => {
+        // Find game in either single sport games or all sports games
+        let game = games.find(g => g.id === gameId);
+        if (!game && allSportsGames) {
+          for (const sportGames of Object.values(allSportsGames)) {
+            game = sportGames.find(g => g.id === gameId);
+            if (game) break;
+          }
+        }
+        
+        if (!game) {
+          console.error(`Could not find game with ID: ${gameId}`);
+          return;
+        }
+        
+        const gameName = `${game.awayTeam} @ ${game.homeTeam}`;
+        const sportLabel = game.sport ? ` (${game.sport})` : '';
+        
+        if (pickObj.spread) {
+          const pickId = getPickId(gameId, 'spread');
+          const betAmount = parseFloat(individualBetAmounts[pickId]);
+          
+          if (!individualBetAmounts[pickId] || betAmount <= 0) {
+            missingBetAmount = true;
+          } else if (betAmount < MIN_BET || betAmount > MAX_BET) {
+            hasInvalidBet = true;
+          } else {
+            totalBetAmount += betAmount;
+            
+            const team = pickObj.spread === 'away' ? game.awayTeam : game.homeTeam;
+            const spread = pickObj.spread === 'away' ? game.awaySpread : game.homeSpread;
+            const moneyline = pickObj.spread === 'away' ? game.awayMoneyline : game.homeMoneyline;
+            
+            picksFormatted.push({
+              gameId: game.espnId,
+              gameName: gameName + sportLabel,
+              sport: game.sport,
+              pickType: 'moneyline',
+              team,
+              spread,
+              moneyline,
+              pickedTeamType: pickObj.spread,
+              betAmount: betAmount
+            });
+          }
+        }
+        
+        if (pickObj.total) {
+          const pickId = getPickId(gameId, 'total');
+          const betAmount = parseFloat(individualBetAmounts[pickId]);
+          
+          if (!individualBetAmounts[pickId] || betAmount <= 0) {
+            missingBetAmount = true;
+          } else if (betAmount < MIN_BET || betAmount > MAX_BET) {
+            hasInvalidBet = true;
+          } else {
+            totalBetAmount += betAmount;
+            
+            picksFormatted.push({
+              gameId: game.espnId,
+              gameName: gameName + sportLabel,
+              sport: game.sport,
+              pickType: 'total',
+              overUnder: pickObj.total,
+              total: game.total,
+              betAmount: betAmount
+            });
+          }
+        }
+      });
+      
+      if (missingBetAmount) {
+        alert('Please enter a bet amount for all of your selections');
         return;
       }
       
-      const gameName = `${game.awayTeam} @ ${game.homeTeam}`;
-      const sportLabel = game.sport ? ` (${game.sport})` : '';
+      if (hasInvalidBet) {
+        alert(`Each bet must be between $${MIN_BET} and $${MAX_BET}`);
+        return;
+      }
+    } else {
+      // For parlays: validate single bet amount
+      const betAmount = parseFloat(contactInfo.betAmount);
       
-      if (pickObj.spread) {
-        const team = pickObj.spread === 'away' ? game.awayTeam : game.homeTeam;
-        const spread = pickObj.spread === 'away' ? game.awaySpread : game.homeSpread;
-        const moneyline = betType === 'straight' 
-          ? (pickObj.spread === 'away' ? game.awayMoneyline : game.homeMoneyline)
-          : undefined;
+      if (!betAmount || betAmount <= 0) {
+        alert('Please enter a valid bet amount');
+        return;
+      }
+      
+      if (betAmount < MIN_BET) {
+        alert(`Minimum bet is $${MIN_BET.toFixed(2)}`);
+        return;
+      }
+      
+      if (betAmount > MAX_BET) {
+        alert(`Maximum bet is $${MAX_BET}`);
+        return;
+      }
+      
+      totalBetAmount = betAmount;
+      
+      Object.entries(selectedPicks).forEach(([gameId, pickObj]) => {
+        // Find game in either single sport games or all sports games
+        let game = games.find(g => g.id === gameId);
+        if (!game && allSportsGames) {
+          for (const sportGames of Object.values(allSportsGames)) {
+            game = sportGames.find(g => g.id === gameId);
+            if (game) break;
+          }
+        }
         
-        picksFormatted.push({
-          gameId: game.espnId,
-          gameName: gameName + sportLabel,
-          sport: game.sport,
-          pickType: betType === 'straight' ? 'moneyline' : 'spread',
-          team,
-          spread,
-          moneyline,
-          pickedTeamType: pickObj.spread
-        });
-      }
-      if (pickObj.total) {
-        picksFormatted.push({
-          gameId: game.espnId,
-          gameName: gameName + sportLabel,
-          sport: game.sport,
-          pickType: 'total',
-          overUnder: pickObj.total,
-          total: game.total
-        });
-      }
-    });
+        if (!game) {
+          console.error(`Could not find game with ID: ${gameId}`);
+          return;
+        }
+        
+        const gameName = `${game.awayTeam} @ ${game.homeTeam}`;
+        const sportLabel = game.sport ? ` (${game.sport})` : '';
+        
+        if (pickObj.spread) {
+          const team = pickObj.spread === 'away' ? game.awayTeam : game.homeTeam;
+          const spread = pickObj.spread === 'away' ? game.awaySpread : game.homeSpread;
+          
+          picksFormatted.push({
+            gameId: game.espnId,
+            gameName: gameName + sportLabel,
+            sport: game.sport,
+            pickType: 'spread',
+            team,
+            spread,
+            pickedTeamType: pickObj.spread
+          });
+        }
+        if (pickObj.total) {
+          picksFormatted.push({
+            gameId: game.espnId,
+            gameName: gameName + sportLabel,
+            sport: game.sport,
+            pickType: 'total',
+            overUnder: pickObj.total,
+            total: game.total
+          });
+        }
+      });
+    }
 
     const submission = {
       ticketNumber,
@@ -1109,13 +1197,13 @@ const saveSubmission = async (submission) => {
         email: contactInfo.email,
         confirmMethod: 'email'
       },
-      betAmount: betAmount,
+      betAmount: totalBetAmount,
       freePlay: 0,
       picks: picksFormatted,
       paymentStatus: 'pending',
       paymentMethod: contactInfo.paymentMethod,
-      sport: betType === 'parlay' ? 'Multi-Sport' : sport, // Cross-sport or single sport
-      betType: betType // Add bet type to submission
+      sport: betType === 'parlay' ? 'Multi-Sport' : sport,
+      betType: betType
     };
     saveSubmission(submission);
     // Send confirmation email
@@ -1133,7 +1221,7 @@ try {
         paymentMethod: contactInfo.paymentMethod
       },
       picks: picksFormatted,
-      betAmount: betAmount,
+      betAmount: totalBetAmount,
       sport: sport,
       timestamp: submission.timestamp
     })
@@ -1159,9 +1247,9 @@ try {
         } else if (contactInfo.paymentMethod === 'zelle') {
       // Copy Zelle email to clipboard
       navigator.clipboard.writeText(ZELLE_EMAIL).then(() => {
-        alert(`⚠️ IMPORTANT - PAYMENT REQUIRED ⚠️\n\n📋 Zelle email copied to clipboard!\n\nYou MUST open your banking app NOW and send $${contactInfo.betAmount} via Zelle to:\n\n${ZELLE_EMAIL}\n\nNote: ${ticketNumber}\n\n🚨 Tickets without payment before games start will be VOID 🚨`);
+        alert(`⚠️ IMPORTANT - PAYMENT REQUIRED ⚠️\n\n📋 Zelle email copied to clipboard!\n\nYou MUST open your banking app NOW and send $${totalBetAmount.toFixed(2)} via Zelle to:\n\n${ZELLE_EMAIL}\n\nNote: ${ticketNumber}\n\n🚨 Tickets without payment before games start will be VOID 🚨`);
       }).catch(() => {
-        alert(`⚠️ IMPORTANT - PAYMENT REQUIRED ⚠️\n\nYou MUST open your banking app NOW and send $${contactInfo.betAmount} via Zelle to:\n\n${ZELLE_EMAIL}\n\nNote: ${ticketNumber}\n\n🚨 Tickets without payment before games start will be VOID 🚨`);
+        alert(`⚠️ IMPORTANT - PAYMENT REQUIRED ⚠️\n\nYou MUST open your banking app NOW and send $${totalBetAmount.toFixed(2)} via Zelle to:\n\n${ZELLE_EMAIL}\n\nNote: ${ticketNumber}\n\n🚨 Tickets without payment before games start will be VOID 🚨`);
       });
     }
   };
@@ -1228,24 +1316,56 @@ try {
   const activeGamesCount = games.filter(g => g.status === 'in' || g.status === 'pre').length;
 
   if (hasSubmitted) {
-    // Calculate payout odds based on number of picks
+    // Helper function to generate unique pick ID
+    const getPickId = (gameId, pickType) => `${gameId}-${pickType}`;
+    
+    // Calculate payout odds and format picks based on bet type
     let pickCount = 0;
     const picksFormatted = [];
+    let totalAmount = 0;
+    
     Object.entries(selectedPicks).forEach(([gameId, pickObj]) => {
-      const game = games.find(g => g.id === parseInt(gameId));
+      // Find game in either single sport games or all sports games
+      let game = games.find(g => g.id === gameId);
+      if (!game && betType === 'parlay' && allSportsGames) {
+        for (const sportGames of Object.values(allSportsGames)) {
+          game = sportGames.find(g => g.id === gameId);
+          if (game) break;
+        }
+      }
+      if (!game) return;
+      
       if (pickObj.spread) {
         pickCount++;
         const team = pickObj.spread === 'away' ? game.awayTeam : game.homeTeam;
         const spread = pickObj.spread === 'away' ? game.awaySpread : game.homeSpread;
-        picksFormatted.push(`${team} ${spread}`);
+        const moneyline = pickObj.spread === 'away' ? game.awayMoneyline : game.homeMoneyline;
+        
+        if (betType === 'straight') {
+          const betAmount = parseFloat(individualBetAmounts[getPickId(gameId, 'spread')]) || 0;
+          totalAmount += betAmount;
+          picksFormatted.push(`${team} ${moneyline || spread} - $${betAmount.toFixed(2)}`);
+        } else {
+          picksFormatted.push(`${team} ${spread}`);
+        }
       }
       if (pickObj.total) {
         pickCount++;
-        picksFormatted.push(`[TOTAL] ${pickObj.total === 'over' ? 'OVER' : 'UNDER'} ${game.total} total points - ${game.awayTeam} @ ${game.homeTeam}`);
+        if (betType === 'straight') {
+          const betAmount = parseFloat(individualBetAmounts[getPickId(gameId, 'total')]) || 0;
+          totalAmount += betAmount;
+          picksFormatted.push(`[TOTAL] ${pickObj.total === 'over' ? 'OVER' : 'UNDER'} ${game.total} - ${game.awayTeam} @ ${game.homeTeam} - $${betAmount.toFixed(2)}`);
+        } else {
+          picksFormatted.push(`[TOTAL] ${pickObj.total === 'over' ? 'OVER' : 'UNDER'} ${game.total} total points - ${game.awayTeam} @ ${game.homeTeam}`);
+        }
       }
     });
 
-    const payoutOdds = {
+    if (betType === 'parlay') {
+      totalAmount = parseFloat(contactInfo.betAmount);
+    }
+
+    const payoutOdds = betType === 'parlay' ? ({
       3: '8 to 1',
       4: '15 to 1',
       5: '25 to 1',
@@ -1254,7 +1374,7 @@ try {
       8: '150 to 1',
       9: '200 to 1',
       10: '250 to 1'
-    }[pickCount] || 'N/A';
+    }[pickCount] || 'N/A') : 'Varies by odds';
 
     const timestamp = new Date().toLocaleString('en-US', { 
       month: 'short', 
@@ -1280,13 +1400,14 @@ ${timestamp}
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 BET DETAILS
 
+Type: ${betType === 'straight' ? 'Straight Bets' : 'Parlay'}
 Sport: ${sport}
-Amount: $${contactInfo.betAmount}
+Total Amount: $${totalAmount.toFixed(2)}
 Picks: ${pickCount}
-Payout: ${payoutOdds}
+${betType === 'parlay' ? `Payout: ${payoutOdds}` : 'Payout: Based on individual odds'}
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-YOUR PICKS
+YOUR ${betType === 'straight' ? 'BETS' : 'PICKS'}
 
 ${picksFormatted.map((pick, idx) => `${idx + 1}. ${pick}`).join('\n')}
 
@@ -1294,8 +1415,8 @@ ${picksFormatted.map((pick, idx) => `${idx + 1}. ${pick}`).join('\n')}
 PAYMENT REQUIRED
 
 ${contactInfo.paymentMethod === 'venmo' 
-  ? `Send $${contactInfo.betAmount} to @${VENMO_USERNAME} on Venmo\nNote: "${ticketNumber}"`
-  : `Send $${contactInfo.betAmount} via Zelle to ${ZELLE_EMAIL}\nNote: "${ticketNumber}"`
+  ? `Send $${totalAmount.toFixed(2)} to @${VENMO_USERNAME} on Venmo\nNote: "${ticketNumber}"`
+  : `Send $${totalAmount.toFixed(2)} via Zelle to ${ZELLE_EMAIL}\nNote: "${ticketNumber}"`
 }
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -1387,23 +1508,29 @@ Email: ${contactInfo.email}
               <h3 style={{fontSize: '18px', fontWeight: 'bold', marginBottom: '16px', color: '#333'}}>
                 📋 BET DETAILS
               </h3>
-              <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px'}}>
+              <div style={{display: 'grid', gridTemplateColumns: betType === 'straight' ? '1fr' : '1fr 1fr', gap: '12px'}}>
+                <div style={{background: 'white', padding: '12px', borderRadius: '8px', border: '1px solid #e0e0e0'}}>
+                  <div style={{fontSize: '12px', color: '#666', marginBottom: '4px'}}>Bet Type</div>
+                  <div style={{fontSize: '16px', fontWeight: 'bold', color: '#333'}}>{betType === 'straight' ? 'Straight Bets' : 'Parlay'}</div>
+                </div>
                 <div style={{background: 'white', padding: '12px', borderRadius: '8px', border: '1px solid #e0e0e0'}}>
                   <div style={{fontSize: '12px', color: '#666', marginBottom: '4px'}}>Sport</div>
                   <div style={{fontSize: '16px', fontWeight: 'bold', color: '#333'}}>{sport}</div>
                 </div>
                 <div style={{background: 'white', padding: '12px', borderRadius: '8px', border: '1px solid #e0e0e0'}}>
-                  <div style={{fontSize: '12px', color: '#666', marginBottom: '4px'}}>Bet Amount</div>
-                  <div style={{fontSize: '16px', fontWeight: 'bold', color: '#28a745'}}>${contactInfo.betAmount}</div>
+                  <div style={{fontSize: '12px', color: '#666', marginBottom: '4px'}}>Total Amount</div>
+                  <div style={{fontSize: '16px', fontWeight: 'bold', color: '#28a745'}}>${totalAmount.toFixed(2)}</div>
                 </div>
                 <div style={{background: 'white', padding: '12px', borderRadius: '8px', border: '1px solid #e0e0e0'}}>
                   <div style={{fontSize: '12px', color: '#666', marginBottom: '4px'}}>Total Picks</div>
                   <div style={{fontSize: '16px', fontWeight: 'bold', color: '#333'}}>{pickCount}</div>
                 </div>
-                <div style={{background: 'white', padding: '12px', borderRadius: '8px', border: '1px solid #e0e0e0'}}>
-                  <div style={{fontSize: '12px', color: '#666', marginBottom: '4px'}}>Payout Odds</div>
-                  <div style={{fontSize: '16px', fontWeight: 'bold', color: '#007bff'}}>{payoutOdds}</div>
-                </div>
+                {betType === 'parlay' && (
+                  <div style={{background: 'white', padding: '12px', borderRadius: '8px', border: '1px solid #e0e0e0', gridColumn: 'span 2'}}>
+                    <div style={{fontSize: '12px', color: '#666', marginBottom: '4px'}}>Payout Odds</div>
+                    <div style={{fontSize: '16px', fontWeight: 'bold', color: '#007bff'}}>{payoutOdds}</div>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -1590,6 +1717,9 @@ Email: ${contactInfo.email}
   }
 
   if (showCheckout) {
+    // Helper function to generate unique pick ID
+    const getPickId = (gameId, pickType) => `${gameId}-${pickType}`;
+    
     return (
       <div className="gradient-bg">
         <div className="container" style={{maxWidth: '600px'}}>
@@ -1602,54 +1732,176 @@ Email: ${contactInfo.email}
               <div style={{fontSize: '12px', color: '#666', marginBottom: '8px'}}>TICKET NUMBER</div>
               <div style={{fontSize: '24px', fontWeight: 'bold', color: '#28a745'}}>{ticketNumber}</div>
             </div>
-            <h3 className="mb-2">Your Picks ({pickCount})</h3>
-            {Object.entries(selectedPicks).map(([gameId, pickObj]) => {
-              // Find game in either single sport games or all sports games
-              let game = games.find(g => g.id === gameId);
-              if (!game && betType === 'parlay' && allSportsGames) {
-                for (const sportGames of Object.values(allSportsGames)) {
-                  game = sportGames.find(g => g.id === gameId);
-                  if (game) break;
-                }
-              }
-              if (!game) return null;
-              
-              const sportBadge = game.sport && betType === 'parlay' ? (
-                <span style={{
-                  fontSize: '10px',
-                  background: '#007bff',
-                  color: 'white',
-                  padding: '2px 6px',
-                  borderRadius: '4px',
-                  marginLeft: '8px'
-                }}>
-                  {game.sport}
-                </span>
-              ) : null;
-              
-              return (
-                <div key={gameId}>
-                  {pickObj.spread && (
-                    <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px', background: '#f8f9fa', borderRadius: '8px', marginBottom: '4px'}}>
-                      <div>
-                        <strong>[SPREAD] {pickObj.spread === 'away' ? game.awayTeam : game.homeTeam}</strong>
-                        {sportBadge}
-                      </div>
-                      <span>{pickObj.spread === 'away' ? game.awaySpread : game.homeSpread}</span>
-                    </div>
-                  )}
-                  {pickObj.total && (
-                    <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px', background: '#f8f9fa', borderRadius: '8px', marginBottom: '4px'}}>
-                      <div>
-                        <strong>[TOTAL] {pickObj.total === 'over' ? 'Over' : 'Under'} {game.total}</strong>
-                        {sportBadge}
-                      </div>
-                      <span>{game.awayTeam} @ {game.homeTeam}</span>
-                    </div>
-                  )}
+            
+            {betType === 'straight' ? (
+              // Straight Bets: Individual bet amounts for each pick
+              <>
+                <h3 className="mb-2">Your Bets ({pickCount})</h3>
+                <div style={{background: '#e7f3ff', padding: '12px', borderRadius: '8px', marginBottom: '16px', fontSize: '14px'}}>
+                  <strong>💡 Straight Bets:</strong> Set an individual wager amount for each bet below (Min ${MIN_BET}, Max ${MAX_BET} per bet)
                 </div>
-              );
-            })}
+                {Object.entries(selectedPicks).map(([gameId, pickObj]) => {
+                  // Find game in either single sport games or all sports games
+                  let game = games.find(g => g.id === gameId);
+                  if (!game && betType === 'parlay' && allSportsGames) {
+                    for (const sportGames of Object.values(allSportsGames)) {
+                      game = sportGames.find(g => g.id === gameId);
+                      if (game) break;
+                    }
+                  }
+                  if (!game) return null;
+                  
+                  const sportBadge = game.sport ? (
+                    <span style={{
+                      fontSize: '10px',
+                      background: '#007bff',
+                      color: 'white',
+                      padding: '2px 6px',
+                      borderRadius: '4px',
+                      marginLeft: '8px'
+                    }}>
+                      {game.sport}
+                    </span>
+                  ) : null;
+                  
+                  return (
+                    <div key={gameId}>
+                      {pickObj.spread && (
+                        <div style={{padding: '16px', background: '#f8f9fa', borderRadius: '8px', marginBottom: '12px', border: '2px solid #e0e0e0'}}>
+                          <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px'}}>
+                            <div style={{flex: 1}}>
+                              <div style={{fontWeight: 'bold', fontSize: '16px', marginBottom: '4px'}}>
+                                {pickObj.spread === 'away' ? game.awayTeam : game.homeTeam}
+                                {sportBadge}
+                              </div>
+                              <div style={{fontSize: '13px', color: '#666'}}>
+                                {game.awayTeam} @ {game.homeTeam}
+                              </div>
+                            </div>
+                            <div style={{textAlign: 'right'}}>
+                              <div style={{fontSize: '12px', color: '#666'}}>Moneyline</div>
+                              <div style={{fontWeight: 'bold', fontSize: '18px', color: '#007bff'}}>
+                                {pickObj.spread === 'away' ? game.awayMoneyline : game.homeMoneyline}
+                              </div>
+                            </div>
+                          </div>
+                          <div>
+                            <label style={{fontSize: '14px', fontWeight: '600', marginBottom: '4px', display: 'block'}}>
+                              Wager Amount *
+                            </label>
+                            <input 
+                              type="number" 
+                              value={individualBetAmounts[getPickId(gameId, 'spread')] || ''} 
+                              onChange={(e) => setIndividualBetAmounts({
+                                ...individualBetAmounts,
+                                [getPickId(gameId, 'spread')]: e.target.value
+                              })} 
+                              placeholder={`$${MIN_BET} - $${MAX_BET}`}
+                              min={MIN_BET}
+                              max={MAX_BET}
+                              step="0.01"
+                              style={{width: '100%', padding: '10px', fontSize: '16px', border: '2px solid #ccc', borderRadius: '6px'}}
+                            />
+                          </div>
+                        </div>
+                      )}
+                      {pickObj.total && (
+                        <div style={{padding: '16px', background: '#f8f9fa', borderRadius: '8px', marginBottom: '12px', border: '2px solid #e0e0e0'}}>
+                          <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px'}}>
+                            <div style={{flex: 1}}>
+                              <div style={{fontWeight: 'bold', fontSize: '16px', marginBottom: '4px'}}>
+                                {pickObj.total === 'over' ? 'Over' : 'Under'} {game.total}
+                                {sportBadge}
+                              </div>
+                              <div style={{fontSize: '13px', color: '#666'}}>
+                                {game.awayTeam} @ {game.homeTeam}
+                              </div>
+                            </div>
+                            <div style={{textAlign: 'right'}}>
+                              <div style={{fontSize: '12px', color: '#666'}}>Odds</div>
+                              <div style={{fontWeight: 'bold', fontSize: '18px', color: '#007bff'}}>
+                                -110
+                              </div>
+                            </div>
+                          </div>
+                          <div>
+                            <label style={{fontSize: '14px', fontWeight: '600', marginBottom: '4px', display: 'block'}}>
+                              Wager Amount *
+                            </label>
+                            <input 
+                              type="number" 
+                              value={individualBetAmounts[getPickId(gameId, 'total')] || ''} 
+                              onChange={(e) => setIndividualBetAmounts({
+                                ...individualBetAmounts,
+                                [getPickId(gameId, 'total')]: e.target.value
+                              })} 
+                              placeholder={`$${MIN_BET} - $${MAX_BET}`}
+                              min={MIN_BET}
+                              max={MAX_BET}
+                              step="0.01"
+                              style={{width: '100%', padding: '10px', fontSize: '16px', border: '2px solid #ccc', borderRadius: '6px'}}
+                            />
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </>
+            ) : (
+              // Parlays: Single bet amount for entire parlay
+              <>
+                <h3 className="mb-2">Your Picks ({pickCount})</h3>
+                {Object.entries(selectedPicks).map(([gameId, pickObj]) => {
+                  // Find game in either single sport games or all sports games
+                  let game = games.find(g => g.id === gameId);
+                  if (!game && betType === 'parlay' && allSportsGames) {
+                    for (const sportGames of Object.values(allSportsGames)) {
+                      game = sportGames.find(g => g.id === gameId);
+                      if (game) break;
+                    }
+                  }
+                  if (!game) return null;
+                  
+                  const sportBadge = game.sport && betType === 'parlay' ? (
+                    <span style={{
+                      fontSize: '10px',
+                      background: '#007bff',
+                      color: 'white',
+                      padding: '2px 6px',
+                      borderRadius: '4px',
+                      marginLeft: '8px'
+                    }}>
+                      {game.sport}
+                    </span>
+                  ) : null;
+                  
+                  return (
+                    <div key={gameId}>
+                      {pickObj.spread && (
+                        <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px', background: '#f8f9fa', borderRadius: '8px', marginBottom: '4px'}}>
+                          <div>
+                            <strong>[SPREAD] {pickObj.spread === 'away' ? game.awayTeam : game.homeTeam}</strong>
+                            {sportBadge}
+                          </div>
+                          <span>{pickObj.spread === 'away' ? game.awaySpread : game.homeSpread}</span>
+                        </div>
+                      )}
+                      {pickObj.total && (
+                        <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px', background: '#f8f9fa', borderRadius: '8px', marginBottom: '4px'}}>
+                          <div>
+                            <strong>[TOTAL] {pickObj.total === 'over' ? 'Over' : 'Under'} {game.total}</strong>
+                            {sportBadge}
+                          </div>
+                          <span>{game.awayTeam} @ {game.homeTeam}</span>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </>
+            )}
+            
             <h3 className="mb-2" style={{marginTop: '32px'}}>Contact Information</h3>
             <label>Full Name *</label>
             <input type="text" value={contactInfo.name} onChange={(e) => setContactInfo({...contactInfo, name: e.target.value})} />
@@ -1657,16 +1909,20 @@ Email: ${contactInfo.email}
             <label>Email *</label>
             <input type="email" value={contactInfo.email} onChange={(e) => setContactInfo({...contactInfo, email: e.target.value})} />
 
-            <label>Bet Amount * (Min ${MIN_BET}, Max ${MAX_BET})</label>
-            <input 
-              type="number" 
-              value={contactInfo.betAmount} 
-              onChange={(e) => setContactInfo({...contactInfo, betAmount: e.target.value})} 
-              placeholder={`Enter amount ($${MIN_BET} - $${MAX_BET})`}
-              min={MIN_BET}
-              max={MAX_BET}
-              step="0.01"
-            />
+            {betType === 'parlay' && (
+              <>
+                <label>Bet Amount * (Min ${MIN_BET}, Max ${MAX_BET})</label>
+                <input 
+                  type="number" 
+                  value={contactInfo.betAmount} 
+                  onChange={(e) => setContactInfo({...contactInfo, betAmount: e.target.value})} 
+                  placeholder={`Enter amount ($${MIN_BET} - $${MAX_BET})`}
+                  min={MIN_BET}
+                  max={MAX_BET}
+                  step="0.01"
+                />
+              </>
+            )}
             
             <h3 className="mb-2" style={{marginTop: '32px'}}>Payment Method</h3>
             <div style={{display: 'flex', gap: '12px', marginBottom: '16px'}}>
