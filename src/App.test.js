@@ -1,34 +1,57 @@
 import { render, screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import App from './App';
 
-test('renders welcome landing page', async () => {
+test('renders auth landing page with role selection', async () => {
   render(<App />);
   const headingElement = await screen.findByText(/Welcome to EGT Sports/i);
   expect(headingElement).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: /Member login/i })).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: /Continue as Guest/i })).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: /Login as Admin/i })).toBeInTheDocument();
 });
 
-test('renders all sport buttons', async () => {
+test('guest flow shows bet type selection', async () => {
   render(<App />);
+  const guestButton = await screen.findByRole('button', { name: /Continue as Guest/i });
+  await userEvent.click(guestButton);
+  
+  // Should now show bet type selection
   await waitFor(() => {
-    expect(screen.getByRole('button', { name: /^NFL$/ })).toBeInTheDocument();
+    expect(screen.getByText(/Choose Your Bet Type/i)).toBeInTheDocument();
   });
-  expect(screen.getByRole('button', { name: /NBA Coming Soon/i })).toBeInTheDocument();
-  expect(screen.getByRole('button', { name: /College Football Coming Soon/i })).toBeInTheDocument();
-  expect(screen.getByRole('button', { name: /College Basketball Coming Soon/i })).toBeInTheDocument();
-  expect(screen.getByRole('button', { name: /Major League Baseball Coming Soon/i })).toBeInTheDocument();
-  expect(screen.getByRole('button', { name: /NHL Coming Soon/i })).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: /Straight Bets/i })).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: /Parlays/i })).toBeInTheDocument();
 });
 
-test('NFL button is enabled', async () => {
+test('selecting parlay shows sport selection', async () => {
   render(<App />);
-  const nflButton = await screen.findByRole('button', { name: /^NFL$/ });
-  expect(nflButton).toBeEnabled();
-});
-
-test('non-NFL buttons are disabled', async () => {
-  render(<App />);
+  const guestButton = await screen.findByRole('button', { name: /Continue as Guest/i });
+  await userEvent.click(guestButton);
+  
+  const parlayButton = await screen.findByRole('button', { name: /Parlays/i });
+  await userEvent.click(parlayButton);
+  
+  // Should now show sport selection with all sports available
   await waitFor(() => {
-    expect(screen.getByRole('button', { name: /NBA Coming Soon/i })).toBeDisabled();
+    expect(screen.getByText(/Select a sport to get started/i)).toBeInTheDocument();
   });
-  expect(screen.getByRole('button', { name: /NHL Coming Soon/i })).toBeDisabled();
+  expect(screen.getByRole('button', { name: /NFL/i })).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: /NBA/i })).toBeInTheDocument();
+});
+
+test('all sports are enabled', async () => {
+  render(<App />);
+  const guestButton = await screen.findByRole('button', { name: /Continue as Guest/i });
+  await userEvent.click(guestButton);
+  
+  const parlayButton = await screen.findByRole('button', { name: /Parlays/i });
+  await userEvent.click(parlayButton);
+  
+  // All sport buttons should be enabled
+  await waitFor(() => {
+    expect(screen.getByRole('button', { name: /NFL/i })).toBeEnabled();
+  });
+  expect(screen.getByRole('button', { name: /NBA/i })).toBeEnabled();
+  expect(screen.getByRole('button', { name: /NHL/i })).toBeEnabled();
 });
