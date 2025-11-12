@@ -2756,8 +2756,10 @@ function App() {
       
       // Filter games to show only those within the next 7 days
       const now = new Date();
+      now.setHours(0, 0, 0, 0); // Start of today
       const sevenDaysFromNow = new Date(now);
       sevenDaysFromNow.setDate(now.getDate() + 7);
+      sevenDaysFromNow.setHours(23, 59, 59, 999); // End of day 7 days from now
 
       const filteredGames = formattedGames.filter(game => {
         const gameDate = new Date(game.rawDate);
@@ -2975,8 +2977,10 @@ function App() {
         
         // Filter games to show only those within the next 7 days
         const now = new Date();
+        now.setHours(0, 0, 0, 0); // Start of today
         const sevenDaysFromNow = new Date(now);
         sevenDaysFromNow.setDate(now.getDate() + 7);
+        sevenDaysFromNow.setHours(23, 59, 59, 999); // End of day 7 days from now
 
         const filteredGames = formattedGames.filter(game => {
           const gameDate = new Date(game.rawDate);
