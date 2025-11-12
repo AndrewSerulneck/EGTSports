@@ -2761,10 +2761,19 @@ function App() {
       sevenDaysFromNow.setDate(now.getDate() + 7);
       sevenDaysFromNow.setHours(23, 59, 59, 999); // End of day 7 days from now
 
+      console.log(`🔍 Date filter range: ${now.toISOString()} to ${sevenDaysFromNow.toISOString()}`);
+      console.log(`📅 Total games before filtering: ${formattedGames.length}`);
+      
       const filteredGames = formattedGames.filter(game => {
         const gameDate = new Date(game.rawDate);
-        return gameDate >= now && gameDate <= sevenDaysFromNow;
+        const isInRange = gameDate >= now && gameDate <= sevenDaysFromNow;
+        if (!isInRange && formattedGames.length <= 5) {
+          console.log(`❌ Filtered out: ${game.awayTeam} @ ${game.homeTeam}, date: ${game.rawDate} (${gameDate.toISOString()})`);
+        }
+        return isInRange;
       });
+      
+      console.log(`📅 Games after filtering: ${filteredGames.length}`);
       
       // Special handling for College Basketball - fetch odds from The Odds API
       let finalFormattedGames = filteredGames;
@@ -2982,10 +2991,19 @@ function App() {
         sevenDaysFromNow.setDate(now.getDate() + 7);
         sevenDaysFromNow.setHours(23, 59, 59, 999); // End of day 7 days from now
 
+        console.log(`🔍 [${sport}] Date filter range: ${now.toISOString()} to ${sevenDaysFromNow.toISOString()}`);
+        console.log(`📅 [${sport}] Total games before filtering: ${formattedGames.length}`);
+        
         const filteredGames = formattedGames.filter(game => {
           const gameDate = new Date(game.rawDate);
-          return gameDate >= now && gameDate <= sevenDaysFromNow;
+          const isInRange = gameDate >= now && gameDate <= sevenDaysFromNow;
+          if (!isInRange && formattedGames.length <= 5) {
+            console.log(`❌ [${sport}] Filtered out: ${game.awayTeam} @ ${game.homeTeam}, date: ${game.rawDate} (${gameDate.toISOString()})`);
+          }
+          return isInRange;
         });
+        
+        console.log(`📅 [${sport}] Games after filtering: ${filteredGames.length}`);
         
         // Special handling for College Basketball
         if (sport === 'College Basketball') {
