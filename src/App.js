@@ -2756,10 +2756,10 @@ function App() {
       
       // Filter games to show only those within the next 7 days
       const now = new Date();
-      now.setHours(0, 0, 0, 0); // Start of today
+      now.setUTCHours(0, 0, 0, 0); // Start of today in UTC
       const sevenDaysFromNow = new Date(now);
-      sevenDaysFromNow.setDate(now.getDate() + 7);
-      sevenDaysFromNow.setHours(23, 59, 59, 999); // End of day 7 days from now
+      sevenDaysFromNow.setUTCDate(now.getUTCDate() + 7);
+      sevenDaysFromNow.setUTCHours(23, 59, 59, 999); // End of day 7 days from now in UTC
 
       console.log(`🔍 Date filter range: ${now.toISOString()} to ${sevenDaysFromNow.toISOString()}`);
       console.log(`📅 Total games before filtering: ${formattedGames.length}`);
@@ -2988,10 +2988,10 @@ function App() {
         
         // Filter games to show only those within the next 7 days
         const now = new Date();
-        now.setHours(0, 0, 0, 0); // Start of today
+        now.setUTCHours(0, 0, 0, 0); // Start of today in UTC
         const sevenDaysFromNow = new Date(now);
-        sevenDaysFromNow.setDate(now.getDate() + 7);
-        sevenDaysFromNow.setHours(23, 59, 59, 999); // End of day 7 days from now
+        sevenDaysFromNow.setUTCDate(now.getUTCDate() + 7);
+        sevenDaysFromNow.setUTCHours(23, 59, 59, 999); // End of day 7 days from now in UTC
 
         console.log(`🔍 [${sport}] Date filter range: ${now.toISOString()} to ${sevenDaysFromNow.toISOString()}`);
         console.log(`📅 [${sport}] Total games before filtering: ${formattedGames.length}`);
