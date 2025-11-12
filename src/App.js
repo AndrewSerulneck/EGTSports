@@ -2767,8 +2767,10 @@ function App() {
       const filteredGames = formattedGames.filter(game => {
         const gameDate = new Date(game.rawDate);
         const isInRange = gameDate >= now && gameDate <= sevenDaysFromNow;
-        if (!isInRange && formattedGames.length <= 5) {
-          console.log(`❌ Filtered out: ${game.awayTeam} @ ${game.homeTeam}, date: ${game.rawDate} (${gameDate.toISOString()})`);
+        if (!isInRange) {
+          console.log(`❌ Filtered out: ${game.awayTeam} @ ${game.homeTeam}, date: ${game.rawDate} (${gameDate.toISOString()}), reason: ${gameDate < now ? 'too old' : 'too far in future'}`);
+        } else {
+          console.log(`✅ Keeping: ${game.awayTeam} @ ${game.homeTeam}, date: ${game.rawDate} (${gameDate.toISOString()})`);
         }
         return isInRange;
       });
@@ -2997,8 +2999,10 @@ function App() {
         const filteredGames = formattedGames.filter(game => {
           const gameDate = new Date(game.rawDate);
           const isInRange = gameDate >= now && gameDate <= sevenDaysFromNow;
-          if (!isInRange && formattedGames.length <= 5) {
-            console.log(`❌ [${sport}] Filtered out: ${game.awayTeam} @ ${game.homeTeam}, date: ${game.rawDate} (${gameDate.toISOString()})`);
+          if (!isInRange) {
+            console.log(`❌ [${sport}] Filtered out: ${game.awayTeam} @ ${game.homeTeam}, date: ${game.rawDate} (${gameDate.toISOString()}), reason: ${gameDate < now ? 'too old' : 'too far in future'}`);
+          } else {
+            console.log(`✅ [${sport}] Keeping: ${game.awayTeam} @ ${game.homeTeam}, date: ${game.rawDate} (${gameDate.toISOString()})`);
           }
           return isInRange;
         });
