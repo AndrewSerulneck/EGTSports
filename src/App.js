@@ -2734,6 +2734,7 @@ function App() {
         return {
           id: index + 1,
           espnId: event.id,
+          rawDate: event.date, // Preserve original date for filtering
           date: new Date(event.date).toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' }),
           time: new Date(event.date).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }) + ' ET',
           awayTeam: awayTeam.team.displayName,
@@ -2759,7 +2760,7 @@ function App() {
       sevenDaysFromNow.setDate(now.getDate() + 7);
 
       const filteredGames = formattedGames.filter(game => {
-        const gameDate = new Date(game.date);
+        const gameDate = new Date(game.rawDate);
         return gameDate >= now && gameDate <= sevenDaysFromNow;
       });
       
@@ -2952,6 +2953,7 @@ function App() {
             id: `${sport}-${index + 1}`, // Unique ID with sport prefix
             espnId: event.id,
             sport: sport, // Add sport identifier
+            rawDate: event.date, // Preserve original date for filtering
             date: new Date(event.date).toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' }),
             time: new Date(event.date).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }) + ' ET',
             awayTeam: awayTeam.team.displayName,
@@ -2977,7 +2979,7 @@ function App() {
         sevenDaysFromNow.setDate(now.getDate() + 7);
 
         const filteredGames = formattedGames.filter(game => {
-          const gameDate = new Date(game.date);
+          const gameDate = new Date(game.rawDate);
           return gameDate >= now && gameDate <= sevenDaysFromNow;
         });
         
