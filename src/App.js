@@ -11,6 +11,9 @@ import {
 } from "firebase/auth";
 import AuthLanding from './components/AuthLanding';
 import UserManagement from './components/UserManagement';
+import BettingSlip from './components/BettingSlip';
+import SportsMenu from './components/SportsMenu';
+import GridBettingLayout from './components/GridBettingLayout';
 
 // ESPN API Endpoints for all sports
 const ESPN_API_ENDPOINTS = {
@@ -1009,6 +1012,40 @@ const saveSubmission = async (submission) => {
     }
   }
 };
+  // Helper function to handle pick selection for grid layout
+  const handleGridPickSelection = (gameId, pickType, value) => {
+    if (pickType === 'spread') {
+      toggleSpread(gameId, value);
+    } else if (pickType === 'total') {
+      toggleTotal(gameId, value);
+    }
+  };
+
+  // Helper function to remove a pick
+  const handleRemovePick = (gameId, pickType) => {
+    setSelectedPicks(prev => {
+      const newPicks = { ...prev };
+      if (newPicks[gameId]) {
+        if (pickType === 'spread') {
+          delete newPicks[gameId].spread;
+        } else if (pickType === 'total') {
+          delete newPicks[gameId].total;
+        }
+        // Remove the game entry if no picks left
+        if (!newPicks[gameId].spread && !newPicks[gameId].total) {
+          delete newPicks[gameId];
+        }
+      }
+      return newPicks;
+    });
+  };
+
+  // Helper function to clear all picks
+  const handleClearAll = () => {
+    setSelectedPicks({});
+    setIndividualBetAmounts({});
+  };
+
   const toggleSpread = (gameId, teamType) => {
     setSelectedPicks(prev => {
       const prevPick = prev[gameId] || {};
@@ -1373,6 +1410,8 @@ try {
     if (obj.total) pickCount++;
   });
   const minPicks = betType === 'straight' ? 1 : 3;
+  // canSubmit used in BettingSlip component
+  // eslint-disable-next-line no-unused-vars
   const canSubmit = pickCount >= minPicks;
 
   // Count active games - with null check
@@ -2037,8 +2076,24 @@ Email: ${contactInfo.email}
   }
 
   return (
-    <div className="gradient-bg">
-      <div className="container">
+    <div className="gradient-bg" style={{display: 'flex', minHeight: '100vh'}}>
+      {/* Left Sidebar - Sports Menu */}
+      {betType === 'parlay' && allSportsGames && Object.keys(allSportsGames).length > 0 && (
+        <SportsMenu
+          currentSport={currentViewSport}
+          onSelectSport={onChangeSport}
+          allSportsGames={allSportsGames}
+          betType={betType}
+        />
+      )}
+      
+      {/* Main Content */}
+      <div className={`container ${betType === 'parlay' ? 'with-sidebar' : ''}`} style={{
+        marginLeft: betType === 'parlay' ? '250px' : '0',
+        marginRight: '370px',
+        width: 'calc(100% - 620px)',
+        transition: 'all 0.3s ease'
+      }}>
         <div className="text-center text-white mb-4">
           <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '12px'}}>
             <button className="btn btn-secondary" onClick={onBackToMenu} style={{height: 'fit-content'}}>
@@ -2061,95 +2116,18 @@ Email: ${contactInfo.email}
             </div>
           </div>
           
-          {/* SPORT TABS FOR CROSS-SPORT PARLAYS */}
-          {betType === 'parlay' && allSportsGames && Object.keys(allSportsGames).length > 0 && (
+          {/* Sport indicator for single sport mode */}
+          {betType !== 'parlay' && (
             <div style={{
-              background: 'rgba(255, 255, 255, 0.1)',
-              borderRadius: '12px',
-              padding: '12px',
+              display: 'inline-block',
+              background: 'rgba(255, 255, 255, 0.2)',
+              padding: '10px 20px',
+              borderRadius: '8px',
               marginBottom: '16px',
-              backdropFilter: 'blur(10px)'
+              fontSize: '16px',
+              fontWeight: '600'
             }}>
-              <div style={{
-                display: 'flex',
-                flexWrap: 'wrap',
-                gap: '8px',
-                justifyContent: 'center'
-              }}>
-                {Object.keys(allSportsGames).map((sportName) => {
-                  const gamesInSport = allSportsGames[sportName] || [];
-                  const pickCountInSport = Object.values(selectedPicks).filter(pick => 
-                    gamesInSport.some(g => g.id === pick.gameId)
-                  ).length;
-                  
-                  return (
-                    <button
-                      key={sportName}
-                      onClick={() => onChangeSport(sportName)}
-                      style={{
-                        padding: '10px 20px',
-                        fontSize: '14px',
-                        fontWeight: 'bold',
-                        background: currentViewSport === sportName 
-                          ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
-                          : 'rgba(255, 255, 255, 0.2)',
-                        color: 'white',
-                        border: currentViewSport === sportName ? '2px solid white' : '2px solid transparent',
-                        borderRadius: '8px',
-                        cursor: 'pointer',
-                        transition: 'all 0.2s',
-                        position: 'relative',
-                        minWidth: '120px'
-                      }}
-                      onMouseEnter={(e) => {
-                        if (currentViewSport !== sportName) {
-                          e.currentTarget.style.background = 'rgba(255, 255, 255, 0.3)';
-                        }
-                      }}
-                      onMouseLeave={(e) => {
-                        if (currentViewSport !== sportName) {
-                          e.currentTarget.style.background = 'rgba(255, 255, 255, 0.2)';
-                        }
-                      }}
-                    >
-                      {sportName}
-                      {pickCountInSport > 0 && (
-                        <span style={{
-                          position: 'absolute',
-                          top: '-8px',
-                          right: '-8px',
-                          background: '#28a745',
-                          color: 'white',
-                          borderRadius: '50%',
-                          width: '24px',
-                          height: '24px',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          fontSize: '12px',
-                          fontWeight: 'bold',
-                          border: '2px solid white'
-                        }}>
-                          {pickCountInSport}
-                        </span>
-                      )}
-                      <div style={{fontSize: '10px', opacity: 0.8, marginTop: '2px'}}>
-                        {gamesInSport.length} games
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
-              <div style={{
-                marginTop: '12px',
-                padding: '8px',
-                background: 'rgba(255, 255, 255, 0.15)',
-                borderRadius: '8px',
-                fontSize: '13px',
-                textAlign: 'center'
-              }}>
-                💡 <strong>Cross-Sport Parlays Enabled!</strong> Switch between sports to add picks from multiple leagues
-              </div>
+              🏈 {sport}
             </div>
           )}
           
@@ -2171,6 +2149,14 @@ Email: ${contactInfo.email}
           </div>
           
         </div>
+        
+        {/* New Grid Betting Layout */}
+        <GridBettingLayout
+          games={games}
+          selectedPicks={selectedPicks}
+          onSelectPick={handleGridPickSelection}
+          betType={betType}
+        />
         
         <div className="card">
           {betType === 'parlay' ? (
@@ -2205,125 +2191,9 @@ Email: ${contactInfo.email}
             </>
           )}
         </div>
-        {games && Array.isArray(games) && games.map(game => {
-          const pickObj = selectedPicks[game.id] || {};
-          return (
-            <div key={game.id} className="game-card">
-              <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', paddingBottom: '12px', borderBottom: '2px solid #f0f0f0', flexWrap: 'wrap', gap: '8px'}}>
-                <span>{game.date} - {game.time}</span>
-                {game.status === 'in' && (
-                  <span style={{padding: '4px 12px', background: '#28a745', color: 'white', borderRadius: '12px', fontSize: '12px', fontWeight: 'bold'}}>
-                    🔴 LIVE
-                  </span>
-                )}
-              </div>
-              {game.isFinal && (
-                <div className="final-header">
-                  <div style={{textAlign: 'center', fontWeight: '600', color: '#dc3545', marginBottom: '12px', fontSize: '16px'}}>
-                    FINAL SCORE
-                  </div>
-                  <div style={{display: 'flex', justifyContent: 'space-around', alignItems: 'center', fontSize: '18px', fontWeight: 'bold'}}>
-                    <div style={{textAlign: 'center'}}>
-                      <div style={{color: '#333', marginBottom: '8px'}}>{game.awayTeam}</div>
-                      <div style={{fontSize: '32px', color: '#007bff'}}>{game.awayScore}</div>
-                    </div>
-                    <div style={{fontSize: '24px', color: '#999'}}>-</div>
-                    <div style={{textAlign: 'center'}}>
-                      <div style={{color: '#333', marginBottom: '8px'}}>{game.homeTeam}</div>
-                      <div style={{fontSize: '32px', color: '#007bff'}}>{game.homeScore}</div>
-                    </div>
-                  </div>
-                </div>
-              )}
-              <div
-                className={`team-row ${pickObj.spread === 'away' ? 'selected' : ''} ${game.isFinal ? 'disabled' : ''}`}
-                onClick={() => !game.isFinal && toggleSpread(game.id, 'away')}
-              >
-                <div className="team-info">
-                  <span className="team-name">{game.awayTeam}</span>
-                  {game.isFinal && <span className="final-score-badge">{game.awayScore}</span>}
-                </div>
-                <div style={{display: 'flex', alignItems: 'center', gap: '8px'}}>
-                  <span className="badge">AWAY</span>
-                  {betType === 'straight' && game.awayMoneyline ? (
-                    <span className="team-spread" style={{fontWeight: 'bold', color: '#007bff'}}>
-                      {game.awayMoneyline}
-                    </span>
-                  ) : (
-                    <span className="team-spread">{game.awaySpread || '--'}</span>
-                  )}
-                </div>
-              </div>
-              <div style={{textAlign: 'center', color: '#999', margin: '8px 0', fontSize: '14px'}}>@</div>
-              <div
-                className={`team-row ${pickObj.spread === 'home' ? 'selected' : ''} ${game.isFinal ? 'disabled' : ''}`}
-                onClick={() => !game.isFinal && toggleSpread(game.id, 'home')}
-              >
-                <div className="team-info">
-                  <span className="team-name">{game.homeTeam}</span>
-                  {game.isFinal && <span className="final-score-badge">{game.homeScore}</span>}
-                </div>
-                <div style={{display: 'flex', alignItems: 'center', gap: '8px'}}>
-                  <span className="badge">HOME</span>
-                  {betType === 'straight' && game.homeMoneyline ? (
-                    <span className="team-spread" style={{fontWeight: 'bold', color: '#007bff'}}>
-                      {game.homeMoneyline}
-                    </span>
-                  ) : (
-                    <span className="team-spread">{game.homeSpread || '--'}</span>
-                  )}
-                </div>
-              </div>
-              {game.total && (
-                <div style={{textAlign: 'center', color: '#333', margin: '16px 0', padding: '12px', background: '#f8f9fa', borderRadius: '8px'}}>
-                  <div style={{marginBottom: '8px'}}><strong>Total:</strong> {game.total}</div>
-                  <div style={{display: 'flex', justifyContent: 'center', gap: '12px'}}>
-                    <button
-                      type="button"
-                      className="btn"
-                      style={{
-                        background: pickObj.total === 'over' ? '#28a745' : '#fff',
-                        color: pickObj.total === 'over' ? '#fff' : '#333',
-                        border: '2px solid #28a745',
-                        fontWeight: 'bold',
-                        padding: '8px 20px'
-                      }}
-                      disabled={game.isFinal}
-                      onClick={() => !game.isFinal && toggleTotal(game.id, 'over')}
-                    >Over</button>
-                    <button
-                      type="button"
-                      className="btn"
-                      style={{
-                        background: pickObj.total === 'under' ? '#dc3545' : '#fff',
-                        color: pickObj.total === 'under' ? '#fff' : '#333',
-                        border: '2px solid #dc3545',
-                        fontWeight: 'bold',
-                        padding: '8px 20px'
-                      }}
-                      disabled={game.isFinal}
-                      onClick={() => !game.isFinal && toggleTotal(game.id, 'under')}
-                    >Under</button>
-                  </div>
-                </div>
-              )}
-            </div>
-          );
-        })}
-        <div className="text-center mb-4">
-          <div className="text-white mb-2" style={{fontSize: '20px'}}>
-            Selected: {pickCount} pick{pickCount !== 1 ? 's' : ''}
-            {!canSubmit && <div style={{color: '#ffc107'}}>( minimum {minPicks} required)</div>}
-          </div>
-          <button
-            className="btn btn-success"
-            onClick={submitPicks}
-            disabled={!canSubmit}
-            style={{padding: '18px 56px', fontSize: '20px'}}
-          >
-            {canSubmit ? 'Submit Picks' : `Select ${minPicks - pickCount} More`}
-          </button>
-        </div>
+        
+        {/* Replaced old game cards with new GridBettingLayout - rendered above */}
+        
         <div className="card">
           <h3 className="mb-2">Important Rules</h3>
           <ul style={{marginLeft: '20px', lineHeight: '1.8'}}>
@@ -2345,6 +2215,22 @@ Email: ${contactInfo.email}
           </div>
         </div>
       </div>
+      
+      {/* Betting Slip - Floating on the right side */}
+      <BettingSlip
+        selectedPicks={selectedPicks}
+        onRemovePick={handleRemovePick}
+        onClearAll={handleClearAll}
+        onSubmit={submitPicks}
+        betType={betType}
+        games={games}
+        allSportsGames={allSportsGames}
+        individualBetAmounts={individualBetAmounts}
+        setIndividualBetAmounts={setIndividualBetAmounts}
+        MIN_BET={MIN_BET}
+        MAX_BET={MAX_BET}
+      />
+      
       <div className={`modal ${showConfirmation ? 'active' : ''}`}>
         <div className="modal-content">
           <h2 className="text-center" style={{fontSize: '32px', color: '#28a745', marginBottom: '20px'}}>Picks Submitted!</h2>

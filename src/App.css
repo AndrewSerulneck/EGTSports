@@ -379,4 +379,21 @@ ul li {
     order: 2;
     width: 100%;
   }
+  
+  /* Adjust for sidebar and betting slip on mobile */
+  .container.with-sidebar {
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+    width: 100% !important;
+  }
+}
+
+/* Layout adjustments for new design */
+.container.with-sidebar {
+  max-width: none;
+}
+
+/* Ensure modals appear above everything */
+.modal {
+  z-index: 10000 !important;
 }
