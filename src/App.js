@@ -22,6 +22,23 @@ const ESPN_API_ENDPOINTS = {
   'NHL': 'https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard'
 };
 
+// Helper function to get date range URLs for ESPN API
+// ESPN API supports fetching games for specific dates using ?dates=YYYYMMDD format
+const getESPNDateRangeURLs = (baseURL) => {
+  const urls = [];
+  const today = new Date();
+  
+  // Get games from 7 days ago to 14 days in the future (3 week window)
+  for (let i = -7; i <= 14; i++) {
+    const date = new Date(today);
+    date.setDate(date.getDate() + i);
+    const dateStr = date.toISOString().split('T')[0].replace(/-/g, ''); // Format: YYYYMMDD
+    urls.push(`${baseURL}?dates=${dateStr}`);
+  }
+  
+  return urls;
+};
+
 // The Odds API Configuration
 const ODDS_API_KEY = '4e1df4cc99838c371ae1822316b8eb7c';
 const ODDS_API_BASE_URL = 'https://api.the-odds-api.com/v4';
@@ -2635,7 +2652,7 @@ function App() {
     return { awaySpread, homeSpread, total, awayMoneyline, homeMoneyline };
   }, []);
 
-  // IMPROVED: SPORT-SPECIFIC GAME LOADING WITH SMART REFRESH
+  // IMPROVED: SPORT-SPECIFIC GAME LOADING WITH SMART REFRESH AND DATE RANGE
   const loadGames = useCallback(async (sport, forceRefresh = false) => {
     setLoading(true);
     setApiError(null);
@@ -2660,16 +2677,31 @@ function App() {
     
     try {
       const apiEndpoint = ESPN_API_ENDPOINTS[sport];
-      console.log(`🔄 Fetching ${sport} games from ESPN API...`);
+      const dateURLs = getESPNDateRangeURLs(apiEndpoint);
+      console.log(`🔄 Fetching ${sport} games for ${dateURLs.length} dates from ESPN API...`);
       
       // Track API call
-      apiCallCount.total++;
-      apiCallCount.byEndpoint[sport] = (apiCallCount.byEndpoint[sport] || 0) + 1;
+      apiCallCount.total += dateURLs.length;
+      apiCallCount.byEndpoint[sport] = (apiCallCount.byEndpoint[sport] || 0) + dateURLs.length;
       
-      const response = await fetch(apiEndpoint);
+      // Fetch all dates in parallel
+      const responses = await Promise.all(
+        dateURLs.map(url => fetch(url).catch(err => {
+          console.error(`Error fetching ${url}:`, err);
+          return null;
+        }))
+      );
       
-      // Handle rate limiting (429 status)
-      if (response.status === 429) {
+      // Filter out failed requests
+      const validResponses = responses.filter(r => r !== null);
+      
+      if (validResponses.length === 0) {
+        throw new Error('All API requests failed');
+      }
+      
+      // Check for rate limiting on any response
+      const rateLimited = validResponses.some(r => r.status === 429);
+      if (rateLimited) {
         console.error('⚠️ ESPN API rate limit exceeded');
         apiCallCount.errors++;
         setApiError('ESPN API is temporarily unavailable due to rate limiting. Please try again in a few minutes.');
@@ -2686,16 +2718,21 @@ function App() {
         return;
       }
       
-      // Handle other HTTP errors
-      if (!response.ok) {
-        apiCallCount.errors++;
-        throw new Error(`ESPN API returned status ${response.status}`);
-      }
+      // Parse all responses
+      const allData = await Promise.all(
+        validResponses.map(r => r.ok ? r.json() : null)
+      );
       
-      const data = await response.json();
+      // Combine all events from all dates
+      const allEvents = [];
+      allData.forEach(data => {
+        if (data && data.events && data.events.length > 0) {
+          allEvents.push(...data.events);
+        }
+      });
       
       // Check if events exist
-      if (!data.events || data.events.length === 0) {
+      if (allEvents.length === 0) {
         console.log(`ℹ️ No games available for ${sport}`);
         setGames([]);
         
@@ -2713,17 +2750,28 @@ function App() {
       }
       
       // Debug: Log the entire odds structure for the first 2 games
-      data.events.forEach((event, index) => {
-        if (index < 2) {
-          const competition = event.competitions[0];
-          console.log('=== DEBUG: ESPN API Odds Structure ===');
-          console.log('Game:', competition.competitors[1].team.displayName, '@', competition.competitors[0].team.displayName);
-          console.log('Full odds object:', JSON.stringify(competition.odds, null, 2));
-          console.log('======================================');
+      allEvents.slice(0, 2).forEach((event, index) => {
+        const competition = event.competitions[0];
+        console.log('=== DEBUG: ESPN API Odds Structure ===');
+        console.log('Game:', competition.competitors[1].team.displayName, '@', competition.competitors[0].team.displayName);
+        console.log('Full odds object:', JSON.stringify(competition.odds, null, 2));
+        console.log('======================================');
+      });
+      
+      // Remove duplicate games (same espnId)
+      const uniqueEvents = [];
+      const seenIds = new Set();
+      allEvents.forEach(event => {
+        if (!seenIds.has(event.id)) {
+          seenIds.add(event.id);
+          uniqueEvents.push(event);
         }
       });
       
-      const formattedGames = data.events.map((event, index) => {
+      // Sort events by date (past games first, then upcoming)
+      uniqueEvents.sort((a, b) => new Date(a.date) - new Date(b.date));
+      
+      const formattedGames = uniqueEvents.map((event, index) => {
         const competition = event.competitions[0];
         const awayTeam = competition.competitors[1];
         const homeTeam = competition.competitors[0];
@@ -2896,14 +2944,30 @@ function App() {
         }
         
         const apiEndpoint = ESPN_API_ENDPOINTS[sport];
-        console.log(`🔄 Fetching ${sport} games for cross-sport parlay...`);
+        const dateURLs = getESPNDateRangeURLs(apiEndpoint);
+        console.log(`🔄 Fetching ${sport} games for ${dateURLs.length} dates (cross-sport parlay)...`);
         
-        apiCallCount.total++;
-        apiCallCount.byEndpoint[sport] = (apiCallCount.byEndpoint[sport] || 0) + 1;
+        apiCallCount.total += dateURLs.length;
+        apiCallCount.byEndpoint[sport] = (apiCallCount.byEndpoint[sport] || 0) + dateURLs.length;
         
-        const response = await fetch(apiEndpoint);
+        // Fetch all dates in parallel
+        const responses = await Promise.all(
+          dateURLs.map(url => fetch(url).catch(err => {
+            console.error(`Error fetching ${url}:`, err);
+            return null;
+          }))
+        );
         
-        if (response.status === 429) {
+        // Filter out failed requests
+        const validResponses = responses.filter(r => r !== null);
+        
+        if (validResponses.length === 0) {
+          sportsData[sport] = [];
+          return;
+        }
+        
+        const rateLimited = validResponses.some(r => r.status === 429);
+        if (rateLimited) {
           console.error(`⚠️ ESPN API rate limit exceeded for ${sport}`);
           apiCallCount.errors++;
           const cached = gameCache[sport];
@@ -2915,15 +2979,20 @@ function App() {
           return;
         }
         
-        if (!response.ok) {
-          apiCallCount.errors++;
-          sportsData[sport] = [];
-          return;
-        }
+        // Parse all responses
+        const allData = await Promise.all(
+          validResponses.map(r => r.ok ? r.json() : null)
+        );
         
-        const data = await response.json();
+        // Combine all events from all dates
+        const allEvents = [];
+        allData.forEach(data => {
+          if (data && data.events && data.events.length > 0) {
+            allEvents.push(...data.events);
+          }
+        });
         
-        if (!data.events || data.events.length === 0) {
+        if (allEvents.length === 0) {
           console.log(`ℹ️ No games available for ${sport}`);
           sportsData[sport] = [];
           const timestamp = Date.now();
@@ -2931,7 +3000,18 @@ function App() {
           return;
         }
         
-        const formattedGames = data.events.map((event, index) => {
+        // Remove duplicate games and sort by date
+        const uniqueEvents = [];
+        const seenIds = new Set();
+        allEvents.forEach(event => {
+          if (!seenIds.has(event.id)) {
+            seenIds.add(event.id);
+            uniqueEvents.push(event);
+          }
+        });
+        uniqueEvents.sort((a, b) => new Date(a.date) - new Date(b.date));
+        
+        const formattedGames = uniqueEvents.map((event, index) => {
           const competition = event.competitions[0];
           const awayTeam = competition.competitors[1];
           const homeTeam = competition.competitors[0];
