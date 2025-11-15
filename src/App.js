@@ -1206,13 +1206,14 @@ try {
 
   // Show message if no games available
   if (games.length === 0) {
+    const displaySport = currentViewSport || sport;
     return (
       <div className="gradient-bg">
         <div className="container" style={{maxWidth: '600px', paddingTop: '60px'}}>
           <div className="card text-center">
-            <h2 style={{marginBottom: '20px'}}>No {sport} Games Available</h2>
+            <h2 style={{marginBottom: '20px'}}>No {displaySport} Games Available</h2>
             <p style={{marginBottom: '20px', color: '#666'}}>
-              There are currently no upcoming {sport} games. This could be due to the off-season or no scheduled games at this time.
+              There are currently no upcoming {displaySport} games. This could be due to the off-season or no scheduled games at this time.
             </p>
             <div style={{display: 'flex', gap: '12px', justifyContent: 'center'}}>
               <button className="btn btn-primary" onClick={handleManualRefresh} disabled={isRefreshing}>
@@ -3071,6 +3072,9 @@ function App() {
     allSportsGames={allSportsGames}
     currentViewSport={currentViewSport}
     onChangeSport={(sport) => {
+      console.log('🔄 Changing sport to:', sport);
+      console.log('📊 allSportsGames keys:', Object.keys(allSportsGames));
+      console.log('🎮 Games for', sport, ':', allSportsGames[sport]?.length || 0);
       setCurrentViewSport(sport);
       setGames(allSportsGames[sport] || []);
     }}
