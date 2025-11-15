@@ -2853,11 +2853,13 @@ function App() {
     // Don't override when user has navigated to a different sport
     const currentSport = currentViewSportRef.current;
     if (!currentSport) {
+      console.log('🏈 loadAllSports: Initial load, setting to', initialSport, 'with', sportsData[initialSport]?.length || 0, 'games');
       setCurrentViewSport(initialSport);
       currentViewSportRef.current = initialSport;
       setGames(sportsData[initialSport] || []);
     } else {
       // Refresh the games for the currently viewed sport
+      console.log('🔄 loadAllSports: Refreshing', currentSport, 'with', sportsData[currentSport]?.length || 0, 'games');
       setGames(sportsData[currentSport] || []);
     }
     setLoading(false);
@@ -3122,9 +3124,11 @@ function App() {
       console.log('🔄 Changing sport to:', sport);
       console.log('📊 allSportsGames keys:', Object.keys(allSportsGames));
       console.log('🎮 Games for', sport, ':', allSportsGames[sport]?.length || 0);
+      const gamesForSport = allSportsGames[sport] || [];
+      console.log('📋 About to set games array with length:', gamesForSport.length);
       setCurrentViewSport(sport);
       currentViewSportRef.current = sport;
-      setGames(allSportsGames[sport] || []);
+      setGames(gamesForSport);
     }}
     loading={loading} 
     onBackToMenu={handleSignOut} 
