@@ -606,93 +606,6 @@ function AdminLandingPage({ onSelectSport, onManageUsers, onSignOut }) {
   );
 }
 
-// Welcome Landing Page Component - ALL SPORTS ENABLED (Updated for cross-sport parlays)
-function WelcomeLandingPage({ onSelectSport, onSignOut, onBack, isAuthenticated, betType }) {
-  const sports = [
-    { name: 'NFL', available: true },
-    { name: 'NBA', available: true },
-    { name: 'College Football', available: true },
-    { name: 'College Basketball', available: true },
-    { name: 'Major League Baseball', available: true },
-    { name: 'NHL', available: true }
-  ];
-
-  return (
-    <div className="gradient-bg">
-      <div className="container" style={{ maxWidth: '800px', paddingTop: '60px' }}>
-        <div className="text-center text-white mb-4">
-          <h1 style={{ fontSize: '48px', marginBottom: '16px' }}>Welcome to EGT Sports</h1>
-          <p style={{ fontSize: '20px', marginBottom: '16px' }}>Select a sport to get started</p>
-          {betType && (
-            <div style={{ 
-              display: 'inline-block',
-              padding: '12px 24px',
-              background: 'rgba(255, 255, 255, 0.2)',
-              borderRadius: '20px',
-              marginBottom: '24px'
-            }}>
-              <span style={{ fontSize: '16px' }}>
-                Bet Type: <strong>{betType === 'straight' ? 'Straight Bets' : 'Parlays'}</strong>
-              </span>
-            </div>
-          )}
-          <p style={{ fontSize: '16px', marginBottom: '40px', opacity: '0.9' }}>
-            Reminder: Please add no-reply@EGTSports.ws to your contacts to avoid your confirmation ticket going to your spam folder!
-          </p>
-        </div>
-        
-        {/* Back/Sign Out Buttons */}
-        <div style={{ textAlign: 'center', marginBottom: '24px', display: 'flex', justifyContent: 'center', gap: '12px' }}>
-          {onBack && (
-            <button className="btn btn-secondary" onClick={onBack} style={{ padding: '12px 32px', fontSize: '16px' }}>
-              ← Back
-            </button>
-          )}
-          {isAuthenticated && (
-            <button className="btn btn-secondary" onClick={onSignOut} style={{ padding: '12px 32px', fontSize: '16px' }}>
-              🚪 Sign Out
-            </button>
-          )}
-        </div>
-
-        <div className="card">
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px' }}>
-            {sports.map((sport) => (
-              <button
-                key={sport.name}
-                className="btn"
-                onClick={() => sport.available && onSelectSport(sport.name)}
-                disabled={!sport.available}
-                style={{
-                  padding: '32px 24px',
-                  fontSize: '18px',
-                  fontWeight: 'bold',
-                  background: sport.available ? '#007bff' : '#e9ecef',
-                  color: sport.available ? 'white' : '#6c757d',
-                  border: 'none',
-                  cursor: sport.available ? 'pointer' : 'not-allowed',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  gap: '8px',
-                  position: 'relative'
-                }}
-              >
-                <span>{sport.name}</span>
-                {!sport.available && (
-                  <span style={{ fontSize: '12px', fontStyle: 'italic', color: '#999' }}>
-                    Coming Soon
-                  </span>
-                )}
-              </button>
-            ))}
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 // Landing Page Component - WITH MANUAL REFRESH BUTTON AND CROSS-SPORT SUPPORT
 function LandingPage({ games, allSportsGames, currentViewSport, onChangeSport, loading, onBackToMenu, sport, betType, onBetTypeChange, apiError, onManualRefresh, lastRefreshTime }) {
   const [selectedPicks, setSelectedPicks] = useState({});
@@ -1989,7 +1902,7 @@ Email: ${contactInfo.email}
         <div className="text-center text-white mb-4">
           <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '12px'}}>
             <button className="btn btn-secondary" onClick={onBackToMenu} style={{height: 'fit-content'}}>
-              ← Back to Menu
+              🚪 Sign Out
             </button>
             <div style={{flex: 1, textAlign: 'center'}}>
               <h1 style={{fontSize: '42px'}}>
@@ -2985,19 +2898,10 @@ function App() {
   }
 
   // Show user welcome screen if logged in as non-admin user
-  // Skip bet type selection - default to parlay mode and load first available sport
+  // Skip sport selection - default to NFL and go directly to betting interface
   if (authState.user && !authState.isAdmin && !selectedSport) {
-    // Set default sport to NFL if not already set
-    if (!selectedSport) {
-      setSelectedSport('NFL');
-    }
-    return <WelcomeLandingPage 
-      onSelectSport={(sport) => setSelectedSport(sport)} 
-      onSignOut={handleSignOut}
-      onBack={null}
-      isAuthenticated={true}
-      betType={betType}
-    />;
+    setSelectedSport('NFL'); // Set default sport
+    return null; // Will re-render with sport selected
   }
 
   // Show role selection if not determined yet
@@ -3092,15 +2996,10 @@ function App() {
   }
 
   // Show sport selection if no sport selected (for guest and logged-in user)
-  // Skip bet type selection - default to parlay mode
+  // Skip sport selection - default to NFL and go directly to betting interface
   if (!selectedSport) {
-    return <WelcomeLandingPage 
-      onSelectSport={(sport) => setSelectedSport(sport)} 
-      onSignOut={handleSignOut}
-      onBack={() => setUserRole(null)}
-      isAuthenticated={false}
-      betType={betType}
-    />;
+    setSelectedSport('NFL'); // Set default sport
+    return null; // Will re-render with sport selected
   }
 
   // Show loading while games are loading
@@ -3124,7 +3023,7 @@ function App() {
       setGames(allSportsGames[sport] || []);
     }}
     loading={loading} 
-    onBackToMenu={() => setSelectedSport(null)} 
+    onBackToMenu={handleSignOut} 
     sport={selectedSport}
     betType={betType}
     onBetTypeChange={(type) => setBetType(type)}
