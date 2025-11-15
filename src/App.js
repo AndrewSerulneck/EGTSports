@@ -3084,7 +3084,7 @@ function App() {
     }}
     loading={loading} 
     onBackToMenu={handleSignOut} 
-    sport={selectedSport}
+    sport={currentViewSport || selectedSport}
     betType={betType}
     onBetTypeChange={(type) => setBetType(type)}
     apiError={apiError}
