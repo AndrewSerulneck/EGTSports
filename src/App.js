@@ -606,114 +606,6 @@ function AdminLandingPage({ onSelectSport, onManageUsers, onSignOut }) {
   );
 }
 
-// Bet Type Selection Component - NEW for Requirement 1
-function BetTypeSelectionPage({ onSelectBetType, onBack, onSignOut, isAuthenticated }) {
-  return (
-    <div className="gradient-bg">
-      <div className="container" style={{ maxWidth: '800px', paddingTop: '60px' }}>
-        <div className="text-center text-white mb-4">
-          <h1 style={{ fontSize: '48px', marginBottom: '16px' }}>Choose Your Bet Type</h1>
-          <p style={{ fontSize: '20px', marginBottom: '40px' }}>Select how you'd like to place your bets</p>
-        </div>
-        
-        {/* Back/Sign Out Buttons */}
-        <div style={{ textAlign: 'center', marginBottom: '24px', display: 'flex', justifyContent: 'center', gap: '12px' }}>
-          {onBack && (
-            <button className="btn btn-secondary" onClick={onBack} style={{ padding: '12px 32px', fontSize: '16px' }}>
-              ← Back
-            </button>
-          )}
-          {isAuthenticated && (
-            <button className="btn btn-secondary" onClick={onSignOut} style={{ padding: '12px 32px', fontSize: '16px' }}>
-              🚪 Sign Out
-            </button>
-          )}
-        </div>
-
-        <div className="card">
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '20px' }}>
-            <button
-              className="btn"
-              onClick={() => onSelectBetType('straight')}
-              style={{
-                padding: '48px 32px',
-                fontSize: '20px',
-                fontWeight: 'bold',
-                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                color: 'white',
-                border: 'none',
-                cursor: 'pointer',
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                gap: '16px',
-                borderRadius: '12px',
-                boxShadow: '0 4px 15px rgba(0,0,0,0.2)',
-                transition: 'transform 0.2s',
-              }}
-              onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.05)'}
-              onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
-            >
-              <span style={{ fontSize: '64px' }}>🎯</span>
-              <span>Straight Bets</span>
-              <span style={{ fontSize: '14px', opacity: '0.9', fontWeight: 'normal', lineHeight: '1.6' }}>
-                Bet on individual games with dynamic odds
-              </span>
-            </button>
-            
-            <button
-              className="btn"
-              onClick={() => onSelectBetType('parlay')}
-              style={{
-                padding: '48px 32px',
-                fontSize: '20px',
-                fontWeight: 'bold',
-                background: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
-                color: 'white',
-                border: 'none',
-                cursor: 'pointer',
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                gap: '16px',
-                borderRadius: '12px',
-                boxShadow: '0 4px 15px rgba(0,0,0,0.2)',
-                transition: 'transform 0.2s',
-              }}
-              onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.05)'}
-              onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
-            >
-              <span style={{ fontSize: '64px' }}>🎲</span>
-              <span>Parlays</span>
-              <span style={{ fontSize: '14px', opacity: '0.9', fontWeight: 'normal', lineHeight: '1.6' }}>
-                Combine multiple picks across sports for bigger payouts
-              </span>
-            </button>
-          </div>
-        </div>
-
-        <div style={{
-          marginTop: '40px',
-          textAlign: 'center',
-          color: 'white',
-          fontSize: '16px',
-          opacity: '0.9',
-          padding: '20px',
-          background: 'rgba(255, 255, 255, 0.1)',
-          borderRadius: '12px'
-        }}>
-          <p style={{ marginBottom: '12px' }}>
-            <strong>Straight Bets:</strong> Single wagers on individual games with varying odds based on the matchup
-          </p>
-          <p style={{ marginBottom: '0' }}>
-            <strong>Parlays:</strong> Combine 3+ picks for higher payouts - all selections must win
-          </p>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 // Welcome Landing Page Component - ALL SPORTS ENABLED (Updated for cross-sport parlays)
 function WelcomeLandingPage({ onSelectSport, onSignOut, onBack, isAuthenticated, betType }) {
   const sports = [
@@ -802,7 +694,7 @@ function WelcomeLandingPage({ onSelectSport, onSignOut, onBack, isAuthenticated,
 }
 
 // Landing Page Component - WITH MANUAL REFRESH BUTTON AND CROSS-SPORT SUPPORT
-function LandingPage({ games, allSportsGames, currentViewSport, onChangeSport, loading, onBackToMenu, sport, betType, apiError, onManualRefresh, lastRefreshTime }) {
+function LandingPage({ games, allSportsGames, currentViewSport, onChangeSport, loading, onBackToMenu, sport, betType, onBetTypeChange, apiError, onManualRefresh, lastRefreshTime }) {
   const [selectedPicks, setSelectedPicks] = useState({});
   const [showConfirmation, setShowConfirmation] = useState(false);
   const [ticketNumber, setTicketNumber] = useState('');
@@ -2077,8 +1969,8 @@ Email: ${contactInfo.email}
 
   return (
     <div className="gradient-bg" style={{display: 'flex', minHeight: '100vh'}}>
-      {/* Left Sidebar - Sports Menu */}
-      {betType === 'parlay' && allSportsGames && Object.keys(allSportsGames).length > 0 && (
+      {/* Left Sidebar - Sports Menu - Always show when allSportsGames is available */}
+      {allSportsGames && Object.keys(allSportsGames).length > 0 && (
         <SportsMenu
           currentSport={currentViewSport}
           onSelectSport={onChangeSport}
@@ -2088,10 +1980,10 @@ Email: ${contactInfo.email}
       )}
       
       {/* Main Content */}
-      <div className={`container ${betType === 'parlay' ? 'with-sidebar' : ''}`} style={{
-        marginLeft: betType === 'parlay' ? '250px' : '0',
+      <div className={`container ${allSportsGames && Object.keys(allSportsGames).length > 0 ? 'with-sidebar' : ''}`} style={{
+        marginLeft: allSportsGames && Object.keys(allSportsGames).length > 0 ? '250px' : '0',
         marginRight: '370px',
-        width: 'calc(100% - 620px)',
+        width: allSportsGames && Object.keys(allSportsGames).length > 0 ? 'calc(100% - 620px)' : 'calc(100% - 370px)',
         transition: 'all 0.3s ease'
       }}>
         <div className="text-center text-white mb-4">
@@ -2223,6 +2115,7 @@ Email: ${contactInfo.email}
         onClearAll={handleClearAll}
         onSubmit={submitPicks}
         betType={betType}
+        onBetTypeChange={onBetTypeChange}
         games={games}
         allSportsGames={allSportsGames}
         individualBetAmounts={individualBetAmounts}
@@ -2306,7 +2199,7 @@ function App() {
   });
   const [userRole, setUserRole] = useState(null); // 'user', 'admin', 'guest', or null
   const [showAdminUserManagement, setShowAdminUserManagement] = useState(false);
-  const [betType, setBetType] = useState(null); // 'straight' or 'parlay'
+  const [betType, setBetType] = useState('parlay'); // Default to 'parlay' mode - users can switch via betting slip
   const [loginForm, setLoginForm] = useState({
     email: "",
     password: "",
@@ -2969,31 +2862,19 @@ function App() {
     let intervalId = null;
     
     if (selectedSport) {
-      // If parlay mode, load all sports
-      if (betType === 'parlay') {
+      // Always load all sports to populate the sidebar
+      loadAllSports(selectedSport);
+      // Setup Firebase listeners for all sports
+      setTimeout(() => {
+        Object.keys(ESPN_API_ENDPOINTS).forEach(sport => {
+          setupFirebaseListener(sport);
+        });
+      }, 500);
+      
+      // Set up interval
+      intervalId = setInterval(() => {
         loadAllSports(selectedSport);
-        // Setup Firebase listeners for all sports
-        setTimeout(() => {
-          Object.keys(ESPN_API_ENDPOINTS).forEach(sport => {
-            setupFirebaseListener(sport);
-          });
-        }, 500);
-        
-        // Set up interval
-        intervalId = setInterval(() => {
-          loadAllSports(selectedSport);
-        }, refreshInterval || REFRESH_INTERVAL_INACTIVE);
-      } else {
-        // If straight bets, load only selected sport
-        loadGames(selectedSport);
-        setTimeout(() => {
-          setupFirebaseListener(selectedSport);
-        }, 500);
-        
-        intervalId = setInterval(() => {
-          loadGames(selectedSport);
-        }, refreshInterval || REFRESH_INTERVAL_INACTIVE);
-      }
+      }, refreshInterval || REFRESH_INTERVAL_INACTIVE);
     }
     
     return () => {
@@ -3001,7 +2882,7 @@ function App() {
         clearInterval(intervalId);
       }
     };
-  }, [selectedSport, betType, refreshInterval, loadGames, loadAllSports, setupFirebaseListener]);
+  }, [selectedSport, betType, refreshInterval, loadAllSports, setupFirebaseListener]);
 
   useEffect(() => {
     const stored = localStorage.getItem('marcs-parlays-submissions');
@@ -3104,21 +2985,16 @@ function App() {
   }
 
   // Show user welcome screen if logged in as non-admin user
-  if (authState.user && !authState.isAdmin && !betType) {
-    return <BetTypeSelectionPage 
-      onSelectBetType={(type) => setBetType(type)} 
-      onSignOut={handleSignOut}
-      onBack={null}
-      isAuthenticated={true}
-    />;
-  }
-
-  // Show user sport selection if logged in as non-admin user and bet type selected
-  if (authState.user && !authState.isAdmin && betType && !selectedSport) {
+  // Skip bet type selection - default to parlay mode and load first available sport
+  if (authState.user && !authState.isAdmin && !selectedSport) {
+    // Set default sport to NFL if not already set
+    if (!selectedSport) {
+      setSelectedSport('NFL');
+    }
     return <WelcomeLandingPage 
       onSelectSport={(sport) => setSelectedSport(sport)} 
       onSignOut={handleSignOut}
-      onBack={() => setBetType(null)}
+      onBack={null}
       isAuthenticated={true}
       betType={betType}
     />;
@@ -3216,21 +3092,12 @@ function App() {
   }
 
   // Show sport selection if no sport selected (for guest and logged-in user)
-  if (!betType) {
-    return <BetTypeSelectionPage 
-      onSelectBetType={(type) => setBetType(type)} 
-      onSignOut={handleSignOut}
-      onBack={() => setUserRole(null)}
-      isAuthenticated={false}
-    />;
-  }
-
-  // Show sport selection after bet type selected
+  // Skip bet type selection - default to parlay mode
   if (!selectedSport) {
     return <WelcomeLandingPage 
       onSelectSport={(sport) => setSelectedSport(sport)} 
       onSignOut={handleSignOut}
-      onBack={() => setBetType(null)}
+      onBack={() => setUserRole(null)}
       isAuthenticated={false}
       betType={betType}
     />;
@@ -3260,6 +3127,7 @@ function App() {
     onBackToMenu={() => setSelectedSport(null)} 
     sport={selectedSport}
     betType={betType}
+    onBetTypeChange={(type) => setBetType(type)}
     apiError={apiError}
     onManualRefresh={handleManualRefresh}
     lastRefreshTime={lastRefreshTime}
