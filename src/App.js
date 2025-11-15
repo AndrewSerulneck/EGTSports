@@ -1208,8 +1208,23 @@ try {
   if (games.length === 0) {
     const displaySport = currentViewSport || sport;
     return (
-      <div className="gradient-bg">
-        <div className="container" style={{maxWidth: '600px', paddingTop: '60px'}}>
+      <div className="gradient-bg" style={{display: 'flex', minHeight: '100vh'}}>
+        {/* Left Sidebar - Sports Menu - Show even when no games */}
+        {allSportsGames && Object.keys(allSportsGames).length > 0 && (
+          <SportsMenu
+            currentSport={currentViewSport}
+            onSelectSport={onChangeSport}
+            allSportsGames={allSportsGames}
+            betType={betType}
+          />
+        )}
+        
+        <div className="container" style={{
+          maxWidth: '600px', 
+          paddingTop: '60px',
+          marginLeft: allSportsGames && Object.keys(allSportsGames).length > 0 ? '250px' : '0',
+          width: allSportsGames && Object.keys(allSportsGames).length > 0 ? 'calc(100% - 250px)' : '100%'
+        }}>
           <div className="card text-center">
             <h2 style={{marginBottom: '20px'}}>No {displaySport} Games Available</h2>
             <p style={{marginBottom: '20px', color: '#666'}}>
