@@ -2901,6 +2901,7 @@ function App() {
   // Skip sport selection - default to NFL and go directly to betting interface
   if (authState.user && !authState.isAdmin && !selectedSport) {
     setSelectedSport('NFL'); // Set default sport
+    setCurrentViewSport('NFL'); // Also set current view sport
     return null; // Will re-render with sport selected
   }
 
@@ -2999,6 +3000,7 @@ function App() {
   // Skip sport selection - default to NFL and go directly to betting interface
   if (!selectedSport) {
     setSelectedSport('NFL'); // Set default sport
+    setCurrentViewSport('NFL'); // Also set current view sport
     return null; // Will re-render with sport selected
   }
 
