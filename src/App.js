@@ -2892,7 +2892,7 @@ function App() {
   const handleSignOut = async () => {
     await signOut(auth);
     setUserRole(null);
-    setBetType(null);
+    setBetType('parlay'); // Reset to default parlay mode instead of null
     setSelectedSport(null);
     setShowAdminUserManagement(false);
   };
