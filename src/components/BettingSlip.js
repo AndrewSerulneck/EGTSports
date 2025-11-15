@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import './BettingSlip.css';
 
 /**
@@ -20,11 +20,17 @@ function BettingSlip({
   MAX_BET
 }) {
   const [isExpanded, setIsExpanded] = useState(true);
-  const [activeTab, setActiveTab] = useState(betType || 'single');
+  const [activeTab, setActiveTab] = useState(betType === 'straight' ? 'single' : 'parlay');
+
+  // Sync activeTab when betType changes externally
+  useEffect(() => {
+    setActiveTab(betType === 'straight' ? 'single' : 'parlay');
+  }, [betType]);
 
   // Calculate pick count
   let pickCount = 0;
   Object.values(selectedPicks).forEach(obj => {
+    if (obj.winner) pickCount++;
     if (obj.spread) pickCount++;
     if (obj.total) pickCount++;
   });
@@ -111,6 +117,52 @@ function BettingSlip({
       const gameName = `${game.awayTeam} @ ${game.homeTeam}`;
       const sportLabel = game.sport ? ` (${game.sport})` : '';
 
+      // Handle winner (moneyline) picks
+      if (pickObj.winner) {
+        const team = pickObj.winner === 'away' ? game.awayTeam : game.homeTeam;
+        const moneyline = pickObj.winner === 'away' ? game.awayMoneyline : game.homeMoneyline;
+        const pickId = getPickId(gameId, 'winner');
+
+        picks.push(
+          <div key={pickId} className="betting-slip-pick">
+            <div className="pick-header">
+              <span className="pick-team">{team}</span>
+              <button 
+                className="remove-pick-btn" 
+                onClick={() => onRemovePick(gameId, 'winner')}
+                title="Remove pick"
+              >
+                ×
+              </button>
+            </div>
+            <div className="pick-details">
+              <div className="pick-game">{gameName}{sportLabel}</div>
+              <div className="pick-odds">
+                Winner: {moneyline || '--'}
+              </div>
+            </div>
+            {activeTab === 'single' && (
+              <div className="pick-bet-amount">
+                <input
+                  type="number"
+                  min={MIN_BET}
+                  max={MAX_BET}
+                  step="0.01"
+                  placeholder={`$${MIN_BET} - $${MAX_BET}`}
+                  value={individualBetAmounts?.[pickId] || ''}
+                  onChange={(e) => setIndividualBetAmounts({
+                    ...individualBetAmounts,
+                    [pickId]: e.target.value
+                  })}
+                  className="bet-amount-input"
+                />
+              </div>
+            )}
+          </div>
+        );
+      }
+
+      // Handle spread (points handicap) picks
       if (pickObj.spread) {
         const team = pickObj.spread === 'away' ? game.awayTeam : game.homeTeam;
         const spread = pickObj.spread === 'away' ? game.awaySpread : game.homeSpread;
@@ -226,7 +278,7 @@ function BettingSlip({
               className={`tab ${activeTab === 'single' ? 'active' : ''}`}
               onClick={() => {
                 setActiveTab('single');
-                if (onBetTypeChange) onBetTypeChange('single');
+                if (onBetTypeChange) onBetTypeChange('straight');
               }}
             >
               Single

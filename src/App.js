@@ -819,8 +819,44 @@ const saveSubmission = async (submission) => {
 };
   // Helper function to handle pick selection for grid layout
   const handleGridPickSelection = (gameId, pickType, value) => {
-    if (pickType === 'spread') {
-      toggleSpread(gameId, value);
+    if (pickType === 'winner') {
+      // Winner picks are mutually exclusive with spread picks for the same game
+      setSelectedPicks(prev => {
+        const prevPick = prev[gameId] || {};
+        const newPick = {
+          ...prevPick,
+          winner: prevPick.winner === value ? undefined : value,
+          spread: undefined // Clear spread when selecting winner
+        };
+        // Remove empty picks
+        if (!newPick.winner && !newPick.spread && !newPick.total) {
+          const { [gameId]: removed, ...rest } = prev;
+          return rest;
+        }
+        return {
+          ...prev,
+          [gameId]: newPick
+        };
+      });
+    } else if (pickType === 'spread') {
+      // Spread picks are mutually exclusive with winner picks for the same game
+      setSelectedPicks(prev => {
+        const prevPick = prev[gameId] || {};
+        const newPick = {
+          ...prevPick,
+          spread: prevPick.spread === value ? undefined : value,
+          winner: undefined // Clear winner when selecting spread
+        };
+        // Remove empty picks
+        if (!newPick.winner && !newPick.spread && !newPick.total) {
+          const { [gameId]: removed, ...rest } = prev;
+          return rest;
+        }
+        return {
+          ...prev,
+          [gameId]: newPick
+        };
+      });
     } else if (pickType === 'total') {
       toggleTotal(gameId, value);
     }
@@ -831,13 +867,15 @@ const saveSubmission = async (submission) => {
     setSelectedPicks(prev => {
       const newPicks = { ...prev };
       if (newPicks[gameId]) {
-        if (pickType === 'spread') {
+        if (pickType === 'winner') {
+          delete newPicks[gameId].winner;
+        } else if (pickType === 'spread') {
           delete newPicks[gameId].spread;
         } else if (pickType === 'total') {
           delete newPicks[gameId].total;
         }
         // Remove the game entry if no picks left
-        if (!newPicks[gameId].spread && !newPicks[gameId].total) {
+        if (!newPicks[gameId].winner && !newPicks[gameId].spread && !newPicks[gameId].total) {
           delete newPicks[gameId];
         }
       }
@@ -849,19 +887,6 @@ const saveSubmission = async (submission) => {
   const handleClearAll = () => {
     setSelectedPicks({});
     setIndividualBetAmounts({});
-  };
-
-  const toggleSpread = (gameId, teamType) => {
-    setSelectedPicks(prev => {
-      const prevPick = prev[gameId] || {};
-      return {
-        ...prev,
-        [gameId]: {
-          ...prevPick,
-          spread: prevPick.spread === teamType ? undefined : teamType
-        }
-      };
-    });
   };
 
   const toggleTotal = (gameId, overUnder) => {
@@ -886,6 +911,7 @@ const saveSubmission = async (submission) => {
   const submitPicks = () => {
     let pickCount = 0;
     Object.values(selectedPicks).forEach(obj => {
+      if (obj.winner) pickCount++;
       if (obj.spread) pickCount++;
       if (obj.total) pickCount++;
     });
@@ -1211,6 +1237,7 @@ try {
 
   let pickCount = 0;
   Object.values(selectedPicks).forEach(obj => {
+    if (obj.winner) pickCount++;
     if (obj.spread) pickCount++;
     if (obj.total) pickCount++;
   });
@@ -1244,16 +1271,28 @@ try {
       }
       if (!game) return;
       
+      if (pickObj.winner) {
+        pickCount++;
+        const team = pickObj.winner === 'away' ? game.awayTeam : game.homeTeam;
+        const moneyline = pickObj.winner === 'away' ? game.awayMoneyline : game.homeMoneyline;
+        
+        if (betType === 'straight') {
+          const betAmount = parseFloat(individualBetAmounts[getPickId(gameId, 'winner')]) || 0;
+          totalAmount += betAmount;
+          picksFormatted.push(`${team} ${moneyline || 'ML'} - $${betAmount.toFixed(2)}`);
+        } else {
+          picksFormatted.push(`${team} ${moneyline || 'ML'}`);
+        }
+      }
       if (pickObj.spread) {
         pickCount++;
         const team = pickObj.spread === 'away' ? game.awayTeam : game.homeTeam;
         const spread = pickObj.spread === 'away' ? game.awaySpread : game.homeSpread;
-        const moneyline = pickObj.spread === 'away' ? game.awayMoneyline : game.homeMoneyline;
         
         if (betType === 'straight') {
           const betAmount = parseFloat(individualBetAmounts[getPickId(gameId, 'spread')]) || 0;
           totalAmount += betAmount;
-          picksFormatted.push(`${team} ${moneyline || spread} - $${betAmount.toFixed(2)}`);
+          picksFormatted.push(`${team} ${spread} - $${betAmount.toFixed(2)}`);
         } else {
           picksFormatted.push(`${team} ${spread}`);
         }

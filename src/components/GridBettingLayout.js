@@ -18,7 +18,9 @@ function GridBettingLayout({
     const pick = selectedPicks[gameId];
     if (!pick) return false;
     
-    if (pickType === 'spread') {
+    if (pickType === 'winner') {
+      return pick.winner === value;
+    } else if (pickType === 'spread') {
       return pick.spread === value;
     } else if (pickType === 'total') {
       return pick.total === value;
@@ -67,16 +69,16 @@ function GridBettingLayout({
               <div className="bet-column">
                 <div className="column-header">Winner</div>
                 <button
-                  className={`bet-button ${isSelected(game.id, 'spread', 'away') ? 'selected' : ''} ${game.isFinal ? 'disabled' : ''}`}
-                  onClick={() => !game.isFinal && onSelectPick(game.id, 'spread', 'away')}
+                  className={`bet-button ${isSelected(game.id, 'winner', 'away') ? 'selected' : ''} ${game.isFinal ? 'disabled' : ''}`}
+                  onClick={() => !game.isFinal && onSelectPick(game.id, 'winner', 'away')}
                   disabled={game.isFinal}
                 >
                   <span className="bet-label">Away</span>
                   <span className="bet-odds">{formatOdds(game.awayMoneyline || game.awaySpread)}</span>
                 </button>
                 <button
-                  className={`bet-button ${isSelected(game.id, 'spread', 'home') ? 'selected' : ''} ${game.isFinal ? 'disabled' : ''}`}
-                  onClick={() => !game.isFinal && onSelectPick(game.id, 'spread', 'home')}
+                  className={`bet-button ${isSelected(game.id, 'winner', 'home') ? 'selected' : ''} ${game.isFinal ? 'disabled' : ''}`}
+                  onClick={() => !game.isFinal && onSelectPick(game.id, 'winner', 'home')}
                   disabled={game.isFinal}
                 >
                   <span className="bet-label">Home</span>
