@@ -1205,8 +1205,11 @@ try {
   }
 
   // Show message if no games available
-  if (games.length === 0) {
-    const displaySport = currentViewSport || sport;
+  // BUT: Don't show error if we have games for the current sport in allSportsGames (during state transition)
+  const displaySport = currentViewSport || sport;
+  const hasGamesInAllSports = allSportsGames && allSportsGames[displaySport] && allSportsGames[displaySport].length > 0;
+  
+  if (games.length === 0 && !hasGamesInAllSports) {
     return (
       <div className="gradient-bg" style={{display: 'flex', minHeight: '100vh'}}>
         {/* Left Sidebar - Sports Menu - Show even when no games */}
@@ -1236,6 +1239,32 @@ try {
               </button>
               <button className="btn btn-secondary" onClick={onBackToMenu}>← Back to Menu</button>
             </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+  
+  // If games is empty but allSportsGames has data for this sport, show loading state briefly
+  if (games.length === 0 && hasGamesInAllSports) {
+    return (
+      <div className="gradient-bg" style={{display: 'flex', minHeight: '100vh'}}>
+        {allSportsGames && Object.keys(allSportsGames).length > 0 && (
+          <SportsMenu
+            currentSport={currentViewSport}
+            onSelectSport={onChangeSport}
+            allSportsGames={allSportsGames}
+            betType={betType}
+          />
+        )}
+        <div className="container" style={{
+          maxWidth: '600px', 
+          paddingTop: '60px',
+          marginLeft: '250px',
+          width: 'calc(100% - 250px)'
+        }}>
+          <div className="card text-center">
+            <h2>Loading {displaySport} games...</h2>
           </div>
         </div>
       </div>
