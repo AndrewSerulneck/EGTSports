@@ -2160,6 +2160,7 @@ function App() {
   const [games, setGames] = useState([]);
   const [allSportsGames, setAllSportsGames] = useState({}); // For cross-sport parlays
   const [currentViewSport, setCurrentViewSport] = useState(null); // Currently displayed sport in tabs
+  const currentViewSportRef = useRef(null); // Ref to track currentViewSport without causing re-renders
   const [loading, setLoading] = useState(true);
   const [apiError, setApiError] = useState(null);
   const [isSyncing, setIsSyncing] = useState(false);
@@ -2806,16 +2807,18 @@ function App() {
     setAllSportsGames(sportsData);
     // Only update currentViewSport and games if not already set (initial load)
     // Don't override when user has navigated to a different sport
-    if (!currentViewSport) {
+    const currentSport = currentViewSportRef.current;
+    if (!currentSport) {
       setCurrentViewSport(initialSport);
+      currentViewSportRef.current = initialSport;
       setGames(sportsData[initialSport] || []);
     } else {
       // Refresh the games for the currently viewed sport
-      setGames(sportsData[currentViewSport] || []);
+      setGames(sportsData[currentSport] || []);
     }
     setLoading(false);
     setLastRefreshTime(Date.now());
-  }, [parseESPNOdds, currentViewSport]);
+  }, [parseESPNOdds]);
 
   // LOAD GAMES WHEN SPORT IS SELECTED - WITH DYNAMIC REFRESH INTERVAL
   useEffect(() => {
@@ -3076,6 +3079,7 @@ function App() {
       console.log('📊 allSportsGames keys:', Object.keys(allSportsGames));
       console.log('🎮 Games for', sport, ':', allSportsGames[sport]?.length || 0);
       setCurrentViewSport(sport);
+      currentViewSportRef.current = sport;
       setGames(allSportsGames[sport] || []);
     }}
     loading={loading} 
