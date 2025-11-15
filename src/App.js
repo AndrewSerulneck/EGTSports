@@ -2858,9 +2858,14 @@ function App() {
       currentViewSportRef.current = initialSport;
       setGames(sportsData[initialSport] || []);
     } else {
-      // Refresh the games for the currently viewed sport
-      console.log('🔄 loadAllSports: Refreshing', currentSport, 'with', sportsData[currentSport]?.length || 0, 'games');
-      setGames(sportsData[currentSport] || []);
+      // Refresh the games for the currently viewed sport ONLY if we have data
+      // This prevents clearing games during unnecessary refreshes
+      if (sportsData[currentSport] && sportsData[currentSport].length > 0) {
+        console.log('🔄 loadAllSports: Refreshing', currentSport, 'with', sportsData[currentSport].length, 'games');
+        setGames(sportsData[currentSport]);
+      } else {
+        console.log('⚠️ loadAllSports: No games available for', currentSport, '- keeping current games array');
+      }
     }
     setLoading(false);
     setLastRefreshTime(Date.now());
@@ -2891,7 +2896,7 @@ function App() {
         clearInterval(intervalId);
       }
     };
-  }, [selectedSport, betType, refreshInterval, loadAllSports, setupFirebaseListener]);
+  }, [selectedSport, refreshInterval, loadAllSports, setupFirebaseListener]); // Removed betType from dependencies
 
   // Auto-initialize default sport when user is logged in but no sport is selected
   useEffect(() => {
