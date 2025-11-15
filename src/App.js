@@ -2836,6 +2836,14 @@ function App() {
     };
   }, [selectedSport, betType, refreshInterval, loadAllSports, setupFirebaseListener]);
 
+  // Auto-initialize default sport when user is logged in but no sport is selected
+  useEffect(() => {
+    if ((authState.user || userRole === 'guest') && !selectedSport && !authState.loading) {
+      setSelectedSport('NFL');
+      setCurrentViewSport('NFL');
+    }
+  }, [authState.user, authState.loading, userRole, selectedSport]);
+
   useEffect(() => {
     const stored = localStorage.getItem('marcs-parlays-submissions');
     if (stored) setSubmissions(JSON.parse(stored));
@@ -2937,11 +2945,9 @@ function App() {
   }
 
   // Show user welcome screen if logged in as non-admin user
-  // Skip sport selection - default to NFL and go directly to betting interface
+  // Sport will be auto-selected by useEffect above
   if (authState.user && !authState.isAdmin && !selectedSport) {
-    setSelectedSport('NFL'); // Set default sport
-    setCurrentViewSport('NFL'); // Also set current view sport
-    return null; // Will re-render with sport selected
+    return null; // useEffect will set the default sport
   }
 
   // Show role selection if not determined yet
@@ -3036,11 +3042,9 @@ function App() {
   }
 
   // Show sport selection if no sport selected (for guest and logged-in user)
-  // Skip sport selection - default to NFL and go directly to betting interface
+  // Sport will be auto-selected by useEffect above
   if (!selectedSport) {
-    setSelectedSport('NFL'); // Set default sport
-    setCurrentViewSport('NFL'); // Also set current view sport
-    return null; // Will re-render with sport selected
+    return null; // useEffect will set the default sport
   }
 
   // Show loading while games are loading
