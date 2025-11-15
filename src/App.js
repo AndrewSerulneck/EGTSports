@@ -2803,11 +2803,18 @@ function App() {
     }));
     
     setAllSportsGames(sportsData);
-    setCurrentViewSport(initialSport);
-    setGames(sportsData[initialSport] || []);
+    // Only update currentViewSport and games if not already set (initial load)
+    // Don't override when user has navigated to a different sport
+    if (!currentViewSport) {
+      setCurrentViewSport(initialSport);
+      setGames(sportsData[initialSport] || []);
+    } else {
+      // Refresh the games for the currently viewed sport
+      setGames(sportsData[currentViewSport] || []);
+    }
     setLoading(false);
     setLastRefreshTime(Date.now());
-  }, [parseESPNOdds]);
+  }, [parseESPNOdds, currentViewSport]);
 
   // LOAD GAMES WHEN SPORT IS SELECTED - WITH DYNAMIC REFRESH INTERVAL
   useEffect(() => {
