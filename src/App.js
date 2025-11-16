@@ -11,6 +11,10 @@ import {
 } from "firebase/auth";
 import AuthLanding from './components/AuthLanding';
 import UserManagement from './components/UserManagement';
+import BettingSlip from './components/BettingSlip';
+import SportsMenu from './components/SportsMenu';
+import GridBettingLayout from './components/GridBettingLayout';
+import PropBetsView from './components/PropBetsView';
 
 // ESPN API Endpoints for all sports
 const ESPN_API_ENDPOINTS = {
@@ -22,17 +26,50 @@ const ESPN_API_ENDPOINTS = {
   'NHL': 'https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard'
 };
 
+// Helper function to get date range URLs for ESPN API
+// ESPN API supports fetching games for specific dates using ?dates=YYYYMMDD format
+const getESPNDateRangeURLs = (baseURL) => {
+  const urls = [];
+  const today = new Date();
+  
+  // Get games from 7 days ago to 14 days in the future (3 week window)
+  for (let i = -7; i <= 14; i++) {
+    const date = new Date(today);
+    date.setDate(date.getDate() + i);
+    const dateStr = date.toISOString().split('T')[0].replace(/-/g, ''); // Format: YYYYMMDD
+    urls.push(`${baseURL}?dates=${dateStr}`);
+  }
+  
+  return urls;
+};
+
 // The Odds API Configuration
-const ODDS_API_KEY = '4e1df4cc99838c371ae1822316b8eb7c';
+const ODDS_API_KEY = process.env.REACT_APP_ODDS_API_KEY || '';
 const ODDS_API_BASE_URL = 'https://api.the-odds-api.com/v4';
 
-// Sport keys for The Odds API
+// Sport keys for The Odds API (for odds data)
 const ODDS_API_SPORT_KEYS = {
-  'College Basketball': 'basketball_ncaab'
+  'College Basketball': 'basketball_ncaab',
+  'NFL': 'americanfootball_nfl',
+  'NBA': 'basketball_nba',
+  'College Football': 'americanfootball_ncaaf',
+  'NHL': 'icehockey_nhl'
+};
+
+// Prop bet markets to fetch for each sport
+const PROP_BET_MARKETS = {
+  'NFL': ['player_pass_tds', 'player_pass_yds', 'player_rush_yds', 'player_receptions'],
+  'NBA': ['player_points', 'player_rebounds', 'player_assists', 'player_threes'],
+  'College Football': ['player_pass_tds', 'player_pass_yds', 'player_rush_yds'],
+  'College Basketball': ['player_points', 'player_rebounds', 'player_assists'],
+  'NHL': ['player_points', 'player_shots_on_goal']
 };
 
 // Longer cache for College Basketball to conserve API calls
 const COLLEGE_BASKETBALL_CACHE_DURATION = 60 * 60 * 1000; // 1 hour
+
+// Prop bets cache duration - 2 hours to minimize API usage
+const PROP_BETS_CACHE_DURATION = 2 * 60 * 60 * 1000; // 2 hours
 
 // Cache configuration
 const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes in milliseconds
@@ -586,203 +623,8 @@ function AdminLandingPage({ onSelectSport, onManageUsers, onSignOut }) {
   );
 }
 
-// Bet Type Selection Component - NEW for Requirement 1
-function BetTypeSelectionPage({ onSelectBetType, onBack, onSignOut, isAuthenticated }) {
-  return (
-    <div className="gradient-bg">
-      <div className="container" style={{ maxWidth: '800px', paddingTop: '60px' }}>
-        <div className="text-center text-white mb-4">
-          <h1 style={{ fontSize: '48px', marginBottom: '16px' }}>Choose Your Bet Type</h1>
-          <p style={{ fontSize: '20px', marginBottom: '40px' }}>Select how you'd like to place your bets</p>
-        </div>
-        
-        {/* Back/Sign Out Buttons */}
-        <div style={{ textAlign: 'center', marginBottom: '24px', display: 'flex', justifyContent: 'center', gap: '12px' }}>
-          {onBack && (
-            <button className="btn btn-secondary" onClick={onBack} style={{ padding: '12px 32px', fontSize: '16px' }}>
-              ← Back
-            </button>
-          )}
-          {isAuthenticated && (
-            <button className="btn btn-secondary" onClick={onSignOut} style={{ padding: '12px 32px', fontSize: '16px' }}>
-              🚪 Sign Out
-            </button>
-          )}
-        </div>
-
-        <div className="card">
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '20px' }}>
-            <button
-              className="btn"
-              onClick={() => onSelectBetType('straight')}
-              style={{
-                padding: '48px 32px',
-                fontSize: '20px',
-                fontWeight: 'bold',
-                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                color: 'white',
-                border: 'none',
-                cursor: 'pointer',
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                gap: '16px',
-                borderRadius: '12px',
-                boxShadow: '0 4px 15px rgba(0,0,0,0.2)',
-                transition: 'transform 0.2s',
-              }}
-              onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.05)'}
-              onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
-            >
-              <span style={{ fontSize: '64px' }}>🎯</span>
-              <span>Straight Bets</span>
-              <span style={{ fontSize: '14px', opacity: '0.9', fontWeight: 'normal', lineHeight: '1.6' }}>
-                Bet on individual games with dynamic odds
-              </span>
-            </button>
-            
-            <button
-              className="btn"
-              onClick={() => onSelectBetType('parlay')}
-              style={{
-                padding: '48px 32px',
-                fontSize: '20px',
-                fontWeight: 'bold',
-                background: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
-                color: 'white',
-                border: 'none',
-                cursor: 'pointer',
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                gap: '16px',
-                borderRadius: '12px',
-                boxShadow: '0 4px 15px rgba(0,0,0,0.2)',
-                transition: 'transform 0.2s',
-              }}
-              onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.05)'}
-              onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
-            >
-              <span style={{ fontSize: '64px' }}>🎲</span>
-              <span>Parlays</span>
-              <span style={{ fontSize: '14px', opacity: '0.9', fontWeight: 'normal', lineHeight: '1.6' }}>
-                Combine multiple picks across sports for bigger payouts
-              </span>
-            </button>
-          </div>
-        </div>
-
-        <div style={{
-          marginTop: '40px',
-          textAlign: 'center',
-          color: 'white',
-          fontSize: '16px',
-          opacity: '0.9',
-          padding: '20px',
-          background: 'rgba(255, 255, 255, 0.1)',
-          borderRadius: '12px'
-        }}>
-          <p style={{ marginBottom: '12px' }}>
-            <strong>Straight Bets:</strong> Single wagers on individual games with varying odds based on the matchup
-          </p>
-          <p style={{ marginBottom: '0' }}>
-            <strong>Parlays:</strong> Combine 3+ picks for higher payouts - all selections must win
-          </p>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// Welcome Landing Page Component - ALL SPORTS ENABLED (Updated for cross-sport parlays)
-function WelcomeLandingPage({ onSelectSport, onSignOut, onBack, isAuthenticated, betType }) {
-  const sports = [
-    { name: 'NFL', available: true },
-    { name: 'NBA', available: true },
-    { name: 'College Football', available: true },
-    { name: 'College Basketball', available: true },
-    { name: 'Major League Baseball', available: true },
-    { name: 'NHL', available: true }
-  ];
-
-  return (
-    <div className="gradient-bg">
-      <div className="container" style={{ maxWidth: '800px', paddingTop: '60px' }}>
-        <div className="text-center text-white mb-4">
-          <h1 style={{ fontSize: '48px', marginBottom: '16px' }}>Welcome to EGT Sports</h1>
-          <p style={{ fontSize: '20px', marginBottom: '16px' }}>Select a sport to get started</p>
-          {betType && (
-            <div style={{ 
-              display: 'inline-block',
-              padding: '12px 24px',
-              background: 'rgba(255, 255, 255, 0.2)',
-              borderRadius: '20px',
-              marginBottom: '24px'
-            }}>
-              <span style={{ fontSize: '16px' }}>
-                Bet Type: <strong>{betType === 'straight' ? 'Straight Bets' : 'Parlays'}</strong>
-              </span>
-            </div>
-          )}
-          <p style={{ fontSize: '16px', marginBottom: '40px', opacity: '0.9' }}>
-            Reminder: Please add no-reply@EGTSports.ws to your contacts to avoid your confirmation ticket going to your spam folder!
-          </p>
-        </div>
-        
-        {/* Back/Sign Out Buttons */}
-        <div style={{ textAlign: 'center', marginBottom: '24px', display: 'flex', justifyContent: 'center', gap: '12px' }}>
-          {onBack && (
-            <button className="btn btn-secondary" onClick={onBack} style={{ padding: '12px 32px', fontSize: '16px' }}>
-              ← Back
-            </button>
-          )}
-          {isAuthenticated && (
-            <button className="btn btn-secondary" onClick={onSignOut} style={{ padding: '12px 32px', fontSize: '16px' }}>
-              🚪 Sign Out
-            </button>
-          )}
-        </div>
-
-        <div className="card">
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px' }}>
-            {sports.map((sport) => (
-              <button
-                key={sport.name}
-                className="btn"
-                onClick={() => sport.available && onSelectSport(sport.name)}
-                disabled={!sport.available}
-                style={{
-                  padding: '32px 24px',
-                  fontSize: '18px',
-                  fontWeight: 'bold',
-                  background: sport.available ? '#007bff' : '#e9ecef',
-                  color: sport.available ? 'white' : '#6c757d',
-                  border: 'none',
-                  cursor: sport.available ? 'pointer' : 'not-allowed',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  gap: '8px',
-                  position: 'relative'
-                }}
-              >
-                <span>{sport.name}</span>
-                {!sport.available && (
-                  <span style={{ fontSize: '12px', fontStyle: 'italic', color: '#999' }}>
-                    Coming Soon
-                  </span>
-                )}
-              </button>
-            ))}
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 // Landing Page Component - WITH MANUAL REFRESH BUTTON AND CROSS-SPORT SUPPORT
-function LandingPage({ games, allSportsGames, currentViewSport, onChangeSport, loading, onBackToMenu, sport, betType, apiError, onManualRefresh, lastRefreshTime }) {
+function LandingPage({ games, allSportsGames, currentViewSport, onChangeSport, loading, onBackToMenu, sport, betType, onBetTypeChange, apiError, onManualRefresh, lastRefreshTime, propBets, propBetsLoading, propBetsError }) {
   const [selectedPicks, setSelectedPicks] = useState({});
   const [showConfirmation, setShowConfirmation] = useState(false);
   const [ticketNumber, setTicketNumber] = useState('');
@@ -992,17 +834,76 @@ const saveSubmission = async (submission) => {
     }
   }
 };
-  const toggleSpread = (gameId, teamType) => {
-    setSelectedPicks(prev => {
-      const prevPick = prev[gameId] || {};
-      return {
-        ...prev,
-        [gameId]: {
+  // Helper function to handle pick selection for grid layout
+  const handleGridPickSelection = (gameId, pickType, value) => {
+    if (pickType === 'winner') {
+      // Winner picks are mutually exclusive with spread picks for the same game
+      setSelectedPicks(prev => {
+        const prevPick = prev[gameId] || {};
+        const newPick = {
           ...prevPick,
-          spread: prevPick.spread === teamType ? undefined : teamType
+          winner: prevPick.winner === value ? undefined : value,
+          spread: undefined // Clear spread when selecting winner
+        };
+        // Remove empty picks
+        if (!newPick.winner && !newPick.spread && !newPick.total) {
+          const { [gameId]: removed, ...rest } = prev;
+          return rest;
         }
-      };
+        return {
+          ...prev,
+          [gameId]: newPick
+        };
+      });
+    } else if (pickType === 'spread') {
+      // Spread picks are mutually exclusive with winner picks for the same game
+      setSelectedPicks(prev => {
+        const prevPick = prev[gameId] || {};
+        const newPick = {
+          ...prevPick,
+          spread: prevPick.spread === value ? undefined : value,
+          winner: undefined // Clear winner when selecting spread
+        };
+        // Remove empty picks
+        if (!newPick.winner && !newPick.spread && !newPick.total) {
+          const { [gameId]: removed, ...rest } = prev;
+          return rest;
+        }
+        return {
+          ...prev,
+          [gameId]: newPick
+        };
+      });
+    } else if (pickType === 'total') {
+      toggleTotal(gameId, value);
+    }
+  };
+
+  // Helper function to remove a pick
+  const handleRemovePick = (gameId, pickType) => {
+    setSelectedPicks(prev => {
+      const newPicks = { ...prev };
+      if (newPicks[gameId]) {
+        if (pickType === 'winner') {
+          delete newPicks[gameId].winner;
+        } else if (pickType === 'spread') {
+          delete newPicks[gameId].spread;
+        } else if (pickType === 'total') {
+          delete newPicks[gameId].total;
+        }
+        // Remove the game entry if no picks left
+        if (!newPicks[gameId].winner && !newPicks[gameId].spread && !newPicks[gameId].total) {
+          delete newPicks[gameId];
+        }
+      }
+      return newPicks;
     });
+  };
+
+  // Helper function to clear all picks
+  const handleClearAll = () => {
+    setSelectedPicks({});
+    setIndividualBetAmounts({});
   };
 
   const toggleTotal = (gameId, overUnder) => {
@@ -1027,6 +928,7 @@ const saveSubmission = async (submission) => {
   const submitPicks = () => {
     let pickCount = 0;
     Object.values(selectedPicks).forEach(obj => {
+      if (obj.winner) pickCount++;
       if (obj.spread) pickCount++;
       if (obj.total) pickCount++;
     });
@@ -1319,15 +1221,83 @@ try {
     );
   }
 
-  // Show message if no games available
-  if (games.length === 0) {
+  // Show Prop Bets View if "Prop Bets" is selected
+  const displaySport = currentViewSport || sport;
+  if (displaySport === 'Prop Bets') {
     return (
-      <div className="gradient-bg">
-        <div className="container" style={{maxWidth: '600px', paddingTop: '60px'}}>
+      <div className="gradient-bg" style={{display: 'flex', minHeight: '100vh'}}>
+        {/* Left Sidebar - Sports Menu */}
+        {allSportsGames && Object.keys(allSportsGames).length > 0 && (
+          <SportsMenu
+            currentSport={currentViewSport}
+            onSelectSport={onChangeSport}
+            allSportsGames={allSportsGames}
+            betType={betType}
+          />
+        )}
+        
+        {/* Prop Bets Main Content */}
+        <div style={{
+          marginLeft: allSportsGames && Object.keys(allSportsGames).length > 0 ? '250px' : '0',
+          width: allSportsGames && Object.keys(allSportsGames).length > 0 ? 'calc(100% - 250px - 350px)' : 'calc(100% - 350px)',
+          paddingRight: '350px'
+        }}>
+          <PropBetsView
+            propBets={propBets}
+            loading={propBetsLoading}
+            error={propBetsError}
+            selectedPicks={selectedPicks}
+            onSelectPropBet={handleGridPickSelection}
+            betType={betType}
+          />
+        </div>
+        
+        {/* Betting Slip - Floating on the right side */}
+        <BettingSlip
+          selectedPicks={selectedPicks}
+          onRemovePick={handleRemovePick}
+          onClearAll={handleClearAll}
+          onSubmit={submitPicks}
+          betType={betType}
+          onBetTypeChange={onBetTypeChange}
+          games={games}
+          allSportsGames={allSportsGames}
+          individualBetAmounts={individualBetAmounts}
+          setIndividualBetAmounts={setIndividualBetAmounts}
+          MIN_BET={MIN_BET}
+          MAX_BET={MAX_BET}
+        />
+      </div>
+    );
+  }
+
+  // Show message if no games available
+  // BUT: Don't show error if we have games for the current sport in allSportsGames (during state transition)
+  const hasGamesInAllSports = allSportsGames && allSportsGames[displaySport] && allSportsGames[displaySport].length > 0;
+  
+  if (games.length === 0 && !hasGamesInAllSports) {
+    return (
+      <div className="gradient-bg" style={{display: 'flex', minHeight: '100vh'}}>
+        {/* Left Sidebar - Sports Menu - Show even when no games */}
+        {allSportsGames && Object.keys(allSportsGames).length > 0 && (
+          <SportsMenu
+            currentSport={currentViewSport}
+            onSelectSport={onChangeSport}
+            allSportsGames={allSportsGames}
+            betType={betType}
+          />
+        )}
+        
+        <div className="container" style={{
+          maxWidth: '600px', 
+          paddingTop: '60px',
+          marginLeft: allSportsGames && Object.keys(allSportsGames).length > 0 ? '250px' : '0',
+          width: allSportsGames && Object.keys(allSportsGames).length > 0 ? 'calc(100% - 250px)' : '100%'
+        }}>
           <div className="card text-center">
-            <h2 style={{marginBottom: '20px'}}>No {sport} Games Available</h2>
+            <h2 style={{marginBottom: '20px'}}>No {displaySport} Games Available</h2>
             <p style={{marginBottom: '20px', color: '#666'}}>
-              There are currently no upcoming {sport} games. This could be due to the off-season or no scheduled games at this time.
+              There are currently no upcoming {displaySport} games. This could be due to the off-season or no scheduled games at this time.
             </p>
             <div style={{display: 'flex', gap: '12px', justifyContent: 'center'}}>
               <button className="btn btn-primary" onClick={handleManualRefresh} disabled={isRefreshing}>
@@ -1335,6 +1305,32 @@ try {
               </button>
               <button className="btn btn-secondary" onClick={onBackToMenu}>← Back to Menu</button>
             </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+  
+  // If games is empty but allSportsGames has data for this sport, show loading state briefly
+  if (games.length === 0 && hasGamesInAllSports) {
+    return (
+      <div className="gradient-bg" style={{display: 'flex', minHeight: '100vh'}}>
+        {allSportsGames && Object.keys(allSportsGames).length > 0 && (
+          <SportsMenu
+            currentSport={currentViewSport}
+            onSelectSport={onChangeSport}
+            allSportsGames={allSportsGames}
+            betType={betType}
+          />
+        )}
+        <div className="container" style={{
+          maxWidth: '600px', 
+          paddingTop: '60px',
+          marginLeft: '250px',
+          width: 'calc(100% - 250px)'
+        }}>
+          <div className="card text-center">
+            <h2>Loading {displaySport} games...</h2>
           </div>
         </div>
       </div>
@@ -1352,10 +1348,13 @@ try {
 
   let pickCount = 0;
   Object.values(selectedPicks).forEach(obj => {
+    if (obj.winner) pickCount++;
     if (obj.spread) pickCount++;
     if (obj.total) pickCount++;
   });
   const minPicks = betType === 'straight' ? 1 : 3;
+  // canSubmit used in BettingSlip component
+  // eslint-disable-next-line no-unused-vars
   const canSubmit = pickCount >= minPicks;
 
   // Count active games - with null check
@@ -1383,16 +1382,28 @@ try {
       }
       if (!game) return;
       
+      if (pickObj.winner) {
+        pickCount++;
+        const team = pickObj.winner === 'away' ? game.awayTeam : game.homeTeam;
+        const moneyline = pickObj.winner === 'away' ? game.awayMoneyline : game.homeMoneyline;
+        
+        if (betType === 'straight') {
+          const betAmount = parseFloat(individualBetAmounts[getPickId(gameId, 'winner')]) || 0;
+          totalAmount += betAmount;
+          picksFormatted.push(`${team} ${moneyline || 'ML'} - $${betAmount.toFixed(2)}`);
+        } else {
+          picksFormatted.push(`${team} ${moneyline || 'ML'}`);
+        }
+      }
       if (pickObj.spread) {
         pickCount++;
         const team = pickObj.spread === 'away' ? game.awayTeam : game.homeTeam;
         const spread = pickObj.spread === 'away' ? game.awaySpread : game.homeSpread;
-        const moneyline = pickObj.spread === 'away' ? game.awayMoneyline : game.homeMoneyline;
         
         if (betType === 'straight') {
           const betAmount = parseFloat(individualBetAmounts[getPickId(gameId, 'spread')]) || 0;
           totalAmount += betAmount;
-          picksFormatted.push(`${team} ${moneyline || spread} - $${betAmount.toFixed(2)}`);
+          picksFormatted.push(`${team} ${spread} - $${betAmount.toFixed(2)}`);
         } else {
           picksFormatted.push(`${team} ${spread}`);
         }
@@ -2020,12 +2031,28 @@ Email: ${contactInfo.email}
   }
 
   return (
-    <div className="gradient-bg">
-      <div className="container">
+    <div className="gradient-bg" style={{display: 'flex', minHeight: '100vh'}}>
+      {/* Left Sidebar - Sports Menu - Always show when allSportsGames is available */}
+      {allSportsGames && Object.keys(allSportsGames).length > 0 && (
+        <SportsMenu
+          currentSport={currentViewSport}
+          onSelectSport={onChangeSport}
+          allSportsGames={allSportsGames}
+          betType={betType}
+        />
+      )}
+      
+      {/* Main Content */}
+      <div className={`container ${allSportsGames && Object.keys(allSportsGames).length > 0 ? 'with-sidebar' : ''}`} style={{
+        marginLeft: allSportsGames && Object.keys(allSportsGames).length > 0 ? '250px' : '0',
+        marginRight: '370px',
+        width: allSportsGames && Object.keys(allSportsGames).length > 0 ? 'calc(100% - 620px)' : 'calc(100% - 370px)',
+        transition: 'all 0.3s ease'
+      }}>
         <div className="text-center text-white mb-4">
           <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '12px'}}>
             <button className="btn btn-secondary" onClick={onBackToMenu} style={{height: 'fit-content'}}>
-              ← Back to Menu
+              🚪 Sign Out
             </button>
             <div style={{flex: 1, textAlign: 'center'}}>
               <h1 style={{fontSize: '42px'}}>
@@ -2044,95 +2071,18 @@ Email: ${contactInfo.email}
             </div>
           </div>
           
-          {/* SPORT TABS FOR CROSS-SPORT PARLAYS */}
-          {betType === 'parlay' && allSportsGames && Object.keys(allSportsGames).length > 0 && (
+          {/* Sport indicator for single sport mode */}
+          {betType !== 'parlay' && (
             <div style={{
-              background: 'rgba(255, 255, 255, 0.1)',
-              borderRadius: '12px',
-              padding: '12px',
+              display: 'inline-block',
+              background: 'rgba(255, 255, 255, 0.2)',
+              padding: '10px 20px',
+              borderRadius: '8px',
               marginBottom: '16px',
-              backdropFilter: 'blur(10px)'
+              fontSize: '16px',
+              fontWeight: '600'
             }}>
-              <div style={{
-                display: 'flex',
-                flexWrap: 'wrap',
-                gap: '8px',
-                justifyContent: 'center'
-              }}>
-                {Object.keys(allSportsGames).map((sportName) => {
-                  const gamesInSport = allSportsGames[sportName] || [];
-                  const pickCountInSport = Object.values(selectedPicks).filter(pick => 
-                    gamesInSport.some(g => g.id === pick.gameId)
-                  ).length;
-                  
-                  return (
-                    <button
-                      key={sportName}
-                      onClick={() => onChangeSport(sportName)}
-                      style={{
-                        padding: '10px 20px',
-                        fontSize: '14px',
-                        fontWeight: 'bold',
-                        background: currentViewSport === sportName 
-                          ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
-                          : 'rgba(255, 255, 255, 0.2)',
-                        color: 'white',
-                        border: currentViewSport === sportName ? '2px solid white' : '2px solid transparent',
-                        borderRadius: '8px',
-                        cursor: 'pointer',
-                        transition: 'all 0.2s',
-                        position: 'relative',
-                        minWidth: '120px'
-                      }}
-                      onMouseEnter={(e) => {
-                        if (currentViewSport !== sportName) {
-                          e.currentTarget.style.background = 'rgba(255, 255, 255, 0.3)';
-                        }
-                      }}
-                      onMouseLeave={(e) => {
-                        if (currentViewSport !== sportName) {
-                          e.currentTarget.style.background = 'rgba(255, 255, 255, 0.2)';
-                        }
-                      }}
-                    >
-                      {sportName}
-                      {pickCountInSport > 0 && (
-                        <span style={{
-                          position: 'absolute',
-                          top: '-8px',
-                          right: '-8px',
-                          background: '#28a745',
-                          color: 'white',
-                          borderRadius: '50%',
-                          width: '24px',
-                          height: '24px',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          fontSize: '12px',
-                          fontWeight: 'bold',
-                          border: '2px solid white'
-                        }}>
-                          {pickCountInSport}
-                        </span>
-                      )}
-                      <div style={{fontSize: '10px', opacity: 0.8, marginTop: '2px'}}>
-                        {gamesInSport.length} games
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
-              <div style={{
-                marginTop: '12px',
-                padding: '8px',
-                background: 'rgba(255, 255, 255, 0.15)',
-                borderRadius: '8px',
-                fontSize: '13px',
-                textAlign: 'center'
-              }}>
-                💡 <strong>Cross-Sport Parlays Enabled!</strong> Switch between sports to add picks from multiple leagues
-              </div>
+              🏈 {sport}
             </div>
           )}
           
@@ -2154,6 +2104,14 @@ Email: ${contactInfo.email}
           </div>
           
         </div>
+        
+        {/* New Grid Betting Layout */}
+        <GridBettingLayout
+          games={games}
+          selectedPicks={selectedPicks}
+          onSelectPick={handleGridPickSelection}
+          betType={betType}
+        />
         
         <div className="card">
           {betType === 'parlay' ? (
@@ -2188,125 +2146,9 @@ Email: ${contactInfo.email}
             </>
           )}
         </div>
-        {games && Array.isArray(games) && games.map(game => {
-          const pickObj = selectedPicks[game.id] || {};
-          return (
-            <div key={game.id} className="game-card">
-              <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', paddingBottom: '12px', borderBottom: '2px solid #f0f0f0', flexWrap: 'wrap', gap: '8px'}}>
-                <span>{game.date} - {game.time}</span>
-                {game.status === 'in' && (
-                  <span style={{padding: '4px 12px', background: '#28a745', color: 'white', borderRadius: '12px', fontSize: '12px', fontWeight: 'bold'}}>
-                    🔴 LIVE
-                  </span>
-                )}
-              </div>
-              {game.isFinal && (
-                <div className="final-header">
-                  <div style={{textAlign: 'center', fontWeight: '600', color: '#dc3545', marginBottom: '12px', fontSize: '16px'}}>
-                    FINAL SCORE
-                  </div>
-                  <div style={{display: 'flex', justifyContent: 'space-around', alignItems: 'center', fontSize: '18px', fontWeight: 'bold'}}>
-                    <div style={{textAlign: 'center'}}>
-                      <div style={{color: '#333', marginBottom: '8px'}}>{game.awayTeam}</div>
-                      <div style={{fontSize: '32px', color: '#007bff'}}>{game.awayScore}</div>
-                    </div>
-                    <div style={{fontSize: '24px', color: '#999'}}>-</div>
-                    <div style={{textAlign: 'center'}}>
-                      <div style={{color: '#333', marginBottom: '8px'}}>{game.homeTeam}</div>
-                      <div style={{fontSize: '32px', color: '#007bff'}}>{game.homeScore}</div>
-                    </div>
-                  </div>
-                </div>
-              )}
-              <div
-                className={`team-row ${pickObj.spread === 'away' ? 'selected' : ''} ${game.isFinal ? 'disabled' : ''}`}
-                onClick={() => !game.isFinal && toggleSpread(game.id, 'away')}
-              >
-                <div className="team-info">
-                  <span className="team-name">{game.awayTeam}</span>
-                  {game.isFinal && <span className="final-score-badge">{game.awayScore}</span>}
-                </div>
-                <div style={{display: 'flex', alignItems: 'center', gap: '8px'}}>
-                  <span className="badge">AWAY</span>
-                  {betType === 'straight' && game.awayMoneyline ? (
-                    <span className="team-spread" style={{fontWeight: 'bold', color: '#007bff'}}>
-                      {game.awayMoneyline}
-                    </span>
-                  ) : (
-                    <span className="team-spread">{game.awaySpread || '--'}</span>
-                  )}
-                </div>
-              </div>
-              <div style={{textAlign: 'center', color: '#999', margin: '8px 0', fontSize: '14px'}}>@</div>
-              <div
-                className={`team-row ${pickObj.spread === 'home' ? 'selected' : ''} ${game.isFinal ? 'disabled' : ''}`}
-                onClick={() => !game.isFinal && toggleSpread(game.id, 'home')}
-              >
-                <div className="team-info">
-                  <span className="team-name">{game.homeTeam}</span>
-                  {game.isFinal && <span className="final-score-badge">{game.homeScore}</span>}
-                </div>
-                <div style={{display: 'flex', alignItems: 'center', gap: '8px'}}>
-                  <span className="badge">HOME</span>
-                  {betType === 'straight' && game.homeMoneyline ? (
-                    <span className="team-spread" style={{fontWeight: 'bold', color: '#007bff'}}>
-                      {game.homeMoneyline}
-                    </span>
-                  ) : (
-                    <span className="team-spread">{game.homeSpread || '--'}</span>
-                  )}
-                </div>
-              </div>
-              {game.total && (
-                <div style={{textAlign: 'center', color: '#333', margin: '16px 0', padding: '12px', background: '#f8f9fa', borderRadius: '8px'}}>
-                  <div style={{marginBottom: '8px'}}><strong>Total:</strong> {game.total}</div>
-                  <div style={{display: 'flex', justifyContent: 'center', gap: '12px'}}>
-                    <button
-                      type="button"
-                      className="btn"
-                      style={{
-                        background: pickObj.total === 'over' ? '#28a745' : '#fff',
-                        color: pickObj.total === 'over' ? '#fff' : '#333',
-                        border: '2px solid #28a745',
-                        fontWeight: 'bold',
-                        padding: '8px 20px'
-                      }}
-                      disabled={game.isFinal}
-                      onClick={() => !game.isFinal && toggleTotal(game.id, 'over')}
-                    >Over</button>
-                    <button
-                      type="button"
-                      className="btn"
-                      style={{
-                        background: pickObj.total === 'under' ? '#dc3545' : '#fff',
-                        color: pickObj.total === 'under' ? '#fff' : '#333',
-                        border: '2px solid #dc3545',
-                        fontWeight: 'bold',
-                        padding: '8px 20px'
-                      }}
-                      disabled={game.isFinal}
-                      onClick={() => !game.isFinal && toggleTotal(game.id, 'under')}
-                    >Under</button>
-                  </div>
-                </div>
-              )}
-            </div>
-          );
-        })}
-        <div className="text-center mb-4">
-          <div className="text-white mb-2" style={{fontSize: '20px'}}>
-            Selected: {pickCount} pick{pickCount !== 1 ? 's' : ''}
-            {!canSubmit && <div style={{color: '#ffc107'}}>( minimum {minPicks} required)</div>}
-          </div>
-          <button
-            className="btn btn-success"
-            onClick={submitPicks}
-            disabled={!canSubmit}
-            style={{padding: '18px 56px', fontSize: '20px'}}
-          >
-            {canSubmit ? 'Submit Picks' : `Select ${minPicks - pickCount} More`}
-          </button>
-        </div>
+        
+        {/* Replaced old game cards with new GridBettingLayout - rendered above */}
+        
         <div className="card">
           <h3 className="mb-2">Important Rules</h3>
           <ul style={{marginLeft: '20px', lineHeight: '1.8'}}>
@@ -2328,6 +2170,23 @@ Email: ${contactInfo.email}
           </div>
         </div>
       </div>
+      
+      {/* Betting Slip - Floating on the right side */}
+      <BettingSlip
+        selectedPicks={selectedPicks}
+        onRemovePick={handleRemovePick}
+        onClearAll={handleClearAll}
+        onSubmit={submitPicks}
+        betType={betType}
+        onBetTypeChange={onBetTypeChange}
+        games={games}
+        allSportsGames={allSportsGames}
+        individualBetAmounts={individualBetAmounts}
+        setIndividualBetAmounts={setIndividualBetAmounts}
+        MIN_BET={MIN_BET}
+        MAX_BET={MAX_BET}
+      />
+      
       <div className={`modal ${showConfirmation ? 'active' : ''}`}>
         <div className="modal-content">
           <h2 className="text-center" style={{fontSize: '32px', color: '#28a745', marginBottom: '20px'}}>Picks Submitted!</h2>
@@ -2403,7 +2262,7 @@ function App() {
   });
   const [userRole, setUserRole] = useState(null); // 'user', 'admin', 'guest', or null
   const [showAdminUserManagement, setShowAdminUserManagement] = useState(false);
-  const [betType, setBetType] = useState(null); // 'straight' or 'parlay'
+  const [betType, setBetType] = useState('parlay'); // Default to 'parlay' mode - users can switch via betting slip
   const [loginForm, setLoginForm] = useState({
     email: "",
     password: "",
@@ -2411,6 +2270,7 @@ function App() {
   const [games, setGames] = useState([]);
   const [allSportsGames, setAllSportsGames] = useState({}); // For cross-sport parlays
   const [currentViewSport, setCurrentViewSport] = useState(null); // Currently displayed sport in tabs
+  const currentViewSportRef = useRef(null); // Ref to track currentViewSport without causing re-renders
   const [loading, setLoading] = useState(true);
   const [apiError, setApiError] = useState(null);
   const [isSyncing, setIsSyncing] = useState(false);
@@ -2419,6 +2279,12 @@ function App() {
   const [selectedSport, setSelectedSport] = useState(null);
   const [lastRefreshTime, setLastRefreshTime] = useState(null);
   const [refreshInterval, setRefreshInterval] = useState(null);
+
+  // Prop Bets State
+  const [propBets, setPropBets] = useState({});
+  const [propBetsLoading, setPropBetsLoading] = useState(false);
+  const [propBetsError, setPropBetsError] = useState(null);
+  const propBetsCache = useRef({});
 
   // Fetch College Basketball odds from The Odds API
   const fetchCollegeBasketballOdds = async () => {
@@ -2508,6 +2374,148 @@ function App() {
     
     console.warn(`⚠️ No odds found for ${game.awayTeam} @ ${game.homeTeam}`);
     return { awaySpread: '', homeSpread: '', total: '' };
+  };
+
+  // Fetch Prop Bets from The Odds API
+  const fetchPropBets = async (sportName) => {
+    if (!ODDS_API_KEY) {
+      console.warn('⚠️ No Odds API key configured. Prop bets feature disabled.');
+      return [];
+    }
+
+    // Check cache
+    const cacheKey = sportName;
+    const cachedData = propBetsCache.current[cacheKey];
+    if (cachedData && (Date.now() - cachedData.timestamp < PROP_BETS_CACHE_DURATION)) {
+      console.log(`✅ Using cached prop bets for ${sportName}`);
+      return cachedData.data;
+    }
+
+    const sportKey = ODDS_API_SPORT_KEYS[sportName];
+    if (!sportKey) {
+      console.warn(`⚠️ No Odds API sport key configured for ${sportName}`);
+      return [];
+    }
+
+    const markets = PROP_BET_MARKETS[sportName];
+    if (!markets || markets.length === 0) {
+      console.warn(`⚠️ No prop bet markets configured for ${sportName}`);
+      return [];
+    }
+
+    try {
+      console.log(`🎯 Fetching prop bets for ${sportName}...`);
+      const allProps = [];
+
+      // Fetch each market separately to get comprehensive prop data
+      for (const market of markets) {
+        try {
+          const url = `${ODDS_API_BASE_URL}/sports/${sportKey}/events?apiKey=${ODDS_API_KEY}&regions=us&markets=${market}&oddsFormat=american`;
+          const response = await fetch(url);
+
+          if (!response.ok) {
+            console.error(`⚠️ The Odds API returned status ${response.status} for ${market}`);
+            continue;
+          }
+
+          const data = await response.json();
+          console.log(`✅ Fetched ${data.length} events with ${market} props for ${sportName}`);
+
+          // Process each event
+          data.forEach(event => {
+            if (!event.bookmakers || event.bookmakers.length === 0) return;
+
+            const bookmaker = event.bookmakers[0]; // Use first bookmaker
+            const marketData = bookmaker.markets?.find(m => m.key === market);
+            
+            if (!marketData || !marketData.outcomes) return;
+
+            // Each outcome is a prop bet
+            marketData.outcomes.forEach(outcome => {
+              allProps.push({
+                id: `${event.id}_${market}_${outcome.name}_${outcome.point || 'NA'}`,
+                sport: sportName,
+                eventId: event.id,
+                gameTitle: `${event.away_team} @ ${event.home_team}`,
+                commence_time: event.commence_time,
+                market: market,
+                marketDisplay: formatMarketDisplay(market),
+                playerName: outcome.name,
+                description: outcome.description || `${outcome.name} ${formatMarketDisplay(market)}`,
+                line: outcome.point || null,
+                overOdds: outcome.name.includes('Over') ? outcome.price : null,
+                underOdds: outcome.name.includes('Under') ? outcome.price : null,
+                odds: outcome.price,
+                bookmaker: bookmaker.title
+              });
+            });
+          });
+        } catch (error) {
+          console.error(`❌ Error fetching ${market} for ${sportName}:`, error);
+        }
+      }
+
+      // Sort by event time and limit to most recent/upcoming
+      allProps.sort((a, b) => new Date(a.commence_time) - new Date(b.commence_time));
+      const limitedProps = allProps.slice(0, 50); // Limit to 50 props per sport
+
+      // Cache the results
+      propBetsCache.current[cacheKey] = {
+        data: limitedProps,
+        timestamp: Date.now()
+      };
+
+      console.log(`🎯 Total prop bets for ${sportName}: ${limitedProps.length}`);
+      return limitedProps;
+    } catch (error) {
+      console.error(`❌ Error fetching prop bets for ${sportName}:`, error);
+      return [];
+    }
+  };
+
+  // Helper to format market display names
+  const formatMarketDisplay = (market) => {
+    const displayNames = {
+      'player_pass_tds': 'Passing Touchdowns',
+      'player_pass_yds': 'Passing Yards',
+      'player_rush_yds': 'Rushing Yards',
+      'player_receptions': 'Receptions',
+      'player_points': 'Points',
+      'player_rebounds': 'Rebounds',
+      'player_assists': 'Assists',
+      'player_threes': '3-Pointers Made',
+      'player_shots_on_goal': 'Shots on Goal'
+    };
+    return displayNames[market] || market;
+  };
+
+  // Load all prop bets for configured sports
+  const loadAllPropBets = async () => {
+    if (!ODDS_API_KEY) {
+      console.warn('⚠️ Prop bets feature disabled: No API key configured');
+      return;
+    }
+
+    setPropBetsLoading(true);
+    setPropBetsError(null);
+
+    try {
+      const sports = ['NFL', 'NBA', 'College Football', 'College Basketball', 'NHL'];
+      const allPropBetsData = {};
+
+      for (const sport of sports) {
+        const props = await fetchPropBets(sport);
+        allPropBetsData[sport] = props;
+      }
+
+      setPropBets(allPropBetsData);
+      console.log('✅ All prop bets loaded successfully');
+    } catch (error) {
+      console.error('❌ Error loading prop bets:', error);
+      setPropBetsError('Failed to load prop bets. Please try again later.');
+    } finally {
+      setPropBetsLoading(false);
+    }
   };
 
   // Helper function to parse ESPN odds
@@ -2635,7 +2643,7 @@ function App() {
     return { awaySpread, homeSpread, total, awayMoneyline, homeMoneyline };
   }, []);
 
-  // IMPROVED: SPORT-SPECIFIC GAME LOADING WITH SMART REFRESH
+  // IMPROVED: SPORT-SPECIFIC GAME LOADING WITH SMART REFRESH AND DATE RANGE
   const loadGames = useCallback(async (sport, forceRefresh = false) => {
     setLoading(true);
     setApiError(null);
@@ -2660,16 +2668,31 @@ function App() {
     
     try {
       const apiEndpoint = ESPN_API_ENDPOINTS[sport];
-      console.log(`🔄 Fetching ${sport} games from ESPN API...`);
+      const dateURLs = getESPNDateRangeURLs(apiEndpoint);
+      console.log(`🔄 Fetching ${sport} games for ${dateURLs.length} dates from ESPN API...`);
       
       // Track API call
-      apiCallCount.total++;
-      apiCallCount.byEndpoint[sport] = (apiCallCount.byEndpoint[sport] || 0) + 1;
+      apiCallCount.total += dateURLs.length;
+      apiCallCount.byEndpoint[sport] = (apiCallCount.byEndpoint[sport] || 0) + dateURLs.length;
       
-      const response = await fetch(apiEndpoint);
+      // Fetch all dates in parallel
+      const responses = await Promise.all(
+        dateURLs.map(url => fetch(url).catch(err => {
+          console.error(`Error fetching ${url}:`, err);
+          return null;
+        }))
+      );
       
-      // Handle rate limiting (429 status)
-      if (response.status === 429) {
+      // Filter out failed requests
+      const validResponses = responses.filter(r => r !== null);
+      
+      if (validResponses.length === 0) {
+        throw new Error('All API requests failed');
+      }
+      
+      // Check for rate limiting on any response
+      const rateLimited = validResponses.some(r => r.status === 429);
+      if (rateLimited) {
         console.error('⚠️ ESPN API rate limit exceeded');
         apiCallCount.errors++;
         setApiError('ESPN API is temporarily unavailable due to rate limiting. Please try again in a few minutes.');
@@ -2686,16 +2709,21 @@ function App() {
         return;
       }
       
-      // Handle other HTTP errors
-      if (!response.ok) {
-        apiCallCount.errors++;
-        throw new Error(`ESPN API returned status ${response.status}`);
-      }
+      // Parse all responses
+      const allData = await Promise.all(
+        validResponses.map(r => r.ok ? r.json() : null)
+      );
       
-      const data = await response.json();
+      // Combine all events from all dates
+      const allEvents = [];
+      allData.forEach(data => {
+        if (data && data.events && data.events.length > 0) {
+          allEvents.push(...data.events);
+        }
+      });
       
       // Check if events exist
-      if (!data.events || data.events.length === 0) {
+      if (allEvents.length === 0) {
         console.log(`ℹ️ No games available for ${sport}`);
         setGames([]);
         
@@ -2713,17 +2741,28 @@ function App() {
       }
       
       // Debug: Log the entire odds structure for the first 2 games
-      data.events.forEach((event, index) => {
-        if (index < 2) {
-          const competition = event.competitions[0];
-          console.log('=== DEBUG: ESPN API Odds Structure ===');
-          console.log('Game:', competition.competitors[1].team.displayName, '@', competition.competitors[0].team.displayName);
-          console.log('Full odds object:', JSON.stringify(competition.odds, null, 2));
-          console.log('======================================');
+      allEvents.slice(0, 2).forEach((event, index) => {
+        const competition = event.competitions[0];
+        console.log('=== DEBUG: ESPN API Odds Structure ===');
+        console.log('Game:', competition.competitors[1].team.displayName, '@', competition.competitors[0].team.displayName);
+        console.log('Full odds object:', JSON.stringify(competition.odds, null, 2));
+        console.log('======================================');
+      });
+      
+      // Remove duplicate games (same espnId)
+      const uniqueEvents = [];
+      const seenIds = new Set();
+      allEvents.forEach(event => {
+        if (!seenIds.has(event.id)) {
+          seenIds.add(event.id);
+          uniqueEvents.push(event);
         }
       });
       
-      const formattedGames = data.events.map((event, index) => {
+      // Sort events by date (past games first, then upcoming)
+      uniqueEvents.sort((a, b) => new Date(a.date) - new Date(b.date));
+      
+      const formattedGames = uniqueEvents.map((event, index) => {
         const competition = event.competitions[0];
         const awayTeam = competition.competitors[1];
         const homeTeam = competition.competitors[0];
@@ -2896,14 +2935,30 @@ function App() {
         }
         
         const apiEndpoint = ESPN_API_ENDPOINTS[sport];
-        console.log(`🔄 Fetching ${sport} games for cross-sport parlay...`);
+        const dateURLs = getESPNDateRangeURLs(apiEndpoint);
+        console.log(`🔄 Fetching ${sport} games for ${dateURLs.length} dates (cross-sport parlay)...`);
         
-        apiCallCount.total++;
-        apiCallCount.byEndpoint[sport] = (apiCallCount.byEndpoint[sport] || 0) + 1;
+        apiCallCount.total += dateURLs.length;
+        apiCallCount.byEndpoint[sport] = (apiCallCount.byEndpoint[sport] || 0) + dateURLs.length;
         
-        const response = await fetch(apiEndpoint);
+        // Fetch all dates in parallel
+        const responses = await Promise.all(
+          dateURLs.map(url => fetch(url).catch(err => {
+            console.error(`Error fetching ${url}:`, err);
+            return null;
+          }))
+        );
         
-        if (response.status === 429) {
+        // Filter out failed requests
+        const validResponses = responses.filter(r => r !== null);
+        
+        if (validResponses.length === 0) {
+          sportsData[sport] = [];
+          return;
+        }
+        
+        const rateLimited = validResponses.some(r => r.status === 429);
+        if (rateLimited) {
           console.error(`⚠️ ESPN API rate limit exceeded for ${sport}`);
           apiCallCount.errors++;
           const cached = gameCache[sport];
@@ -2915,15 +2970,20 @@ function App() {
           return;
         }
         
-        if (!response.ok) {
-          apiCallCount.errors++;
-          sportsData[sport] = [];
-          return;
-        }
+        // Parse all responses
+        const allData = await Promise.all(
+          validResponses.map(r => r.ok ? r.json() : null)
+        );
         
-        const data = await response.json();
+        // Combine all events from all dates
+        const allEvents = [];
+        allData.forEach(data => {
+          if (data && data.events && data.events.length > 0) {
+            allEvents.push(...data.events);
+          }
+        });
         
-        if (!data.events || data.events.length === 0) {
+        if (allEvents.length === 0) {
           console.log(`ℹ️ No games available for ${sport}`);
           sportsData[sport] = [];
           const timestamp = Date.now();
@@ -2931,7 +2991,18 @@ function App() {
           return;
         }
         
-        const formattedGames = data.events.map((event, index) => {
+        // Remove duplicate games and sort by date
+        const uniqueEvents = [];
+        const seenIds = new Set();
+        allEvents.forEach(event => {
+          if (!seenIds.has(event.id)) {
+            seenIds.add(event.id);
+            uniqueEvents.push(event);
+          }
+        });
+        uniqueEvents.sort((a, b) => new Date(a.date) - new Date(b.date));
+        
+        const formattedGames = uniqueEvents.map((event, index) => {
           const competition = event.competitions[0];
           const awayTeam = competition.competitors[1];
           const homeTeam = competition.competitors[0];
@@ -2992,8 +3063,24 @@ function App() {
     }));
     
     setAllSportsGames(sportsData);
-    setCurrentViewSport(initialSport);
-    setGames(sportsData[initialSport] || []);
+    // Only update currentViewSport and games if not already set (initial load)
+    // Don't override when user has navigated to a different sport
+    const currentSport = currentViewSportRef.current;
+    if (!currentSport) {
+      console.log('🏈 loadAllSports: Initial load, setting to', initialSport, 'with', sportsData[initialSport]?.length || 0, 'games');
+      setCurrentViewSport(initialSport);
+      currentViewSportRef.current = initialSport;
+      setGames(sportsData[initialSport] || []);
+    } else {
+      // Refresh the games for the currently viewed sport ONLY if we have data
+      // This prevents clearing games during unnecessary refreshes
+      if (sportsData[currentSport] && sportsData[currentSport].length > 0) {
+        console.log('🔄 loadAllSports: Refreshing', currentSport, 'with', sportsData[currentSport].length, 'games');
+        setGames(sportsData[currentSport]);
+      } else {
+        console.log('⚠️ loadAllSports: No games available for', currentSport, '- keeping current games array');
+      }
+    }
     setLoading(false);
     setLastRefreshTime(Date.now());
   }, [parseESPNOdds]);
@@ -3003,31 +3090,19 @@ function App() {
     let intervalId = null;
     
     if (selectedSport) {
-      // If parlay mode, load all sports
-      if (betType === 'parlay') {
+      // Always load all sports to populate the sidebar
+      loadAllSports(selectedSport);
+      // Setup Firebase listeners for all sports
+      setTimeout(() => {
+        Object.keys(ESPN_API_ENDPOINTS).forEach(sport => {
+          setupFirebaseListener(sport);
+        });
+      }, 500);
+      
+      // Set up interval
+      intervalId = setInterval(() => {
         loadAllSports(selectedSport);
-        // Setup Firebase listeners for all sports
-        setTimeout(() => {
-          Object.keys(ESPN_API_ENDPOINTS).forEach(sport => {
-            setupFirebaseListener(sport);
-          });
-        }, 500);
-        
-        // Set up interval
-        intervalId = setInterval(() => {
-          loadAllSports(selectedSport);
-        }, refreshInterval || REFRESH_INTERVAL_INACTIVE);
-      } else {
-        // If straight bets, load only selected sport
-        loadGames(selectedSport);
-        setTimeout(() => {
-          setupFirebaseListener(selectedSport);
-        }, 500);
-        
-        intervalId = setInterval(() => {
-          loadGames(selectedSport);
-        }, refreshInterval || REFRESH_INTERVAL_INACTIVE);
-      }
+      }, refreshInterval || REFRESH_INTERVAL_INACTIVE);
     }
     
     return () => {
@@ -3035,7 +3110,15 @@ function App() {
         clearInterval(intervalId);
       }
     };
-  }, [selectedSport, betType, refreshInterval, loadGames, loadAllSports, setupFirebaseListener]);
+  }, [selectedSport, refreshInterval, loadAllSports, setupFirebaseListener]); // Removed betType from dependencies
+
+  // Auto-initialize default sport when user is logged in but no sport is selected
+  useEffect(() => {
+    if ((authState.user || userRole === 'guest') && !selectedSport && !authState.loading) {
+      setSelectedSport('NFL');
+      setCurrentViewSport('NFL');
+    }
+  }, [authState.user, authState.loading, userRole, selectedSport]);
 
   useEffect(() => {
     const stored = localStorage.getItem('marcs-parlays-submissions');
@@ -3063,6 +3146,14 @@ function App() {
     });
     return unsub;
   }, []);
+
+  // Load prop bets when component mounts or when viewing prop bets
+  useEffect(() => {
+    if (selectedSport === 'Prop Bets' && Object.keys(propBets).length === 0 && !propBetsLoading) {
+      loadAllPropBets();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedSport]);
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -3093,7 +3184,7 @@ function App() {
   const handleSignOut = async () => {
     await signOut(auth);
     setUserRole(null);
-    setBetType(null);
+    setBetType('parlay'); // Reset to default parlay mode instead of null
     setSelectedSport(null);
     setShowAdminUserManagement(false);
   };
@@ -3138,24 +3229,9 @@ function App() {
   }
 
   // Show user welcome screen if logged in as non-admin user
-  if (authState.user && !authState.isAdmin && !betType) {
-    return <BetTypeSelectionPage 
-      onSelectBetType={(type) => setBetType(type)} 
-      onSignOut={handleSignOut}
-      onBack={null}
-      isAuthenticated={true}
-    />;
-  }
-
-  // Show user sport selection if logged in as non-admin user and bet type selected
-  if (authState.user && !authState.isAdmin && betType && !selectedSport) {
-    return <WelcomeLandingPage 
-      onSelectSport={(sport) => setSelectedSport(sport)} 
-      onSignOut={handleSignOut}
-      onBack={() => setBetType(null)}
-      isAuthenticated={true}
-      betType={betType}
-    />;
+  // Sport will be auto-selected by useEffect above
+  if (authState.user && !authState.isAdmin && !selectedSport) {
+    return null; // useEffect will set the default sport
   }
 
   // Show role selection if not determined yet
@@ -3250,24 +3326,9 @@ function App() {
   }
 
   // Show sport selection if no sport selected (for guest and logged-in user)
-  if (!betType) {
-    return <BetTypeSelectionPage 
-      onSelectBetType={(type) => setBetType(type)} 
-      onSignOut={handleSignOut}
-      onBack={() => setUserRole(null)}
-      isAuthenticated={false}
-    />;
-  }
-
-  // Show sport selection after bet type selected
+  // Sport will be auto-selected by useEffect above
   if (!selectedSport) {
-    return <WelcomeLandingPage 
-      onSelectSport={(sport) => setSelectedSport(sport)} 
-      onSignOut={handleSignOut}
-      onBack={() => setBetType(null)}
-      isAuthenticated={false}
-      betType={betType}
-    />;
+    return null; // useEffect will set the default sport
   }
 
   // Show loading while games are loading
@@ -3287,16 +3348,26 @@ function App() {
     allSportsGames={allSportsGames}
     currentViewSport={currentViewSport}
     onChangeSport={(sport) => {
+      console.log('🔄 Changing sport to:', sport);
+      console.log('📊 allSportsGames keys:', Object.keys(allSportsGames));
+      console.log('🎮 Games for', sport, ':', allSportsGames[sport]?.length || 0);
+      const gamesForSport = allSportsGames[sport] || [];
+      console.log('📋 About to set games array with length:', gamesForSport.length);
       setCurrentViewSport(sport);
-      setGames(allSportsGames[sport] || []);
+      currentViewSportRef.current = sport;
+      setGames(gamesForSport);
     }}
     loading={loading} 
-    onBackToMenu={() => setSelectedSport(null)} 
-    sport={selectedSport}
+    onBackToMenu={handleSignOut} 
+    sport={currentViewSport || selectedSport}
     betType={betType}
+    onBetTypeChange={(type) => setBetType(type)}
     apiError={apiError}
     onManualRefresh={handleManualRefresh}
     lastRefreshTime={lastRefreshTime}
+    propBets={propBets}
+    propBetsLoading={propBetsLoading}
+    propBetsError={propBetsError}
   />;
 }
 
