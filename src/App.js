@@ -3190,9 +3190,9 @@ function App() {
 
   // Manual refresh handler
   const handleManualRefresh = async () => {
-    if (selectedSport) {
-      await loadGames(selectedSport, true); // Force refresh
-    }
+    // Refresh all sports data, not just selectedSport
+    // This ensures the sidebar navigation continues to work after refresh
+    await loadAllSports(selectedSport, true); // Force refresh
   };
 
   // Sign out handler
