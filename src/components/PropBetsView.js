@@ -60,7 +60,8 @@ function PropBetsView({
     );
   }
 
-  const currentProps = propBets[selectedSport] || [];
+  // Safely access prop bets, defaulting to empty array
+  const currentProps = (propBets && propBets[selectedSport]) || [];
 
   return (
     <div className="prop-bets-view">
