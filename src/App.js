@@ -43,16 +43,32 @@ const getESPNDateRangeURLs = (baseURL) => {
 };
 
 // The Odds API Configuration
-const ODDS_API_KEY = '4e1df4cc99838c371ae1822316b8eb7c';
+const ODDS_API_KEY = process.env.REACT_APP_ODDS_API_KEY || '';
 const ODDS_API_BASE_URL = 'https://api.the-odds-api.com/v4';
 
-// Sport keys for The Odds API
+// Sport keys for The Odds API (for odds data)
 const ODDS_API_SPORT_KEYS = {
-  'College Basketball': 'basketball_ncaab'
+  'College Basketball': 'basketball_ncaab',
+  'NFL': 'americanfootball_nfl',
+  'NBA': 'basketball_nba',
+  'College Football': 'americanfootball_ncaaf',
+  'NHL': 'icehockey_nhl'
+};
+
+// Prop bet markets to fetch for each sport
+const PROP_BET_MARKETS = {
+  'NFL': ['player_pass_tds', 'player_pass_yds', 'player_rush_yds', 'player_receptions'],
+  'NBA': ['player_points', 'player_rebounds', 'player_assists', 'player_threes'],
+  'College Football': ['player_pass_tds', 'player_pass_yds', 'player_rush_yds'],
+  'College Basketball': ['player_points', 'player_rebounds', 'player_assists'],
+  'NHL': ['player_points', 'player_shots_on_goal']
 };
 
 // Longer cache for College Basketball to conserve API calls
 const COLLEGE_BASKETBALL_CACHE_DURATION = 60 * 60 * 1000; // 1 hour
+
+// Prop bets cache duration - 2 hours to minimize API usage
+const PROP_BETS_CACHE_DURATION = 2 * 60 * 60 * 1000; // 2 hours
 
 // Cache configuration
 const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes in milliseconds
@@ -2214,6 +2230,13 @@ function App() {
   const [lastRefreshTime, setLastRefreshTime] = useState(null);
   const [refreshInterval, setRefreshInterval] = useState(null);
 
+  // Prop Bets State
+  const [propBets, setPropBets] = useState({});
+  const [propBetsLoading, setPropBetsLoading] = useState(false);
+  const [propBetsError, setPropBetsError] = useState(null);
+  const [selectedPropSport, setSelectedPropSport] = useState('All');
+  const propBetsCache = useRef({});
+
   // Fetch College Basketball odds from The Odds API
   const fetchCollegeBasketballOdds = async () => {
     try {
@@ -2302,6 +2325,148 @@ function App() {
     
     console.warn(`⚠️ No odds found for ${game.awayTeam} @ ${game.homeTeam}`);
     return { awaySpread: '', homeSpread: '', total: '' };
+  };
+
+  // Fetch Prop Bets from The Odds API
+  const fetchPropBets = async (sportName) => {
+    if (!ODDS_API_KEY) {
+      console.warn('⚠️ No Odds API key configured. Prop bets feature disabled.');
+      return [];
+    }
+
+    // Check cache
+    const cacheKey = sportName;
+    const cachedData = propBetsCache.current[cacheKey];
+    if (cachedData && (Date.now() - cachedData.timestamp < PROP_BETS_CACHE_DURATION)) {
+      console.log(`✅ Using cached prop bets for ${sportName}`);
+      return cachedData.data;
+    }
+
+    const sportKey = ODDS_API_SPORT_KEYS[sportName];
+    if (!sportKey) {
+      console.warn(`⚠️ No Odds API sport key configured for ${sportName}`);
+      return [];
+    }
+
+    const markets = PROP_BET_MARKETS[sportName];
+    if (!markets || markets.length === 0) {
+      console.warn(`⚠️ No prop bet markets configured for ${sportName}`);
+      return [];
+    }
+
+    try {
+      console.log(`🎯 Fetching prop bets for ${sportName}...`);
+      const allProps = [];
+
+      // Fetch each market separately to get comprehensive prop data
+      for (const market of markets) {
+        try {
+          const url = `${ODDS_API_BASE_URL}/sports/${sportKey}/events?apiKey=${ODDS_API_KEY}&regions=us&markets=${market}&oddsFormat=american`;
+          const response = await fetch(url);
+
+          if (!response.ok) {
+            console.error(`⚠️ The Odds API returned status ${response.status} for ${market}`);
+            continue;
+          }
+
+          const data = await response.json();
+          console.log(`✅ Fetched ${data.length} events with ${market} props for ${sportName}`);
+
+          // Process each event
+          data.forEach(event => {
+            if (!event.bookmakers || event.bookmakers.length === 0) return;
+
+            const bookmaker = event.bookmakers[0]; // Use first bookmaker
+            const marketData = bookmaker.markets?.find(m => m.key === market);
+            
+            if (!marketData || !marketData.outcomes) return;
+
+            // Each outcome is a prop bet
+            marketData.outcomes.forEach(outcome => {
+              allProps.push({
+                id: `${event.id}_${market}_${outcome.name}_${outcome.point || 'NA'}`,
+                sport: sportName,
+                eventId: event.id,
+                gameTitle: `${event.away_team} @ ${event.home_team}`,
+                commence_time: event.commence_time,
+                market: market,
+                marketDisplay: formatMarketDisplay(market),
+                playerName: outcome.name,
+                description: outcome.description || `${outcome.name} ${formatMarketDisplay(market)}`,
+                line: outcome.point || null,
+                overOdds: outcome.name.includes('Over') ? outcome.price : null,
+                underOdds: outcome.name.includes('Under') ? outcome.price : null,
+                odds: outcome.price,
+                bookmaker: bookmaker.title
+              });
+            });
+          });
+        } catch (error) {
+          console.error(`❌ Error fetching ${market} for ${sportName}:`, error);
+        }
+      }
+
+      // Sort by event time and limit to most recent/upcoming
+      allProps.sort((a, b) => new Date(a.commence_time) - new Date(b.commence_time));
+      const limitedProps = allProps.slice(0, 50); // Limit to 50 props per sport
+
+      // Cache the results
+      propBetsCache.current[cacheKey] = {
+        data: limitedProps,
+        timestamp: Date.now()
+      };
+
+      console.log(`🎯 Total prop bets for ${sportName}: ${limitedProps.length}`);
+      return limitedProps;
+    } catch (error) {
+      console.error(`❌ Error fetching prop bets for ${sportName}:`, error);
+      return [];
+    }
+  };
+
+  // Helper to format market display names
+  const formatMarketDisplay = (market) => {
+    const displayNames = {
+      'player_pass_tds': 'Passing Touchdowns',
+      'player_pass_yds': 'Passing Yards',
+      'player_rush_yds': 'Rushing Yards',
+      'player_receptions': 'Receptions',
+      'player_points': 'Points',
+      'player_rebounds': 'Rebounds',
+      'player_assists': 'Assists',
+      'player_threes': '3-Pointers Made',
+      'player_shots_on_goal': 'Shots on Goal'
+    };
+    return displayNames[market] || market;
+  };
+
+  // Load all prop bets for configured sports
+  const loadAllPropBets = async () => {
+    if (!ODDS_API_KEY) {
+      console.warn('⚠️ Prop bets feature disabled: No API key configured');
+      return;
+    }
+
+    setPropBetsLoading(true);
+    setPropBetsError(null);
+
+    try {
+      const sports = ['NFL', 'NBA', 'College Football', 'College Basketball', 'NHL'];
+      const allPropBetsData = {};
+
+      for (const sport of sports) {
+        const props = await fetchPropBets(sport);
+        allPropBetsData[sport] = props;
+      }
+
+      setPropBets(allPropBetsData);
+      console.log('✅ All prop bets loaded successfully');
+    } catch (error) {
+      console.error('❌ Error loading prop bets:', error);
+      setPropBetsError('Failed to load prop bets. Please try again later.');
+    } finally {
+      setPropBetsLoading(false);
+    }
   };
 
   // Helper function to parse ESPN odds

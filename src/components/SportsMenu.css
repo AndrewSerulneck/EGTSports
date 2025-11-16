@@ -203,3 +203,22 @@
 .sports-menu.collapsed .sports-menu-content::-webkit-scrollbar {
   width: 0;
 }
+
+/* Prop Bets styling */
+.sport-item.prop-bets-item {
+  border-top: 2px solid #667eea;
+  margin-top: 10px;
+  padding-top: 15px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+}
+
+.sport-item.prop-bets-item:hover {
+  background: linear-gradient(135deg, #764ba2 0%, #667eea 100%);
+  transform: scale(1.02);
+}
+
+.sport-item.prop-bets-item.active {
+  background: linear-gradient(135deg, #764ba2 0%, #F093FB 100%);
+  box-shadow: 0 4px 15px rgba(118, 75, 162, 0.4);
+}

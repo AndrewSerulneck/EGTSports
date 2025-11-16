@@ -19,7 +19,8 @@ function SportsMenu({
     { name: 'College Football', icon: '🏟️', available: true },
     { name: 'College Basketball', icon: '🎓', available: true },
     { name: 'Major League Baseball', icon: '⚾', available: true },
-    { name: 'NHL', icon: '🏒', available: true }
+    { name: 'NHL', icon: '🏒', available: true },
+    { name: 'Prop Bets', icon: '🎯', available: true, isPropBets: true }
   ];
 
   // Get game count for each sport
@@ -43,13 +44,14 @@ function SportsMenu({
 
       <div className="sports-menu-content">
         {sports.map((sport) => {
-          const gameCount = getGameCount(sport.name);
+          // For Prop Bets, don't show game count
+          const gameCount = sport.isPropBets ? '' : getGameCount(sport.name);
           const isActive = currentSport === sport.name;
 
           return (
             <button
               key={sport.name}
-              className={`sport-item ${isActive ? 'active' : ''} ${!sport.available ? 'disabled' : ''}`}
+              className={`sport-item ${isActive ? 'active' : ''} ${!sport.available ? 'disabled' : ''} ${sport.isPropBets ? 'prop-bets-item' : ''}`}
               onClick={() => sport.available && onSelectSport(sport.name)}
               disabled={!sport.available}
               title={sport.name}
@@ -58,7 +60,7 @@ function SportsMenu({
               {isExpanded && (
                 <>
                   <span className="sport-name">{sport.name}</span>
-                  <span className="sport-count">{gameCount}</span>
+                  {!sport.isPropBets && <span className="sport-count">{gameCount}</span>}
                 </>
               )}
             </button>
