@@ -32,8 +32,8 @@ const getESPNDateRangeURLs = (baseURL) => {
   const urls = [];
   const today = new Date();
   
-  // Get games from 7 days ago to 14 days in the future (3 week window)
-  for (let i = -7; i <= 14; i++) {
+  // Get games from 1 day ago to 14 days in the future
+  for (let i = -1; i <= 14; i++) {
     const date = new Date(today);
     date.setDate(date.getDate() + i);
     const dateStr = date.toISOString().split('T')[0].replace(/-/g, ''); // Format: YYYYMMDD
@@ -2410,11 +2410,15 @@ function App() {
       // Fetch each market separately to get comprehensive prop data
       for (const market of markets) {
         try {
-          const url = `${ODDS_API_BASE_URL}/sports/${sportKey}/events?apiKey=${ODDS_API_KEY}&regions=us&markets=${market}&oddsFormat=american`;
+          // Updated URL to use /odds endpoint with markets parameter
+          const url = `${ODDS_API_BASE_URL}/sports/${sportKey}/odds/?apiKey=${ODDS_API_KEY}&regions=us&markets=${market}&oddsFormat=american`;
           const response = await fetch(url);
 
           if (!response.ok) {
             console.error(`⚠️ The Odds API returned status ${response.status} for ${market}`);
+            // Log response for debugging
+            const errorText = await response.text();
+            console.error(`Error details: ${errorText}`);
             continue;
           }
 
@@ -2423,30 +2427,41 @@ function App() {
 
           // Process each event
           data.forEach(event => {
-            if (!event.bookmakers || event.bookmakers.length === 0) return;
+            if (!event.bookmakers || event.bookmakers.length === 0) {
+              console.log(`No bookmakers for event ${event.id}`);
+              return;
+            }
 
-            const bookmaker = event.bookmakers[0]; // Use first bookmaker
-            const marketData = bookmaker.markets?.find(m => m.key === market);
-            
-            if (!marketData || !marketData.outcomes) return;
+            // Check multiple bookmakers to get best coverage
+            event.bookmakers.forEach(bookmaker => {
+              const marketData = bookmaker.markets?.find(m => m.key === market);
+              
+              if (!marketData || !marketData.outcomes) return;
 
-            // Each outcome is a prop bet
-            marketData.outcomes.forEach(outcome => {
-              allProps.push({
-                id: `${event.id}_${market}_${outcome.name}_${outcome.point || 'NA'}`,
-                sport: sportName,
-                eventId: event.id,
-                gameTitle: `${event.away_team} @ ${event.home_team}`,
-                commence_time: event.commence_time,
-                market: market,
-                marketDisplay: formatMarketDisplay(market),
-                playerName: outcome.name,
-                description: outcome.description || `${outcome.name} ${formatMarketDisplay(market)}`,
-                line: outcome.point || null,
-                overOdds: outcome.name.includes('Over') ? outcome.price : null,
-                underOdds: outcome.name.includes('Under') ? outcome.price : null,
-                odds: outcome.price,
-                bookmaker: bookmaker.title
+              // Each outcome is a prop bet
+              marketData.outcomes.forEach(outcome => {
+                // Skip duplicates - only add if not already in allProps
+                const propId = `${event.id}_${market}_${outcome.name}_${outcome.point || 'NA'}`;
+                const exists = allProps.some(p => p.id === propId);
+                
+                if (!exists) {
+                  allProps.push({
+                    id: propId,
+                    sport: sportName,
+                    eventId: event.id,
+                    gameTitle: `${event.away_team} @ ${event.home_team}`,
+                    commence_time: event.commence_time,
+                    market: market,
+                    marketDisplay: formatMarketDisplay(market),
+                    playerName: outcome.name,
+                    description: outcome.description || `${outcome.name} ${formatMarketDisplay(market)}`,
+                    line: outcome.point || null,
+                    overOdds: outcome.name.includes('Over') ? outcome.price : null,
+                    underOdds: outcome.name.includes('Under') ? outcome.price : null,
+                    odds: outcome.price,
+                    bookmaker: bookmaker.title
+                  });
+                }
               });
             });
           });
@@ -3215,7 +3230,10 @@ function App() {
       setRecentlyUpdated={setRecentlyUpdated} 
       submissions={submissions} 
       sport={selectedSport}
-      onBackToMenu={() => setSelectedSport(null)}
+      onBackToMenu={() => {
+        setSelectedSport(null);
+        setCurrentViewSport(null);
+      }}
     />;
   }
 
@@ -3351,6 +3369,15 @@ function App() {
       console.log('🔄 Changing sport to:', sport);
       console.log('📊 allSportsGames keys:', Object.keys(allSportsGames));
       console.log('🎮 Games for', sport, ':', allSportsGames[sport]?.length || 0);
+      
+      // Handle Prop Bets selection
+      if (sport === 'Prop Bets') {
+        setCurrentViewSport('Prop Bets');
+        currentViewSportRef.current = 'Prop Bets';
+        setGames([]); // Clear regular games when viewing prop bets
+        return;
+      }
+      
       const gamesForSport = allSportsGames[sport] || [];
       console.log('📋 About to set games array with length:', gamesForSport.length);
       setCurrentViewSport(sport);
