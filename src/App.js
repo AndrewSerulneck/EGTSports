@@ -624,7 +624,7 @@ function AdminLandingPage({ onSelectSport, onManageUsers, onSignOut }) {
 }
 
 // Landing Page Component - WITH MANUAL REFRESH BUTTON AND CROSS-SPORT SUPPORT
-function LandingPage({ games, allSportsGames, currentViewSport, onChangeSport, loading, onBackToMenu, sport, betType, onBetTypeChange, apiError, onManualRefresh, lastRefreshTime }) {
+function LandingPage({ games, allSportsGames, currentViewSport, onChangeSport, loading, onBackToMenu, sport, betType, onBetTypeChange, apiError, onManualRefresh, lastRefreshTime, propBets, propBetsLoading, propBetsError }) {
   const [selectedPicks, setSelectedPicks] = useState({});
   const [showConfirmation, setShowConfirmation] = useState(false);
   const [ticketNumber, setTicketNumber] = useState('');
@@ -2284,7 +2284,6 @@ function App() {
   const [propBets, setPropBets] = useState({});
   const [propBetsLoading, setPropBetsLoading] = useState(false);
   const [propBetsError, setPropBetsError] = useState(null);
-  const [selectedPropSport, setSelectedPropSport] = useState('All');
   const propBetsCache = useRef({});
 
   // Fetch College Basketball odds from The Odds API
@@ -3153,6 +3152,7 @@ function App() {
     if (selectedSport === 'Prop Bets' && Object.keys(propBets).length === 0 && !propBetsLoading) {
       loadAllPropBets();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedSport]);
 
   const handleLogin = async (e) => {
@@ -3365,6 +3365,9 @@ function App() {
     apiError={apiError}
     onManualRefresh={handleManualRefresh}
     lastRefreshTime={lastRefreshTime}
+    propBets={propBets}
+    propBetsLoading={propBetsLoading}
+    propBetsError={propBetsError}
   />;
 }
 
