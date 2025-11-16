@@ -1243,8 +1243,11 @@ try {
           paddingRight: '350px'
         }}>
           <PropBetsView
+            propBets={propBets}
+            loading={propBetsLoading}
+            error={propBetsError}
             selectedPicks={selectedPicks}
-            onSelectPick={handleGridPickSelection}
+            onSelectPropBet={handleGridPickSelection}
             betType={betType}
           />
         </div>
@@ -3144,6 +3147,13 @@ function App() {
     });
     return unsub;
   }, []);
+
+  // Load prop bets when component mounts or when viewing prop bets
+  useEffect(() => {
+    if (selectedSport === 'Prop Bets' && Object.keys(propBets).length === 0 && !propBetsLoading) {
+      loadAllPropBets();
+    }
+  }, [selectedSport]);
 
   const handleLogin = async (e) => {
     e.preventDefault();
