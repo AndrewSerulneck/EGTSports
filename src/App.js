@@ -14,6 +14,7 @@ import UserManagement from './components/UserManagement';
 import BettingSlip from './components/BettingSlip';
 import SportsMenu from './components/SportsMenu';
 import GridBettingLayout from './components/GridBettingLayout';
+import PropBetsView from './components/PropBetsView';
 
 // ESPN API Endpoints for all sports
 const ESPN_API_ENDPOINTS = {
@@ -1220,9 +1221,55 @@ try {
     );
   }
 
+  // Show Prop Bets View if "Prop Bets" is selected
+  const displaySport = currentViewSport || sport;
+  if (displaySport === 'Prop Bets') {
+    return (
+      <div className="gradient-bg" style={{display: 'flex', minHeight: '100vh'}}>
+        {/* Left Sidebar - Sports Menu */}
+        {allSportsGames && Object.keys(allSportsGames).length > 0 && (
+          <SportsMenu
+            currentSport={currentViewSport}
+            onSelectSport={onChangeSport}
+            allSportsGames={allSportsGames}
+            betType={betType}
+          />
+        )}
+        
+        {/* Prop Bets Main Content */}
+        <div style={{
+          marginLeft: allSportsGames && Object.keys(allSportsGames).length > 0 ? '250px' : '0',
+          width: allSportsGames && Object.keys(allSportsGames).length > 0 ? 'calc(100% - 250px - 350px)' : 'calc(100% - 350px)',
+          paddingRight: '350px'
+        }}>
+          <PropBetsView
+            selectedPicks={selectedPicks}
+            onSelectPick={handleGridPickSelection}
+            betType={betType}
+          />
+        </div>
+        
+        {/* Betting Slip - Floating on the right side */}
+        <BettingSlip
+          selectedPicks={selectedPicks}
+          onRemovePick={handleRemovePick}
+          onClearAll={handleClearAll}
+          onSubmit={submitPicks}
+          betType={betType}
+          onBetTypeChange={onBetTypeChange}
+          games={games}
+          allSportsGames={allSportsGames}
+          individualBetAmounts={individualBetAmounts}
+          setIndividualBetAmounts={setIndividualBetAmounts}
+          MIN_BET={MIN_BET}
+          MAX_BET={MAX_BET}
+        />
+      </div>
+    );
+  }
+
   // Show message if no games available
   // BUT: Don't show error if we have games for the current sport in allSportsGames (during state transition)
-  const displaySport = currentViewSport || sport;
   const hasGamesInAllSports = allSportsGames && allSportsGames[displaySport] && allSportsGames[displaySport].length > 0;
   
   if (games.length === 0 && !hasGamesInAllSports) {
