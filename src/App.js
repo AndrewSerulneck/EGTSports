@@ -67,9 +67,6 @@ const PROP_BET_MARKETS = {
   'NHL': ['player_points', 'player_shots_on_goal']
 };
 
-// Longer cache for College Basketball to conserve API calls
-const COLLEGE_BASKETBALL_CACHE_DURATION = 60 * 60 * 1000; // 1 hour
-
 // Prop bets cache duration - 2 hours to minimize API usage
 const PROP_BETS_CACHE_DURATION = 2 * 60 * 60 * 1000; // 2 hours
 
