@@ -77,7 +77,6 @@ const REFRESH_INTERVAL_ACTIVE = 4 * 60 * 60 * 1000; // 4 hours even when games a
 const REFRESH_INTERVAL_INACTIVE = 8 * 60 * 60 * 1000; // 8 hours when no active games
 const COLLEGE_BASKETBALL_CACHE_DURATION = 6 * 60 * 60 * 1000; // 6 hours (same as others)
 const ODDS_API_CACHE_DURATION = 12 * 60 * 60 * 1000; // 12 hours - The Odds API data changes less frequently
-
 const gameCache = {};
 const oddsAPICache = {}; // Separate cache for The Odds API to preserve calls
 
