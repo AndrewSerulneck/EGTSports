@@ -2535,6 +2535,11 @@ function App() {
 
   // Helper function to parse ESPN odds
   const parseESPNOdds = useCallback((competition, sport) => {
+    // NOTE: ESPN API limitations:
+    // - Not all games have complete odds data (especially college sports and NHL)
+    // - Moneyline odds are often missing for college sports
+    // - Some games only have spread or only have total
+    // - This is an ESPN API data availability issue, not a parsing bug
     let awaySpread = '';
     let homeSpread = '';
     let total = '';
@@ -3128,8 +3133,9 @@ function App() {
   }, [selectedSport, refreshInterval, loadAllSports, setupFirebaseListener]); // Removed betType from dependencies
 
   // Auto-initialize default sport when user is logged in but no sport is selected
+  // CRITICAL: Do NOT auto-select for admins - let them stay on sport selection menu
   useEffect(() => {
-    if ((authState.user || userRole === 'guest') && !selectedSport && !authState.loading) {
+    if ((authState.user || userRole === 'guest') && !selectedSport && !authState.loading && userRole !== 'admin') {
       setSelectedSport('NFL');
       setCurrentViewSport('NFL');
     }
