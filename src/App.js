@@ -2423,50 +2423,6 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
   }
 };
       
-      // Parse The Odds API response into a map of team names to odds
-      const oddsMap = {};
-      
-      data.forEach(game => {
-        const homeTeam = game.home_team;
-        const awayTeam = game.away_team;
-        
-        // Find spread and total markets
-        const spreadMarket = game.bookmakers?.[0]?.markets?.find(m => m.key === 'spreads');
-        const totalMarket = game.bookmakers?.[0]?.markets?.find(m => m.key === 'totals');
-        
-        let homeSpread = '';
-        let awaySpread = '';
-        let total = '';
-        
-        if (spreadMarket?.outcomes) {
-          const homeOutcome = spreadMarket.outcomes.find(o => o.name === homeTeam);
-          const awayOutcome = spreadMarket.outcomes.find(o => o.name === awayTeam);
-          
-          if (homeOutcome?.point !== undefined) {
-            homeSpread = homeOutcome.point > 0 ? `+${homeOutcome.point}` : String(homeOutcome.point);
-          }
-          if (awayOutcome?.point !== undefined) {
-            awaySpread = awayOutcome.point > 0 ? `+${awayOutcome.point}` : String(awayOutcome.point);
-          }
-        }
-        
-        if (totalMarket?.outcomes?.[0]?.point !== undefined) {
-          total = String(totalMarket.outcomes[0].point);
-        }
-        
-        // Store by both team names for easy lookup
-        const gameKey = `${awayTeam}|${homeTeam}`;
-        oddsMap[gameKey] = { homeSpread, awaySpread, total };
-        
-        console.log(`📊 ${awayTeam} @ ${homeTeam}: Away ${awaySpread}, Home ${homeSpread}, Total ${total}`);
-      });
-      
-      return oddsMap;
-    } catch (error) {
-      console.error('❌ Error fetching College Basketball odds:', error);
-      return null;
-    }
-  };
 
   // Match ESPN game data with The Odds API odds data
   const matchOddsToGame = (game, oddsMap) => {
