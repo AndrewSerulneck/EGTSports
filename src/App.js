@@ -71,14 +71,11 @@ const COLLEGE_BASKETBALL_CACHE_DURATION = 60 * 60 * 1000; // 1 hour
 // Prop bets cache duration - 2 hours to minimize API usage
 const PROP_BETS_CACHE_DURATION = 2 * 60 * 60 * 1000; // 2 hours
 
-// Cache configuration - Aggressive caching to reduce API calls
-const CACHE_DURATION = 6 * 60 * 60 * 1000; // 6 hours - only update a few times per day
-const REFRESH_INTERVAL_ACTIVE = 4 * 60 * 60 * 1000; // 4 hours even when games are live (no live scores needed)
-const REFRESH_INTERVAL_INACTIVE = 8 * 60 * 60 * 1000; // 8 hours when no active games
-const COLLEGE_BASKETBALL_CACHE_DURATION = 6 * 60 * 60 * 1000; // 6 hours (same as others)
-const ODDS_API_CACHE_DURATION = 12 * 60 * 60 * 1000; // 12 hours - The Odds API data changes less frequently
+// Cache configuration
+const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes in milliseconds
+const REFRESH_INTERVAL_ACTIVE = 2 * 60 * 1000; // 2 minutes when games are live
+const REFRESH_INTERVAL_INACTIVE = 30 * 60 * 1000; // 30 minutes when no active games
 const gameCache = {};
-const oddsAPICache = {}; // Separate cache for The Odds API to preserve calls
 
 // API Usage Tracking
 let apiCallCount = {
