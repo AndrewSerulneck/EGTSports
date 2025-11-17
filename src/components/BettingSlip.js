@@ -63,35 +63,62 @@ function BettingSlip({
     return total;
   };
 
-  // Calculate potential payout for singles
+  // Calculate winnings based on American odds
+  const calculateWinnings = (stake, odds) => {
+    const numericOdds = parseFloat(odds);
+    if (isNaN(numericOdds) || stake <= 0) return 0;
+    
+    if (numericOdds < 0) {
+      // Favorites: Amount won = Stake × (100 / |odds|)
+      return stake * (100 / Math.abs(numericOdds));
+    } else {
+      // Underdogs: Amount won = Stake × (odds / 100)
+      return stake * (numericOdds / 100);
+    }
+  };
+
+  // Calculate potential payout for singles (returns total payout = stake + winnings)
   const calculateSinglePayout = () => {
     let totalPayout = 0;
     Object.entries(selectedPicks).forEach(([gameId, pickObj]) => {
       const game = findGame(gameId);
       if (!game) return;
 
-      if (pickObj.spread) {
-        const pickId = getPickId(gameId, 'spread');
+      // Winner (Moneyline) bets
+      if (pickObj.winner) {
+        const pickId = getPickId(gameId, 'winner');
         const betAmount = parseFloat(individualBetAmounts?.[pickId] || 0);
-        const moneyline = pickObj.spread === 'away' ? game.awayMoneyline : game.homeMoneyline;
+        const moneyline = pickObj.winner === 'away' ? game.awayMoneyline : game.homeMoneyline;
         
         if (betAmount > 0 && moneyline) {
-          const ml = parseInt(moneyline);
-          if (!isNaN(ml)) {
-            const payout = ml > 0 ? betAmount * (ml / 100) : betAmount * (100 / Math.abs(ml));
-            totalPayout += payout;
-          }
+          const winnings = calculateWinnings(betAmount, moneyline);
+          totalPayout += betAmount + winnings; // stake + winnings
         }
       }
 
+      // Spread (Points Handicap) bets
+      if (pickObj.spread) {
+        const pickId = getPickId(gameId, 'spread');
+        const betAmount = parseFloat(individualBetAmounts?.[pickId] || 0);
+        // Spread bets typically have -110 odds (sometimes varies)
+        const spreadOdds = pickObj.spread === 'away' ? (game.awaySpreadOdds || '-110') : (game.homeSpreadOdds || '-110');
+        
+        if (betAmount > 0) {
+          const winnings = calculateWinnings(betAmount, spreadOdds);
+          totalPayout += betAmount + winnings; // stake + winnings
+        }
+      }
+
+      // Total (Over/Under) bets
       if (pickObj.total) {
         const pickId = getPickId(gameId, 'total');
         const betAmount = parseFloat(individualBetAmounts?.[pickId] || 0);
+        // Totals typically have -110 odds
+        const totalOdds = '-110';
         
         if (betAmount > 0) {
-          // Over/Under typically pays -110
-          const payout = betAmount * (100 / 110);
-          totalPayout += payout;
+          const winnings = calculateWinnings(betAmount, totalOdds);
+          totalPayout += betAmount + winnings; // stake + winnings
         }
       }
     });
@@ -138,7 +165,7 @@ function BettingSlip({
             <div className="pick-details">
               <div className="pick-game">{gameName}{sportLabel}</div>
               <div className="pick-odds">
-                Winner: {moneyline || '--'}
+                Moneyline: {moneyline || '--'}
               </div>
             </div>
             {activeTab === 'single' && (

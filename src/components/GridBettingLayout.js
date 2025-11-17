@@ -65,24 +65,24 @@ function GridBettingLayout({
                 </div>
               </div>
 
-              {/* Winner Column (Moneyline) */}
+              {/* Moneyline Column */}
               <div className="bet-column">
-                <div className="column-header">Winner</div>
+                <div className="column-header">Moneyline</div>
                 <button
                   className={`bet-button ${isSelected(game.id, 'winner', 'away') ? 'selected' : ''} ${game.isFinal ? 'disabled' : ''}`}
                   onClick={() => !game.isFinal && onSelectPick(game.id, 'winner', 'away')}
-                  disabled={game.isFinal}
+                  disabled={game.isFinal || !game.awayMoneyline}
                 >
                   <span className="bet-label">Away</span>
-                  <span className="bet-odds">{formatOdds(game.awayMoneyline || game.awaySpread)}</span>
+                  <span className="bet-odds">{formatOdds(game.awayMoneyline)}</span>
                 </button>
                 <button
                   className={`bet-button ${isSelected(game.id, 'winner', 'home') ? 'selected' : ''} ${game.isFinal ? 'disabled' : ''}`}
                   onClick={() => !game.isFinal && onSelectPick(game.id, 'winner', 'home')}
-                  disabled={game.isFinal}
+                  disabled={game.isFinal || !game.homeMoneyline}
                 >
                   <span className="bet-label">Home</span>
-                  <span className="bet-odds">{formatOdds(game.homeMoneyline || game.homeSpread)}</span>
+                  <span className="bet-odds">{formatOdds(game.homeMoneyline)}</span>
                 </button>
               </div>
 
