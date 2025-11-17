@@ -44,17 +44,15 @@ const getESPNDateRangeURLs = (baseURL) => {
 };
 
 // The Odds API Configuration
-const ODDS_API_KEY = process.env.REACT_APP_ODDS_API_KEY || '4e1df4cc99838c371ae1822316b8eb7c';
+const ODDS_API_KEY = process.env.REACT_APP_ODDS_API_KEY || '';
 const ODDS_API_BASE_URL = 'https://api.the-odds-api.com/v4';
-const USE_ODDS_API_FALLBACK = true; // Only call The Odds API when ESPN data is missing
 
 // Sport keys for The Odds API (for odds data)
 const ODDS_API_SPORT_KEYS = {
+  'College Basketball': 'basketball_ncaab',
   'NFL': 'americanfootball_nfl',
   'NBA': 'basketball_nba',
   'College Football': 'americanfootball_ncaaf',
-  'College Basketball': 'basketball_ncaab',
-  'Major League Baseball': 'baseball_mlb',
   'NHL': 'icehockey_nhl'
 };
 
@@ -67,18 +65,17 @@ const PROP_BET_MARKETS = {
   'NHL': ['player_points', 'player_shots_on_goal']
 };
 
+// Longer cache for College Basketball to conserve API calls
+const COLLEGE_BASKETBALL_CACHE_DURATION = 60 * 60 * 1000; // 1 hour
+
 // Prop bets cache duration - 2 hours to minimize API usage
 const PROP_BETS_CACHE_DURATION = 2 * 60 * 60 * 1000; // 2 hours
 
-// Cache configuration - Aggressive caching to reduce API calls
-const CACHE_DURATION = 6 * 60 * 60 * 1000; // 6 hours - only update a few times per day
-const REFRESH_INTERVAL_ACTIVE = 4 * 60 * 60 * 1000; // 4 hours even when games are live (no live scores needed)
-const REFRESH_INTERVAL_INACTIVE = 8 * 60 * 60 * 1000; // 8 hours when no active games
-const COLLEGE_BASKETBALL_CACHE_DURATION = 6 * 60 * 60 * 1000; // 6 hours (same as others)
-const ODDS_API_CACHE_DURATION = 12 * 60 * 60 * 1000; // 12 hours - The Odds API data changes less frequently
-
+// Cache configuration
+const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes in milliseconds
+const REFRESH_INTERVAL_ACTIVE = 2 * 60 * 1000; // 2 minutes when games are live
+const REFRESH_INTERVAL_INACTIVE = 30 * 60 * 1000; // 30 minutes when no active games
 const gameCache = {};
-const oddsAPICache = {}; // Separate cache for The Odds API to preserve calls
 
 // API Usage Tracking
 let apiCallCount = {
@@ -1307,29 +1304,6 @@ try {
                 {isRefreshing ? 'Refreshing...' : '🔄 Refresh'}
               </button>
               <button className="btn btn-secondary" onClick={onBackToMenu}>← Back to Menu</button>
-                  <button 
-    onClick={() => {
-      // Clear all caches and force refresh
-      Object.keys(gameCache).forEach(key => delete gameCache[key]);
-      Object.keys(oddsAPICache).forEach(key => delete oddsAPICache[key]);
-      onManualRefresh();
-    }}
-    style={{
-      padding: '12px 24px',
-      fontSize: '16px',
-      backgroundColor: '#28a745',
-      color: 'white',
-      border: 'none',
-      borderRadius: '8px',
-      cursor: 'pointer',
-      fontWeight: 'bold',
-      display: 'flex',
-      alignItems: 'center',
-      gap: '8px'
-    }}
-  >
-    🔄 Force Refresh
-  </button>
             </div>
           </div>
         </div>
@@ -2312,117 +2286,68 @@ function App() {
   const [propBetsError, setPropBetsError] = useState(null);
   const propBetsCache = useRef({});
 
- 
-  // Helper function to detect if odds data is missing or incomplete
-const hasCompleteOddsData = (game) => {
-  // Check if game has at least one complete betting market
-  const hasSpread = game.awaySpread && game.homeSpread && 
-                    game.awaySpread !== '' && game.homeSpread !== '';
-  const hasTotal = game.total && game.total !== '';
-  const hasMoneyline = game.awayMoneyline && game.homeMoneyline && 
-                       game.awayMoneyline !== '' && game.homeMoneyline !== '';
-  
-  // Consider complete if we have at least spread OR moneyline
-  return hasSpread || hasMoneyline;
-};
-
-// Helper function to count games missing odds
-const countMissingOdds = (games) => {
-  return games.filter(game => !hasCompleteOddsData(game)).length;
-};
-  
-// Fetch odds from The Odds API ONLY when ESPN data is incomplete
-const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
-  try {
-    const sportKey = ODDS_API_SPORT_KEYS[sport];
-    if (!sportKey) {
-      console.log(`⚠️ No Odds API sport key configured for ${sport}`);
+  // Fetch College Basketball odds from The Odds API
+  const fetchCollegeBasketballOdds = async () => {
+    try {
+      const sportKey = ODDS_API_SPORT_KEYS['College Basketball'];
+      const url = `${ODDS_API_BASE_URL}/sports/${sportKey}/odds/?apiKey=${ODDS_API_KEY}&regions=us&markets=spreads,totals&oddsFormat=american`;
+      
+      console.log('🏀 Fetching College Basketball odds from The Odds API...');
+      
+      const response = await fetch(url);
+      
+      if (!response.ok) {
+        console.error(`⚠️ The Odds API returned status ${response.status}`);
+        return null;
+      }
+      
+      const data = await response.json();
+      console.log(`✅ Fetched odds for ${data.length} College Basketball games from The Odds API`);
+      
+      // Parse The Odds API response into a map of team names to odds
+      const oddsMap = {};
+      
+      data.forEach(game => {
+        const homeTeam = game.home_team;
+        const awayTeam = game.away_team;
+        
+        // Find spread and total markets
+        const spreadMarket = game.bookmakers?.[0]?.markets?.find(m => m.key === 'spreads');
+        const totalMarket = game.bookmakers?.[0]?.markets?.find(m => m.key === 'totals');
+        
+        let homeSpread = '';
+        let awaySpread = '';
+        let total = '';
+        
+        if (spreadMarket?.outcomes) {
+          const homeOutcome = spreadMarket.outcomes.find(o => o.name === homeTeam);
+          const awayOutcome = spreadMarket.outcomes.find(o => o.name === awayTeam);
+          
+          if (homeOutcome?.point !== undefined) {
+            homeSpread = homeOutcome.point > 0 ? `+${homeOutcome.point}` : String(homeOutcome.point);
+          }
+          if (awayOutcome?.point !== undefined) {
+            awaySpread = awayOutcome.point > 0 ? `+${awayOutcome.point}` : String(awayOutcome.point);
+          }
+        }
+        
+        if (totalMarket?.outcomes?.[0]?.point !== undefined) {
+          total = String(totalMarket.outcomes[0].point);
+        }
+        
+        // Store by both team names for easy lookup
+        const gameKey = `${awayTeam}|${homeTeam}`;
+        oddsMap[gameKey] = { homeSpread, awaySpread, total };
+        
+        console.log(`📊 ${awayTeam} @ ${homeTeam}: Away ${awaySpread}, Home ${homeSpread}, Total ${total}`);
+      });
+      
+      return oddsMap;
+    } catch (error) {
+      console.error('❌ Error fetching College Basketball odds:', error);
       return null;
     }
-    
-    // Check cache first to avoid unnecessary API calls
-    if (!forceRefresh && oddsAPICache[sport]) {
-      const cached = oddsAPICache[sport];
-      if (Date.now() - cached.timestamp < ODDS_API_CACHE_DURATION) {
-        console.log(`✅ Using cached Odds API data for ${sport} (age: ${Math.round((Date.now() - cached.timestamp) / 1000 / 60)} minutes)`);
-        return cached.data;
-      }
-    }
-    
-    const url = `${ODDS_API_BASE_URL}/sports/${sportKey}/odds/?apiKey=${ODDS_API_KEY}&regions=us&markets=spreads,totals,h2h&oddsFormat=american`;
-    
-    console.log(`📊 Fetching ${sport} odds from The Odds API (fallback mode)...`);
-    
-    const response = await fetch(url);
-    
-    if (!response.ok) {
-      console.error(`⚠️ The Odds API returned status ${response.status} for ${sport}`);
-      return null;
-    }
-    
-    const data = await response.json();
-    console.log(`✅ Fetched odds for ${data.length} ${sport} games from The Odds API`);
-    
-    // Parse The Odds API response
-    const oddsMap = {};
-    
-    data.forEach(game => {
-      const homeTeam = game.home_team;
-      const awayTeam = game.away_team;
-      
-      // Find markets
-      const spreadMarket = game.bookmakers?.[0]?.markets?.find(m => m.key === 'spreads');
-      const totalMarket = game.bookmakers?.[0]?.markets?.find(m => m.key === 'totals');
-      const h2hMarket = game.bookmakers?.[0]?.markets?.find(m => m.key === 'h2h');
-      
-      let homeSpread = '';
-      let awaySpread = '';
-      let total = '';
-      let homeMoneyline = '';
-      let awayMoneyline = '';
-      
-      // Extract spreads
-      if (spreadMarket?.outcomes) {
-        const homeOutcome = spreadMarket.outcomes.find(o => o.name === homeTeam);
-        const awayOutcome = spreadMarket.outcomes.find(o => o.name === awayTeam);
-        
-        if (homeOutcome) homeSpread = homeOutcome.point > 0 ? `+${homeOutcome.point}` : String(homeOutcome.point);
-        if (awayOutcome) awaySpread = awayOutcome.point > 0 ? `+${awayOutcome.point}` : String(awayOutcome.point);
-      }
-      
-      // Extract totals
-      if (totalMarket?.outcomes?.[0]) {
-        total = `O/U ${totalMarket.outcomes[0].point}`;
-      }
-      
-      // Extract moneylines (h2h = head-to-head = moneyline)
-      if (h2hMarket?.outcomes) {
-        const homeOutcome = h2hMarket.outcomes.find(o => o.name === homeTeam);
-        const awayOutcome = h2hMarket.outcomes.find(o => o.name === awayTeam);
-        
-        if (homeOutcome) homeMoneyline = homeOutcome.price > 0 ? `+${homeOutcome.price}` : String(homeOutcome.price);
-        if (awayOutcome) awayMoneyline = awayOutcome.price > 0 ? `+${awayOutcome.price}` : String(awayOutcome.price);
-      }
-      
-      // Store in map using team names as key
-      const gameKey = `${awayTeam}|${homeTeam}`;
-      oddsMap[gameKey] = { awaySpread, homeSpread, total, awayMoneyline, homeMoneyline };
-    });
-    
-    // Cache the results for 12 hours
-    oddsAPICache[sport] = {
-      data: oddsMap,
-      timestamp: Date.now()
-    };
-    
-    return oddsMap;
-    
-  } catch (error) {
-    console.error(`❌ Error fetching ${sport} odds from The Odds API:`, error);
-    return null;
-  }
-};
-      
+  };
 
   // Match ESPN game data with The Odds API odds data
   const matchOddsToGame = (game, oddsMap) => {
@@ -2888,52 +2813,27 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
         };
       });
       
-// Smart fallback: Only use The Odds API if ESPN data is incomplete
-let finalFormattedGames = formattedGames;
-
-if (USE_ODDS_API_FALLBACK) {
-  const missingCount = countMissingOdds(formattedGames);
-  const totalGames = formattedGames.length;
-  
-  console.log(`📊 ${sport}: ${missingCount} of ${totalGames} games missing complete odds from ESPN`);
-  
-  // Only call The Odds API if we have missing data
-  if (missingCount > 0) {
-    console.log(`🔄 Fetching ${sport} odds from The Odds API as fallback...`);
-    const oddsMap = await fetchOddsFromTheOddsAPI(sport);
-    
-    if (oddsMap) {
-      // Only replace missing data, keep ESPN data when available
-      finalFormattedGames = formattedGames.map(game => {
-        const hasCompleteData = hasCompleteOddsData(game);
+      // Special handling for College Basketball - fetch odds from The Odds API
+      let finalFormattedGames = formattedGames;
+      if (sport === 'College Basketball') {
+        console.log('🏀 Fetching College Basketball odds from The Odds API...');
+        const oddsMap = await fetchCollegeBasketballOdds();
         
-        if (hasCompleteData) {
-          console.log(`✅ Using ESPN odds for ${game.awayTeam} @ ${game.homeTeam}`);
-          return game; // Keep ESPN data
+        if (oddsMap) {
+          // Match odds to games
+          finalFormattedGames = formattedGames.map(game => {
+            const odds = matchOddsToGame(game, oddsMap);
+            return {
+              ...game,
+              awaySpread: odds.awaySpread,
+              homeSpread: odds.homeSpread,
+              total: odds.total
+            };
+          });
+          console.log(`✅ Merged The Odds API data with ${finalFormattedGames.length} College Basketball games`);
         }
-        
-        // ESPN data incomplete, use The Odds API
-        const odds = matchOddsToGame(game, oddsMap);
-        console.log(`📊 Using The Odds API for ${game.awayTeam} @ ${game.homeTeam}`);
-        
-        return {
-          ...game,
-          awaySpread: odds.awaySpread || game.awaySpread,
-          homeSpread: odds.homeSpread || game.homeSpread,
-          total: odds.total || game.total,
-          awayMoneyline: odds.awayMoneyline || game.awayMoneyline,
-          homeMoneyline: odds.homeMoneyline || game.homeMoneyline
-        };
-      });
+      }
       
-      console.log(`✅ Applied The Odds API fallback data to ${missingCount} ${sport} games`);
-    } else {
-      console.log(`⚠️ The Odds API unavailable, using ESPN data as-is for ${sport}`);
-    }
-  } else {
-    console.log(`✅ All ${sport} games have complete odds from ESPN, skipping The Odds API`);
-  }
-}
       // Cache the results
       const timestamp = Date.now();
       gameCache[sport] = {
@@ -3027,186 +2927,162 @@ if (USE_ODDS_API_FALLBACK) {
     }
   }, [setGames, setIsSyncing, setRecentlyUpdated]);
 
-// NEW: Load all sports for cross-sport parlays
-const loadAllSports = useCallback(async (initialSport, forceRefresh = false) => {
-  const allSports = ['NFL', 'NBA', 'College Football', 'College Basketball', 'Major League Baseball', 'NHL'];
-  const sportsData = {};
-  
-  setLoading(true);
-  setApiError(null);
-  
-  // Load all sports in parallel
-  await Promise.all(allSports.map(async (sport) => {
-    try {
-      // Check cache first unless force refresh
-      if (!forceRefresh) {
-        const cached = gameCache[sport];
-        const cacheExpiry = sport === 'College Basketball' 
-          ? COLLEGE_BASKETBALL_CACHE_DURATION 
-          : CACHE_DURATION;
+  // NEW: Load all sports for cross-sport parlays
+  const loadAllSports = useCallback(async (initialSport, forceRefresh = false) => {
+    const allSports = ['NFL', 'NBA', 'College Football', 'College Basketball', 'Major League Baseball', 'NHL'];
+    const sportsData = {};
+    
+    setLoading(true);
+    setApiError(null);
+    
+    // Load all sports in parallel
+    await Promise.all(allSports.map(async (sport) => {
+      try {
+        // Check cache first unless force refresh
+        if (!forceRefresh) {
+          const cached = gameCache[sport];
+          const cacheExpiry = sport === 'College Basketball' 
+            ? COLLEGE_BASKETBALL_CACHE_DURATION 
+            : CACHE_DURATION;
+          
+          if (cached && Date.now() - cached.timestamp < cacheExpiry) {
+            console.log(`✅ Using cached data for ${sport}`);
+            apiCallCount.cacheHits++;
+            sportsData[sport] = cached.data;
+            logAPIUsage(sport, true, true);
+            return;
+          }
+        }
         
-        if (cached && Date.now() - cached.timestamp < cacheExpiry) {
-          console.log(`✅ Using cached data for ${sport}`);
-          apiCallCount.cacheHits++;
-          sportsData[sport] = cached.data;
-          logAPIUsage(sport, true, true);
+        const apiEndpoint = ESPN_API_ENDPOINTS[sport];
+        const dateURLs = getESPNDateRangeURLs(apiEndpoint);
+        console.log(`🔄 Fetching ${sport} games for ${dateURLs.length} dates (cross-sport parlay)...`);
+        
+        apiCallCount.total += dateURLs.length;
+        apiCallCount.byEndpoint[sport] = (apiCallCount.byEndpoint[sport] || 0) + dateURLs.length;
+        
+        // Fetch all dates in parallel
+        const responses = await Promise.all(
+          dateURLs.map(url => fetch(url).catch(err => {
+            console.error(`Error fetching ${url}:`, err);
+            return null;
+          }))
+        );
+        
+        // Filter out failed requests
+        const validResponses = responses.filter(r => r !== null);
+        
+        if (validResponses.length === 0) {
+          sportsData[sport] = [];
           return;
         }
-      }
-      
-      const apiEndpoint = ESPN_API_ENDPOINTS[sport];
-      const dateURLs = getESPNDateRangeURLs(apiEndpoint);
-      console.log(`🔄 Fetching ${sport} games for ${dateURLs.length} dates (cross-sport parlay)...`);
-      
-      apiCallCount.total += dateURLs.length;
-      apiCallCount.byEndpoint[sport] = (apiCallCount.byEndpoint[sport] || 0) + dateURLs.length;
-      
-      // Fetch all dates in parallel
-      const responses = await Promise.all(
-        dateURLs.map(url => fetch(url).catch(err => {
-          console.error(`Error fetching ${url}:`, err);
-          return null;
-        }))
-      );
-      
-      // Filter out failed requests
-      const validResponses = responses.filter(r => r !== null);
-      
-      if (validResponses.length === 0) {
-        sportsData[sport] = [];
-        return;
-      }
-      
-      const rateLimited = validResponses.some(r => r.status === 429);
-      if (rateLimited) {
-        console.error(`⚠️ ESPN API rate limit exceeded for ${sport}`);
-        apiCallCount.errors++;
-        const cached = gameCache[sport];
-        if (cached) {
-          sportsData[sport] = cached.data;
-        } else {
+        
+        const rateLimited = validResponses.some(r => r.status === 429);
+        if (rateLimited) {
+          console.error(`⚠️ ESPN API rate limit exceeded for ${sport}`);
+          apiCallCount.errors++;
+          const cached = gameCache[sport];
+          if (cached) {
+            sportsData[sport] = cached.data;
+          } else {
+            sportsData[sport] = [];
+          }
+          return;
+        }
+        
+        // Parse all responses
+        const allData = await Promise.all(
+          validResponses.map(r => r.ok ? r.json() : null)
+        );
+        
+        // Combine all events from all dates
+        const allEvents = [];
+        allData.forEach(data => {
+          if (data && data.events && data.events.length > 0) {
+            allEvents.push(...data.events);
+          }
+        });
+        
+        if (allEvents.length === 0) {
+          console.log(`ℹ️ No games available for ${sport}`);
           sportsData[sport] = [];
+          const timestamp = Date.now();
+          gameCache[sport] = { data: [], timestamp };
+          return;
         }
-        return;
-      }
-      
-      // Parse all responses
-      const allData = await Promise.all(
-        validResponses.map(r => r.ok ? r.json() : null)
-      );
-      
-      // Combine all events from all dates
-      const allEvents = [];
-      allData.forEach(data => {
-        if (data && data.events && data.events.length > 0) {
-          allEvents.push(...data.events);
-        }
-      });
-      
-      if (allEvents.length === 0) {
-        console.log(`ℹ️ No games available for ${sport}`);
-        sportsData[sport] = [];
-        const timestamp = Date.now();
-        gameCache[sport] = { data: [], timestamp };
-        return;
-      }
-      
-      // Remove duplicate games and sort by date
-      const uniqueEvents = [];
-      const seenIds = new Set();
-      allEvents.forEach(event => {
-        if (!seenIds.has(event.id)) {
-          seenIds.add(event.id);
-          uniqueEvents.push(event);
-        }
-      });
-      uniqueEvents.sort((a, b) => new Date(a.date) - new Date(b.date));
-      
-      const formattedGames = uniqueEvents.map((event, index) => {
-        const competition = event.competitions[0];
-        const awayTeam = competition.competitors[1];
-        const homeTeam = competition.competitors[0];
-        const status = event.status.type.state;
         
-        const { awaySpread, homeSpread, total, awayMoneyline, homeMoneyline } = parseESPNOdds(competition, sport);
+        // Remove duplicate games and sort by date
+        const uniqueEvents = [];
+        const seenIds = new Set();
+        allEvents.forEach(event => {
+          if (!seenIds.has(event.id)) {
+            seenIds.add(event.id);
+            uniqueEvents.push(event);
+          }
+        });
+        uniqueEvents.sort((a, b) => new Date(a.date) - new Date(b.date));
         
-        return {
-          id: `${sport}-${index + 1}`, // Unique ID with sport prefix
-          espnId: event.id,
-          sport: sport, // Add sport identifier
-          date: new Date(event.date).toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' }),
-          time: new Date(event.date).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }) + ' ET',
-          awayTeam: awayTeam.team.displayName,
-          homeTeam: homeTeam.team.displayName,
-          awayTeamId: awayTeam.id,
-          homeTeamId: homeTeam.id,
-          awayScore: awayTeam.score || '0',
-          homeScore: homeTeam.score || '0',
-          awaySpread: awaySpread,
-          homeSpread: homeSpread,
-          total: total,
-          awayMoneyline: awayMoneyline,
-          homeMoneyline: homeMoneyline,
-          status: status,
-          statusDetail: event.status.type.detail,
-          isFinal: status === 'post'
-        };
-      });
-      
-      // Smart fallback: Only use The Odds API if ESPN data is incomplete
-      if (USE_ODDS_API_FALLBACK) {
-        const missingCount = countMissingOdds(formattedGames);
-        
-        if (missingCount > 0) {
-          console.log(`🔄 ${sport}: ${missingCount} games missing odds, using The Odds API fallback`);
-          const oddsMap = await fetchOddsFromTheOddsAPI(sport);
+        const formattedGames = uniqueEvents.map((event, index) => {
+          const competition = event.competitions[0];
+          const awayTeam = competition.competitors[1];
+          const homeTeam = competition.competitors[0];
+          const status = event.status.type.state;
           
+          const { awaySpread, homeSpread, total, awayMoneyline, homeMoneyline } = parseESPNOdds(competition, sport);
+          
+          return {
+            id: `${sport}-${index + 1}`, // Unique ID with sport prefix
+            espnId: event.id,
+            sport: sport, // Add sport identifier
+            date: new Date(event.date).toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' }),
+            time: new Date(event.date).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }) + ' ET',
+            awayTeam: awayTeam.team.displayName,
+            homeTeam: homeTeam.team.displayName,
+            awayTeamId: awayTeam.id,
+            homeTeamId: homeTeam.id,
+            awayScore: awayTeam.score || '0',
+            homeScore: homeTeam.score || '0',
+            awaySpread: awaySpread,
+            homeSpread: homeSpread,
+            total: total,
+            awayMoneyline: awayMoneyline,
+            homeMoneyline: homeMoneyline,
+            status: status,
+            statusDetail: event.status.type.detail,
+            isFinal: status === 'post'
+          };
+        });
+        
+        // Special handling for College Basketball
+        if (sport === 'College Basketball') {
+          const oddsMap = await fetchCollegeBasketballOdds();
           if (oddsMap) {
             const finalFormattedGames = formattedGames.map(game => {
-              if (hasCompleteOddsData(game)) return game;
-              
               const odds = matchOddsToGame(game, oddsMap);
-              return {
-                ...game,
-                awaySpread: odds.awaySpread || game.awaySpread,
-                homeSpread: odds.homeSpread || game.homeSpread,
-                total: odds.total || game.total,
-                awayMoneyline: odds.awayMoneyline || game.awayMoneyline,
-                homeMoneyline: odds.homeMoneyline || game.homeMoneyline
-              };
+              return { ...game, awaySpread: odds.awaySpread, homeSpread: odds.homeSpread, total: odds.total };
             });
-            
             sportsData[sport] = finalFormattedGames;
           } else {
             sportsData[sport] = formattedGames;
           }
         } else {
-          console.log(`✅ ${sport}: All games have complete ESPN odds`);
           sportsData[sport] = formattedGames;
         }
-      } else {
-        sportsData[sport] = formattedGames;
+        
+        const timestamp = Date.now();
+        gameCache[sport] = { data: sportsData[sport], timestamp };
+        console.log(`✅ Loaded ${sportsData[sport].length} ${sport} games`);
+        logAPIUsage(sport, true, false);
+        
+      } catch (error) {
+        console.error(`❌ Error loading ${sport} games:`, error);
+        apiCallCount.errors++;
+        sportsData[sport] = [];
+        logAPIUsage(sport, false, false);
       }
-      
-      const timestamp = Date.now();
-      gameCache[sport] = { data: sportsData[sport], timestamp };
-      console.log(`✅ Loaded ${sportsData[sport].length} ${sport} games`);
-      logAPIUsage(sport, true, false);
-      
-    } catch (error) {
-      console.error(`❌ Error loading ${sport} games:`, error);
-      apiCallCount.errors++;
-      sportsData[sport] = [];
-      logAPIUsage(sport, false, false);
-    }
-  }));
-  
-  setAllSportsGames(sportsData);
-  setCurrentViewSport(initialSport);
-  setGames(sportsData[initialSport] || []);
-  setLoading(false);
-  setLastRefreshTime(Date.now());
-}, [parseESPNOdds]);
+    }));
+    
+    setAllSportsGames(sportsData);
     // Only update currentViewSport and games if not already set (initial load)
     // Don't override when user has navigated to a different sport
     const currentSport = currentViewSportRef.current;
@@ -3243,11 +3119,18 @@ const loadAllSports = useCallback(async (initialSport, forceRefresh = false) => 
         });
       }, 500);
       
-// Set up interval (reduced frequency - no live scores needed)
-intervalId = setInterval(() => {
-  console.log('⏱️ Auto-refresh triggered (occurs every 4-8 hours)');
-  loadAllSports(selectedSport);
-}, REFRESH_INTERVAL_ACTIVE); // Use the 4-hour interval
+      // Set up interval
+      intervalId = setInterval(() => {
+        loadAllSports(selectedSport);
+      }, refreshInterval || REFRESH_INTERVAL_INACTIVE);
+    }
+    
+    return () => {
+      if (intervalId) {
+        clearInterval(intervalId);
+      }
+    };
+  }, [selectedSport, refreshInterval, loadAllSports, setupFirebaseListener]); // Removed betType from dependencies
 
   // Auto-initialize default sport when user is logged in but no sport is selected
   // CRITICAL: Do NOT auto-select for admins - let them stay on sport selection menu
