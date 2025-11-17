@@ -2290,6 +2290,24 @@ function App() {
   const [propBetsError, setPropBetsError] = useState(null);
   const propBetsCache = useRef({});
 
+  // Helper function to detect if odds data is missing or incomplete
+const hasCompleteOddsData = (game) => {
+  // Check if game has at least one complete betting market
+  const hasSpread = game.awaySpread && game.homeSpread && 
+                    game.awaySpread !== '' && game.homeSpread !== '';
+  const hasTotal = game.total && game.total !== '';
+  const hasMoneyline = game.awayMoneyline && game.homeMoneyline && 
+                       game.awayMoneyline !== '' && game.homeMoneyline !== '';
+  
+  // Consider complete if we have at least spread OR moneyline
+  return hasSpread || hasMoneyline;
+};
+
+// Helper function to count games missing odds
+const countMissingOdds = (games) => {
+  return games.filter(game => !hasCompleteOddsData(game)).length;
+};
+  
   // Fetch College Basketball odds from The Odds API
   const fetchCollegeBasketballOdds = async () => {
     try {
