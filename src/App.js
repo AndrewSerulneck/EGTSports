@@ -44,8 +44,9 @@ const getESPNDateRangeURLs = (baseURL) => {
 };
 
 // The Odds API Configuration
-const ODDS_API_KEY = process.env.REACT_APP_ODDS_API_KEY || '';
+const ODDS_API_KEY = process.env.REACT_APP_ODDS_API_KEY || '4e1df4cc99838c371ae1822316b8eb7c';
 const ODDS_API_BASE_URL = 'https://api.the-odds-api.com/v4';
+const USE_ODDS_API_FALLBACK = true; // Only call The Odds API when ESPN data is missing
 
 // Sport keys for The Odds API (for odds data)
 const ODDS_API_SPORT_KEYS = {
