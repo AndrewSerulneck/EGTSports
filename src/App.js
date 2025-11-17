@@ -50,10 +50,11 @@ const USE_ODDS_API_FALLBACK = true; // Only call The Odds API when ESPN data is 
 
 // Sport keys for The Odds API (for odds data)
 const ODDS_API_SPORT_KEYS = {
-  'College Basketball': 'basketball_ncaab',
   'NFL': 'americanfootball_nfl',
   'NBA': 'basketball_nba',
   'College Football': 'americanfootball_ncaaf',
+  'College Basketball': 'basketball_ncaab',
+  'Major League Baseball': 'baseball_mlb',
   'NHL': 'icehockey_nhl'
 };
 
