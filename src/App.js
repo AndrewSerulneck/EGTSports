@@ -2308,97 +2308,68 @@ const countMissingOdds = (games) => {
   return games.filter(game => !hasCompleteOddsData(game)).length;
 };
   
-// Fetch odds from The Odds API ONLY when ESPN data is incomplete
-const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
-  try {
-    const sportKey = ODDS_API_SPORT_KEYS[sport];
-    if (!sportKey) {
-      console.log(`⚠️ No Odds API sport key configured for ${sport}`);
+  // Fetch College Basketball odds from The Odds API
+  const fetchCollegeBasketballOdds = async () => {
+    try {
+      const sportKey = ODDS_API_SPORT_KEYS['College Basketball'];
+      const url = `${ODDS_API_BASE_URL}/sports/${sportKey}/odds/?apiKey=${ODDS_API_KEY}&regions=us&markets=spreads,totals&oddsFormat=american`;
+      
+      console.log('🏀 Fetching College Basketball odds from The Odds API...');
+      
+      const response = await fetch(url);
+      
+      if (!response.ok) {
+        console.error(`⚠️ The Odds API returned status ${response.status}`);
+        return null;
+      }
+      
+      const data = await response.json();
+      console.log(`✅ Fetched odds for ${data.length} College Basketball games from The Odds API`);
+      
+      // Parse The Odds API response into a map of team names to odds
+      const oddsMap = {};
+      
+      data.forEach(game => {
+        const homeTeam = game.home_team;
+        const awayTeam = game.away_team;
+        
+        // Find spread and total markets
+        const spreadMarket = game.bookmakers?.[0]?.markets?.find(m => m.key === 'spreads');
+        const totalMarket = game.bookmakers?.[0]?.markets?.find(m => m.key === 'totals');
+        
+        let homeSpread = '';
+        let awaySpread = '';
+        let total = '';
+        
+        if (spreadMarket?.outcomes) {
+          const homeOutcome = spreadMarket.outcomes.find(o => o.name === homeTeam);
+          const awayOutcome = spreadMarket.outcomes.find(o => o.name === awayTeam);
+          
+          if (homeOutcome?.point !== undefined) {
+            homeSpread = homeOutcome.point > 0 ? `+${homeOutcome.point}` : String(homeOutcome.point);
+          }
+          if (awayOutcome?.point !== undefined) {
+            awaySpread = awayOutcome.point > 0 ? `+${awayOutcome.point}` : String(awayOutcome.point);
+          }
+        }
+        
+        if (totalMarket?.outcomes?.[0]?.point !== undefined) {
+          total = String(totalMarket.outcomes[0].point);
+        }
+        
+        // Store by both team names for easy lookup
+        const gameKey = `${awayTeam}|${homeTeam}`;
+        oddsMap[gameKey] = { homeSpread, awaySpread, total };
+        
+        console.log(`📊 ${awayTeam} @ ${homeTeam}: Away ${awaySpread}, Home ${homeSpread}, Total ${total}`);
+      });
+      
+      return oddsMap;
+    } catch (error) {
+      console.error('❌ Error fetching College Basketball odds:', error);
       return null;
     }
-    
-    // Check cache first to avoid unnecessary API calls
-    if (!forceRefresh && oddsAPICache[sport]) {
-      const cached = oddsAPICache[sport];
-      if (Date.now() - cached.timestamp < ODDS_API_CACHE_DURATION) {
-        console.log(`✅ Using cached Odds API data for ${sport} (age: ${Math.round((Date.now() - cached.timestamp) / 1000 / 60)} minutes)`);
-        return cached.data;
-      }
-    }
-    
-    const url = `${ODDS_API_BASE_URL}/sports/${sportKey}/odds/?apiKey=${ODDS_API_KEY}&regions=us&markets=spreads,totals,h2h&oddsFormat=american`;
-    
-    console.log(`📊 Fetching ${sport} odds from The Odds API (fallback mode)...`);
-    
-    const response = await fetch(url);
-    
-    if (!response.ok) {
-      console.error(`⚠️ The Odds API returned status ${response.status} for ${sport}`);
-      return null;
-    }
-    
-    const data = await response.json();
-    console.log(`✅ Fetched odds for ${data.length} ${sport} games from The Odds API`);
-    
-    // Parse The Odds API response
-    const oddsMap = {};
-    
-    data.forEach(game => {
-      const homeTeam = game.home_team;
-      const awayTeam = game.away_team;
-      
-      // Find markets
-      const spreadMarket = game.bookmakers?.[0]?.markets?.find(m => m.key === 'spreads');
-      const totalMarket = game.bookmakers?.[0]?.markets?.find(m => m.key === 'totals');
-      const h2hMarket = game.bookmakers?.[0]?.markets?.find(m => m.key === 'h2h');
-      
-      let homeSpread = '';
-      let awaySpread = '';
-      let total = '';
-      let homeMoneyline = '';
-      let awayMoneyline = '';
-      
-      // Extract spreads
-      if (spreadMarket?.outcomes) {
-        const homeOutcome = spreadMarket.outcomes.find(o => o.name === homeTeam);
-        const awayOutcome = spreadMarket.outcomes.find(o => o.name === awayTeam);
-        
-        if (homeOutcome) homeSpread = homeOutcome.point > 0 ? `+${homeOutcome.point}` : String(homeOutcome.point);
-        if (awayOutcome) awaySpread = awayOutcome.point > 0 ? `+${awayOutcome.point}` : String(awayOutcome.point);
-      }
-      
-      // Extract totals
-      if (totalMarket?.outcomes?.[0]) {
-        total = `O/U ${totalMarket.outcomes[0].point}`;
-      }
-      
-      // Extract moneylines (h2h = head-to-head = moneyline)
-      if (h2hMarket?.outcomes) {
-        const homeOutcome = h2hMarket.outcomes.find(o => o.name === homeTeam);
-        const awayOutcome = h2hMarket.outcomes.find(o => o.name === awayTeam);
-        
-        if (homeOutcome) homeMoneyline = homeOutcome.price > 0 ? `+${homeOutcome.price}` : String(homeOutcome.price);
-        if (awayOutcome) awayMoneyline = awayOutcome.price > 0 ? `+${awayOutcome.price}` : String(awayOutcome.price);
-      }
-      
-      // Store in map using team names as key
-      const gameKey = `${awayTeam}|${homeTeam}`;
-      oddsMap[gameKey] = { awaySpread, homeSpread, total, awayMoneyline, homeMoneyline };
-    });
-    
-    // Cache the results for 12 hours
-    oddsAPICache[sport] = {
-      data: oddsMap,
-      timestamp: Date.now()
-    };
-    
-    return oddsMap;
-    
-  } catch (error) {
-    console.error(`❌ Error fetching ${sport} odds from The Odds API:`, error);
-    return null;
-  }
-};
+  };
 
   // Match ESPN game data with The Odds API odds data
   const matchOddsToGame = (game, oddsMap) => {
