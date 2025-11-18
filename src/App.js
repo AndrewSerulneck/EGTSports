@@ -2727,17 +2727,17 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
         ? COLLEGE_BASKETBALL_CACHE_DURATION 
         : CACHE_DURATION;
       
-      if (cached && Date.now() - cached.timestamp < cacheExpiry) {
-        console.log(`✅ Using cached data for ${sport}`);
-        apiCallCount.cacheHits++;
-        setGames(cached.data);
-        setLoading(false);
-        setLastRefreshTime(cached.timestamp);
-        logAPIUsage(sport, true, true);
-        return;
-      }
+if (cached && Date.now() - cached.timestamp < cacheExpiry) {
+      console.log(`✅ Using cached data for ${sport}`);
+      apiCallCount.cacheHits++;
+      setGames(cached.data);
+      setLoading(false);
+      setLastRefreshTime(cached.timestamp);
+      logAPIUsage(sport, true, true);
+      return;
     }
-    
+// The extra closing brace has been removed from here.
+
     try {
       const apiEndpoint = ESPN_API_ENDPOINTS[sport];
       const dateURLs = getESPNDateRangeURLs(apiEndpoint);
