@@ -3216,10 +3216,11 @@ if (USE_ODDS_API_FALLBACK) {
         });
       }, 500);
       
-      // Set up interval
-      intervalId = setInterval(() => {
-        loadAllSports(selectedSport);
-      }, refreshInterval || REFRESH_INTERVAL_INACTIVE);
+// Set up interval (reduced frequency - no live scores needed)
+intervalId = setInterval(() => {
+  console.log('⏱️ Auto-refresh triggered (occurs every 4-8 hours)');
+  loadAllSports(selectedSport);
+}, REFRESH_INTERVAL_ACTIVE); // Use the 4-hour interval
     }
     
     return () => {
