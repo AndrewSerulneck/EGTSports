@@ -2720,79 +2720,81 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
     setLoading(true);
     setApiError(null);
     
-    // Check cache first (unless force refresh)
-    if (!forceRefresh) {
-      const cached = gameCache[sport];
-      const cacheExpiry = sport === 'College Basketball' 
-        ? COLLEGE_BASKETBALL_CACHE_DURATION 
-        : CACHE_DURATION;
-      
-if (cached && Date.now() - cached.timestamp < cacheExpiry) {
-      console.log(`✅ Using cached data for ${sport}`);
-      apiCallCount.cacheHits++;
-      setGames(cached.data);
-      setLoading(false);
-      setLastRefreshTime(cached.timestamp);
-      logAPIUsage(sport, true, true);
-      return;
-    }
-// The extra closing brace has been removed from here.
+// Check cache first (unless force refresh)
+if (!forceRefresh) {
+  const cached = gameCache[sport];
+  const cacheExpiry = sport === 'College Basketball'
+    ? COLLEGE_BASKETBALL_CACHE_DURATION
+    : CACHE_DURATION;
 
-    try {
-      const apiEndpoint = ESPN_API_ENDPOINTS[sport];
-      const dateURLs = getESPNDateRangeURLs(apiEndpoint);
-      console.log(`🔄 Fetching ${sport} games for ${dateURLs.length} dates from ESPN API...`);
-      
-      // Track API call
-      apiCallCount.total += dateURLs.length;
-      apiCallCount.byEndpoint[sport] = (apiCallCount.byEndpoint[sport] || 0) + dateURLs.length;
-      
-      // Fetch all dates in parallel
-      const responses = await Promise.all(
-        dateURLs.map(url => fetch(url).catch(err => {
-          console.error(`Error fetching ${url}:`, err);
-          return null;
-        }))
-      );
-      
-      // Filter out failed requests
-      const validResponses = responses.filter(r => r !== null);
-      
-      if (validResponses.length === 0) {
-        throw new Error('All API requests failed');
-      }
-      
-      // Check for rate limiting on any response
-      const rateLimited = validResponses.some(r => r.status === 429);
-      if (rateLimited) {
-        console.error('⚠️ ESPN API rate limit exceeded');
-        apiCallCount.errors++;
-        setApiError('ESPN API is temporarily unavailable due to rate limiting. Please try again in a few minutes.');
-        
-        // Try to use stale cache if available
-        const cached = gameCache[sport];
-        if (cached) {
-          console.log('📦 Using stale cache due to rate limit');
-          setGames(cached.data);
-          setLastRefreshTime(cached.timestamp);
-        }
-        setLoading(false);
-        logAPIUsage(sport, false, false);
-        return;
-      }
-      
-      // Parse all responses
-      const allData = await Promise.all(
-        validResponses.map(r => r.ok ? r.json() : null)
-      );
-      
-      // Combine all events from all dates
-      const allEvents = [];
-      allData.forEach(data => {
-        if (data && data.events && data.events.length > 0) {
-          allEvents.push(...data.events);
-        }
-      });
+  if (cached && Date.now() - cached.timestamp < cacheExpiry) {
+    console.log(`✅ Using cached data for ${sport}`);
+    apiCallCount.cacheHits++;
+    setGames(cached.data);
+    setLoading(false);
+    setLastRefreshTime(cached.timestamp);
+    logAPIUsage(sport, true, true);
+    return;
+  }
+} // <--- This closing brace was missing!
+
+// Removed the confusing comment: "// The extra closing brace has been removed from here."
+
+try {
+  const apiEndpoint = ESPN_API_ENDPOINTS[sport];
+  const dateURLs = getESPNDateRangeURLs(apiEndpoint);
+  console.log(`🔄 Fetching ${sport} games for ${dateURLs.length} dates from ESPN API...`);
+
+  // Track API call
+  apiCallCount.total += dateURLs.length;
+  apiCallCount.byEndpoint[sport] = (apiCallCount.byEndpoint[sport] || 0) + dateURLs.length;
+
+  // Fetch all dates in parallel
+  const responses = await Promise.all(
+    dateURLs.map(url => fetch(url).catch(err => {
+      console.error(`Error fetching ${url}:`, err);
+      return null;
+    }))
+  );
+
+  // Filter out failed requests
+  const validResponses = responses.filter(r => r !== null);
+
+  if (validResponses.length === 0) {
+    throw new Error('All API requests failed');
+  }
+
+  // Check for rate limiting on any response
+  const rateLimited = validResponses.some(r => r.status === 429);
+  if (rateLimited) {
+    console.error('⚠️ ESPN API rate limit exceeded');
+    apiCallCount.errors++;
+    setApiError('ESPN API is temporarily unavailable due to rate limiting. Please try again in a few minutes.');
+
+    // Try to use stale cache if available
+    const cached = gameCache[sport];
+    if (cached) {
+      console.log('📦 Using stale cache due to rate limit');
+      setGames(cached.data);
+      setLastRefreshTime(cached.timestamp);
+    }
+    setLoading(false);
+    logAPIUsage(sport, false, false);
+    return;
+  }
+
+  // Parse all responses
+  const allData = await Promise.all(
+    validResponses.map(r => r.ok ? r.json() : null)
+  );
+
+  // Combine all events from all dates
+  const allEvents = [];
+  allData.forEach(data => {
+    if (data && data.events && data.events.length > 0) {
+      allEvents.push(...data.events);
+    }
+  });
       
       // Check if events exist
       if (allEvents.length === 0) {
