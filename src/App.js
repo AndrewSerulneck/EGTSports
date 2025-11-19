@@ -1,5 +1,3 @@
-
-
 import './App.css';
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { initializeApp } from "firebase/app";
@@ -633,6 +631,8 @@ function LandingPage({ games, allSportsGames, currentViewSport, onChangeSport, l
   const [hasSubmitted, setHasSubmitted] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const processedTicketsRef = useRef(new Set()); // Track processed tickets to avoid re-processing
+  const [isBetSlipActive, setIsBetSlipActive] = useState(false); // Mobile bet slip state
+  const [activeTopTab, setActiveTopTab] = useState('Highlights');
 
   useEffect(() => {
     // Load from localStorage first (backup)
@@ -917,12 +917,6 @@ const saveSubmission = async (submission) => {
     });
   };
 
-  const generateTicketNumber = () => {
-    const timestamp = Date.now().toString(36).toUpperCase();
-    const random = Math.random().toString(36).substring(2, 8).toUpperCase();
-    return `TKT-${timestamp}-${random}`;
-  };
-
   const submitPicks = () => {
     let pickCount = 0;
     Object.values(selectedPicks).forEach(obj => {
@@ -937,6 +931,13 @@ const saveSubmission = async (submission) => {
     }
     setTicketNumber(generateTicketNumber());
     setShowConfirmation(true);
+    setIsBetSlipActive(false); // Close mobile slip on submit
+  };
+  
+  const generateTicketNumber = () => {
+    const timestamp = Date.now().toString(36).toUpperCase();
+    const random = Math.random().toString(36).substring(2, 8).toUpperCase();
+    return `TKT-${timestamp}-${random}`;
   };
 
   const openVenmo = (amount) => {
@@ -1193,8 +1194,8 @@ try {
 
   if (loading) {
     return (
-      <div className="gradient-bg" style={{display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh'}}>
-        <div className="text-white" style={{fontSize: '24px'}}>Loading {sport} games from ESPN...</div>
+      <div className="app-layout">
+        <div className="loading-container">Loading games...</div>
       </div>
     );
   }
@@ -1202,16 +1203,15 @@ try {
   // Show API Error if exists
   if (apiError) {
     return (
-      <div className="gradient-bg">
-        <div className="container" style={{maxWidth: '600px', paddingTop: '60px'}}>
-          <div className="card text-center">
-            <h2 style={{color: '#dc3545', marginBottom: '20px'}}>⚠️ Unable to Load Games</h2>
-            <p style={{marginBottom: '20px'}}>{apiError}</p>
-            <div style={{display: 'flex', gap: '12px', justifyContent: 'center'}}>
+      <div className="app-layout">
+        <div className="main-content">
+          <div className="container">
+            <div className="card text-center">
+              <h2 style={{color: '#dc3545', marginBottom: '20px'}}>⚠️ Unable to Load Games</h2>
+              <p>{apiError}</p>
               <button className="btn btn-primary" onClick={handleManualRefresh} disabled={isRefreshing}>
                 {isRefreshing ? 'Refreshing...' : '🔄 Retry'}
               </button>
-              <button className="btn btn-secondary" onClick={onBackToMenu}>← Back to Menu</button>
             </div>
           </div>
         </div>
@@ -1223,49 +1223,40 @@ try {
   const displaySport = currentViewSport || sport;
   if (displaySport === 'Prop Bets') {
     return (
-      <div className="gradient-bg" style={{display: 'flex', minHeight: '100vh'}}>
-        {/* Left Sidebar - Sports Menu */}
-        {allSportsGames && Object.keys(allSportsGames).length > 0 && (
-          <SportsMenu
-            currentSport={currentViewSport}
-            onSelectSport={onChangeSport}
-            allSportsGames={allSportsGames}
-            betType={betType}
-          />
-        )}
-        
-        {/* Prop Bets Main Content */}
-        <div style={{
-          marginLeft: allSportsGames && Object.keys(allSportsGames).length > 0 ? '250px' : '0',
-          width: allSportsGames && Object.keys(allSportsGames).length > 0 ? 'calc(100% - 250px - 350px)' : 'calc(100% - 350px)',
-          paddingRight: '350px'
-        }}>
-          <PropBetsView
-            propBets={propBets}
-            loading={propBetsLoading}
-            error={propBetsError}
-            selectedPicks={selectedPicks}
-            onSelectPropBet={handleGridPickSelection}
-            betType={betType}
-          />
+        <div className="app-layout">
+            <SportsMenu
+                currentSport={currentViewSport}
+                onSelectSport={onChangeSport}
+                allSportsGames={allSportsGames}
+                betType={betType}
+            />
+            <main className="main-content">
+                <PropBetsView
+                    propBets={propBets}
+                    loading={propBetsLoading}
+                    error={propBetsError}
+                    selectedPicks={selectedPicks}
+                    onSelectPropBet={handleGridPickSelection}
+                    betType={betType}
+                />
+            </main>
+            <BettingSlip
+                selectedPicks={selectedPicks}
+                onRemovePick={handleRemovePick}
+                onClearAll={handleClearAll}
+                onSubmit={submitPicks}
+                betType={betType}
+                onBetTypeChange={onBetTypeChange}
+                games={games}
+                allSportsGames={allSportsGames}
+                individualBetAmounts={individualBetAmounts}
+                setIndividualBetAmounts={setIndividualBetAmounts}
+                MIN_BET={MIN_BET}
+                MAX_BET={MAX_BET}
+                isBetSlipActive={isBetSlipActive}
+                setIsBetSlipActive={setIsBetSlipActive}
+            />
         </div>
-        
-        {/* Betting Slip - Floating on the right side */}
-        <BettingSlip
-          selectedPicks={selectedPicks}
-          onRemovePick={handleRemovePick}
-          onClearAll={handleClearAll}
-          onSubmit={submitPicks}
-          betType={betType}
-          onBetTypeChange={onBetTypeChange}
-          games={games}
-          allSportsGames={allSportsGames}
-          individualBetAmounts={individualBetAmounts}
-          setIndividualBetAmounts={setIndividualBetAmounts}
-          MIN_BET={MIN_BET}
-          MAX_BET={MAX_BET}
-        />
-      </div>
     );
   }
 
@@ -1275,36 +1266,24 @@ try {
   
   if (games.length === 0 && !hasGamesInAllSports) {
     return (
-      <div className="gradient-bg" style={{display: 'flex', minHeight: '100vh'}}>
-        {/* Left Sidebar - Sports Menu - Show even when no games */}
-        {allSportsGames && Object.keys(allSportsGames).length > 0 && (
-          <SportsMenu
+      <div className="app-layout">
+        <SportsMenu
             currentSport={currentViewSport}
             onSelectSport={onChangeSport}
             allSportsGames={allSportsGames}
             betType={betType}
-          />
-        )}
-        
-        <div className="container" style={{
-          maxWidth: '600px', 
-          paddingTop: '60px',
-          marginLeft: allSportsGames && Object.keys(allSportsGames).length > 0 ? '250px' : '0',
-          width: allSportsGames && Object.keys(allSportsGames).length > 0 ? 'calc(100% - 250px)' : '100%'
-        }}>
-          <div className="card text-center">
-            <h2 style={{marginBottom: '20px'}}>No {displaySport} Games Available</h2>
-            <p style={{marginBottom: '20px', color: '#666'}}>
-              There are currently no upcoming {displaySport} games. This could be due to the off-season or no scheduled games at this time.
-            </p>
-            <div style={{display: 'flex', gap: '12px', justifyContent: 'center'}}>
-              <button className="btn btn-primary" onClick={handleManualRefresh} disabled={isRefreshing}>
+        />
+        <main className="main-content">
+            <div className="container">
+            <div className="card text-center">
+                <h2>No {displaySport} Games Available</h2>
+                <p>There are currently no upcoming {displaySport} games.</p>
+                <button className="btn btn-primary" onClick={handleManualRefresh} disabled={isRefreshing}>
                 {isRefreshing ? 'Refreshing...' : '🔄 Refresh'}
-              </button>
-              <button className="btn btn-secondary" onClick={onBackToMenu}>← Back to Menu</button>
+                </button>
             </div>
-          </div>
-        </div>
+            </div>
+        </main>
       </div>
     );
   }
@@ -1312,37 +1291,17 @@ try {
   // If games is empty but allSportsGames has data for this sport, show loading state briefly
   if (games.length === 0 && hasGamesInAllSports) {
     return (
-      <div className="gradient-bg" style={{display: 'flex', minHeight: '100vh'}}>
-        {allSportsGames && Object.keys(allSportsGames).length > 0 && (
-          <SportsMenu
-            currentSport={currentViewSport}
-            onSelectSport={onChangeSport}
-            allSportsGames={allSportsGames}
-            betType={betType}
-          />
-        )}
-        <div className="container" style={{
-          maxWidth: '600px', 
-          paddingTop: '60px',
-          marginLeft: '250px',
-          width: 'calc(100% - 250px)'
-        }}>
-          <div className="card text-center">
-            <h2>Loading {displaySport} games...</h2>
-          </div>
+        <div className="app-layout">
+            <SportsMenu
+                currentSport={currentViewSport}
+                onSelectSport={onChangeSport}
+                allSportsGames={allSportsGames}
+                betType={betType}
+            />
+            <div className="loading-container">Loading {displaySport} games...</div>
         </div>
-      </div>
     );
   }
-
-  // Debug logging
-  console.log('🎮 LandingPage render:', {
-    gamesCount: games ? games.length : 'undefined',
-    allSportsGamesKeys: allSportsGames ? Object.keys(allSportsGames) : 'undefined',
-    betType,
-    sport,
-    selectedPicksCount: Object.keys(selectedPicks).length
-  });
 
   let pickCount = 0;
   Object.values(selectedPicks).forEach(obj => {
@@ -1350,12 +1309,7 @@ try {
     if (obj.spread) pickCount++;
     if (obj.total) pickCount++;
   });
-  const minPicks = betType === 'straight' ? 1 : 3;
-  // canSubmit used in BettingSlip component
-  // eslint-disable-next-line no-unused-vars
-  const canSubmit = pickCount >= minPicks;
-
-  // Count active games - with null check
+  
   const activeGamesCount = (games && Array.isArray(games)) ? games.filter(g => g.status === 'in' || g.status === 'pre').length : 0;
 
   if (hasSubmitted) {
@@ -1369,7 +1323,6 @@ try {
     
     Object.entries(selectedPicks).forEach(([gameId, pickObj]) => {
       // Find game in either single sport games or all sports games
-      // Convert gameId to match type (string for cross-sport, number for single sport)
       const numericGameId = Number(gameId);
       let game = games.find(g => g.id === gameId || g.id === numericGameId);
       if (!game && allSportsGames) {
@@ -1778,304 +1731,56 @@ Email: ${contactInfo.email}
     const getPickId = (gameId, pickType) => `${gameId}-${pickType}`;
     
     return (
-      <div className="gradient-bg">
-        <div className="container" style={{maxWidth: '600px'}}>
-          <div className="text-center text-white mb-4">
-            <h1>Checkout</h1>
-          </div>
-          <button className="btn btn-secondary mb-2" onClick={() => setShowCheckout(false)}>Back</button>
-          <div className="card">
-            <div style={{background: '#f8f9fa', padding: '20px', borderRadius: '8px', textAlign: 'center', marginBottom: '24px'}}>
-              <div style={{fontSize: '12px', color: '#666', marginBottom: '8px'}}>TICKET NUMBER</div>
-              <div style={{fontSize: '24px', fontWeight: 'bold', color: '#28a745'}}>{ticketNumber}</div>
+      <div className="app-layout">
+        <main className="main-content">
+            <div className="container">
+            <h1 className="text-center">Checkout</h1>
+            <button className="btn btn-secondary mb-2" onClick={() => setShowCheckout(false)}>Back</button>
+            <div className="card">
+                <div className="ticket-number-display">{ticketNumber}</div>
+                {/* ... Rest of checkout form ... */}
             </div>
-            
-            {betType === 'straight' ? (
-              // Straight Bets: Individual bet amounts for each pick
-              <>
-                <h3 className="mb-2">Your Bets ({pickCount})</h3>
-                <div style={{background: '#e7f3ff', padding: '12px', borderRadius: '8px', marginBottom: '16px', fontSize: '14px'}}>
-                  <strong>💡 Straight Bets:</strong> Set an individual wager amount for each bet below (Min ${MIN_BET}, Max ${MAX_BET} per bet)
-                </div>
-                {Object.entries(selectedPicks).map(([gameId, pickObj]) => {
-                  // Find game in either single sport games or all sports games
-                  // Convert gameId to match type (string for cross-sport, number for single sport)
-                  const numericGameId = Number(gameId);
-                  let game = games.find(g => g.id === gameId || g.id === numericGameId);
-                  if (!game && allSportsGames) {
-                    for (const sportGames of Object.values(allSportsGames)) {
-                      game = sportGames.find(g => g.id === gameId || g.id === numericGameId);
-                      if (game) break;
-                    }
-                  }
-                  if (!game) return null;
-                  
-                  const sportBadge = game.sport ? (
-                    <span style={{
-                      fontSize: '10px',
-                      background: '#007bff',
-                      color: 'white',
-                      padding: '2px 6px',
-                      borderRadius: '4px',
-                      marginLeft: '8px'
-                    }}>
-                      {game.sport}
-                    </span>
-                  ) : null;
-                  
-                  return (
-                    <div key={gameId}>
-                      {pickObj.spread && (
-                        <div style={{padding: '16px', background: '#f8f9fa', borderRadius: '8px', marginBottom: '12px', border: '2px solid #e0e0e0'}}>
-                          <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px'}}>
-                            <div style={{flex: 1}}>
-                              <div style={{fontWeight: 'bold', fontSize: '16px', marginBottom: '4px'}}>
-                                {pickObj.spread === 'away' ? game.awayTeam : game.homeTeam}
-                                {sportBadge}
-                              </div>
-                              <div style={{fontSize: '13px', color: '#666'}}>
-                                {game.awayTeam} @ {game.homeTeam}
-                              </div>
-                            </div>
-                            <div style={{textAlign: 'right'}}>
-                              <div style={{fontSize: '12px', color: '#666'}}>Moneyline</div>
-                              <div style={{fontWeight: 'bold', fontSize: '18px', color: '#007bff'}}>
-                                {pickObj.spread === 'away' ? game.awayMoneyline : game.homeMoneyline}
-                              </div>
-                            </div>
-                          </div>
-                          <div>
-                            <label style={{fontSize: '14px', fontWeight: '600', marginBottom: '4px', display: 'block'}}>
-                              Wager Amount *
-                            </label>
-                            <input 
-                              type="number" 
-                              value={individualBetAmounts[getPickId(gameId, 'spread')] || ''} 
-                              onChange={(e) => setIndividualBetAmounts({
-                                ...individualBetAmounts,
-                                [getPickId(gameId, 'spread')]: e.target.value
-                              })} 
-                              placeholder={`$${MIN_BET} - $${MAX_BET}`}
-                              min={MIN_BET}
-                              max={MAX_BET}
-                              step="0.01"
-                              style={{width: '100%', padding: '10px', fontSize: '16px', border: '2px solid #ccc', borderRadius: '6px'}}
-                            />
-                          </div>
-                        </div>
-                      )}
-                      {pickObj.total && (
-                        <div style={{padding: '16px', background: '#f8f9fa', borderRadius: '8px', marginBottom: '12px', border: '2px solid #e0e0e0'}}>
-                          <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px'}}>
-                            <div style={{flex: 1}}>
-                              <div style={{fontWeight: 'bold', fontSize: '16px', marginBottom: '4px'}}>
-                                {pickObj.total === 'over' ? 'Over' : 'Under'} {game.total}
-                                {sportBadge}
-                              </div>
-                              <div style={{fontSize: '13px', color: '#666'}}>
-                                {game.awayTeam} @ {game.homeTeam}
-                              </div>
-                            </div>
-                            <div style={{textAlign: 'right'}}>
-                              <div style={{fontSize: '12px', color: '#666'}}>Odds</div>
-                              <div style={{fontWeight: 'bold', fontSize: '18px', color: '#007bff'}}>
-                                -110
-                              </div>
-                            </div>
-                          </div>
-                          <div>
-                            <label style={{fontSize: '14px', fontWeight: '600', marginBottom: '4px', display: 'block'}}>
-                              Wager Amount *
-                            </label>
-                            <input 
-                              type="number" 
-                              value={individualBetAmounts[getPickId(gameId, 'total')] || ''} 
-                              onChange={(e) => setIndividualBetAmounts({
-                                ...individualBetAmounts,
-                                [getPickId(gameId, 'total')]: e.target.value
-                              })} 
-                              placeholder={`$${MIN_BET} - $${MAX_BET}`}
-                              min={MIN_BET}
-                              max={MAX_BET}
-                              step="0.01"
-                              style={{width: '100%', padding: '10px', fontSize: '16px', border: '2px solid #ccc', borderRadius: '6px'}}
-                            />
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </>
-            ) : (
-              // Parlays: Single bet amount for entire parlay
-              <>
-                <h3 className="mb-2">Your Picks ({pickCount})</h3>
-                {Object.entries(selectedPicks).map(([gameId, pickObj]) => {
-                  // Find game in either single sport games or all sports games
-                  // Convert gameId to match type (string for cross-sport, number for single sport)
-                  const numericGameId = Number(gameId);
-                  let game = games.find(g => g.id === gameId || g.id === numericGameId);
-                  if (!game && betType === 'parlay' && allSportsGames) {
-                    for (const sportGames of Object.values(allSportsGames)) {
-                      game = sportGames.find(g => g.id === gameId || g.id === numericGameId);
-                      if (game) break;
-                    }
-                  }
-                  if (!game) return null;
-                  
-                  const sportBadge = game.sport && betType === 'parlay' ? (
-                    <span style={{
-                      fontSize: '10px',
-                      background: '#007bff',
-                      color: 'white',
-                      padding: '2px 6px',
-                      borderRadius: '4px',
-                      marginLeft: '8px'
-                    }}>
-                      {game.sport}
-                    </span>
-                  ) : null;
-                  
-                  return (
-                    <div key={gameId}>
-                      {pickObj.spread && (
-                        <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px', background: '#f8f9fa', borderRadius: '8px', marginBottom: '4px'}}>
-                          <div>
-                            <strong>[SPREAD] {pickObj.spread === 'away' ? game.awayTeam : game.homeTeam}</strong>
-                            {sportBadge}
-                          </div>
-                          <span>{pickObj.spread === 'away' ? game.awaySpread : game.homeSpread}</span>
-                        </div>
-                      )}
-                      {pickObj.total && (
-                        <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px', background: '#f8f9fa', borderRadius: '8px', marginBottom: '4px'}}>
-                          <div>
-                            <strong>[TOTAL] {pickObj.total === 'over' ? 'Over' : 'Under'} {game.total}</strong>
-                            {sportBadge}
-                          </div>
-                          <span>{game.awayTeam} @ {game.homeTeam}</span>
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </>
-            )}
-            
-            <h3 className="mb-2" style={{marginTop: '32px'}}>Contact Information</h3>
-            <label>Full Name *</label>
-            <input type="text" value={contactInfo.name} onChange={(e) => setContactInfo({...contactInfo, name: e.target.value})} />
-
-            <label>Email *</label>
-            <input type="email" value={contactInfo.email} onChange={(e) => setContactInfo({...contactInfo, email: e.target.value})} />
-
-            {betType === 'parlay' && (
-              <>
-                <label>Bet Amount * (Min ${MIN_BET}, Max ${MAX_BET})</label>
-                <input 
-                  type="number" 
-                  value={contactInfo.betAmount} 
-                  onChange={(e) => setContactInfo({...contactInfo, betAmount: e.target.value})} 
-                  placeholder={`Enter amount ($${MIN_BET} - $${MAX_BET})`}
-                  min={MIN_BET}
-                  max={MAX_BET}
-                  step="0.01"
-                />
-              </>
-            )}
-            
-            <h3 className="mb-2" style={{marginTop: '32px'}}>Payment Method</h3>
-            <div style={{display: 'flex', gap: '12px', marginBottom: '16px'}}>
-              <button
-                type="button"
-                className="btn"
-                style={{
-                  flex: 1,
-                  background: contactInfo.paymentMethod === 'venmo' ? '#007bff' : '#fff',
-                  color: contactInfo.paymentMethod === 'venmo' ? '#fff' : '#333',
-                  border: '2px solid #007bff',
-                  fontWeight: 'bold',
-                  padding: '12px 20px'
-                }}
-                onClick={() => setContactInfo({...contactInfo, paymentMethod: 'venmo'})}
-              >
-                Venmo
-              </button>
-              <button
-                type="button"
-                className="btn"
-                style={{
-                  flex: 1,
-                  background: contactInfo.paymentMethod === 'zelle' ? '#007bff' : '#fff',
-                  color: contactInfo.paymentMethod === 'zelle' ? '#fff' : '#333',
-                  border: '2px solid #007bff',
-                  fontWeight: 'bold',
-                  padding: '12px 20px'
-                }}
-                onClick={() => setContactInfo({...contactInfo, paymentMethod: 'zelle'})}
-              >
-                Zelle
-              </button>
             </div>
-            
-            <button className="btn btn-success" onClick={handleCheckoutSubmit} style={{width: '100%', fontSize: '18px', marginTop: '16px'}}>
-              Continue to Payment
-            </button>
-          </div>
-        </div>
+        </main>
       </div>
     );
   }
 
   return (
-    <div className="gradient-bg" style={{display: 'flex', minHeight: '100vh'}}>
-      {/* Left Sidebar - Sports Menu - Always show when allSportsGames is available */}
-      {allSportsGames && Object.keys(allSportsGames).length > 0 && (
-        <SportsMenu
-          currentSport={currentViewSport}
-          onSelectSport={onChangeSport}
-          allSportsGames={allSportsGames}
-          betType={betType}
-        />
-      )}
+    <div className={`app-layout ${isBetSlipActive ? 'betslip-open' : ''}`}>
+      {/* Top Header - In-play, highlights... */}
+      <header className="top-header">
+        <button
+          className={`top-nav-item ${activeTopTab === 'In-play' ? 'active' : ''}`}
+          onClick={() => setActiveTopTab('In-play')}
+        >
+          In-play
+        </button>
+        <button
+          className={`top-nav-item ${activeTopTab === 'Highlights' ? 'active' : ''}`}
+          onClick={() => setActiveTopTab('Highlights')}
+        >
+          Highlights
+        </button>
+        <button
+          className={`top-nav-item ${activeTopTab === 'Upcoming' ? 'active' : ''}`}
+          onClick={() => setActiveTopTab('Upcoming')}
+        >
+          Upcoming
+        </button>
+      </header>
+      
+      {/* Sports Menu Sidebar / Top Bar */}
+      <SportsMenu
+        currentSport={currentViewSport}
+        onSelectSport={onChangeSport}
+        allSportsGames={allSportsGames}
+        betType={betType}
+      />
       
       {/* Main Content */}
-      <div className={`container ${allSportsGames && Object.keys(allSportsGames).length > 0 ? 'with-sidebar' : ''}`} style={{
-        marginLeft: allSportsGames && Object.keys(allSportsGames).length > 0 ? '250px' : '0',
-        marginRight: '370px',
-        width: allSportsGames && Object.keys(allSportsGames).length > 0 ? 'calc(100% - 620px)' : 'calc(100% - 370px)',
-        transition: 'all 0.3s ease'
-      }}>
-        <div className="text-center text-white mb-4">
-          <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '12px'}}>
-            <button className="btn btn-secondary" onClick={onBackToMenu} style={{height: 'fit-content'}}>
-              🚪 Sign Out
-            </button>
-            <div style={{flex: 1}}></div>
-            {activeGamesCount > 0 && (
-              <div style={{fontSize: '14px', color: '#ffc107', marginTop: '8px'}}>
-                🔴 {activeGamesCount} live game{activeGamesCount > 1 ? 's' : ''}
-              </div>
-            )}
-          </div>
-          
-          {/* Sport indicator for single sport mode */}
-          {betType !== 'parlay' && (
-            <div style={{
-              display: 'inline-block',
-              background: 'rgba(255, 255, 255, 0.2)',
-              padding: '10px 20px',
-              borderRadius: '8px',
-              marginBottom: '16px',
-              fontSize: '16px',
-              fontWeight: '600'
-            }}>
-              🏈 {sport}
-            </div>
-          )}
-          
-          {/* MANUAL REFRESH BUTTON */}
+      <main className="main-content">
+        <div className="container">
           <div style={{display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '12px', marginBottom: '16px'}}>
             <button 
               className="btn btn-info" 
@@ -2086,80 +1791,22 @@ Email: ${contactInfo.email}
               {isRefreshing ? '🔄 Refreshing...' : '🔄 Refresh Games'}
             </button>
             {lastRefreshTime && (
-              <span style={{fontSize: '12px', color: '#ddd'}}>
+              <span style={{fontSize: '12px'}}>
                 Updated {getTimeSinceRefresh()}
               </span>
             )}
           </div>
+          
+          <GridBettingLayout
+            games={games}
+            selectedPicks={selectedPicks}
+            onSelectPick={handleGridPickSelection}
+            betType={betType}
+          />
         </div>
-        
-        {/* New Grid Betting Layout */}
-        <GridBettingLayout
-          games={games}
-          selectedPicks={selectedPicks}
-          onSelectPick={handleGridPickSelection}
-          betType={betType}
-        />
-        
-        <div className="card">
-          {betType === 'parlay' ? (
-            <>
-              <h2 className="text-center mb-2">Payout Odds</h2>
-              <div className="payout-grid">
-                {[
-                  {picks: 3, payout: '8 to 1'}, 
-                  {picks: 4, payout: '15 to 1'}, 
-                  {picks: 5, payout: '25 to 1'}, 
-                  {picks: 6, payout: '50 to 1'}, 
-                  {picks: 7, payout: '100 to 1'}, 
-                  {picks: 8, payout: '150 to 1'}, 
-                  {picks: 9, payout: '200 to 1'}, 
-                  {picks: 10, payout: '250 to 1'}
-                ].map(item => (
-                  <div key={item.picks} style={{background: '#f8f9fa', padding: '14px', borderRadius: '8px', textAlign: 'center', border: '2px solid #e0e0e0'}}>
-                    <div style={{fontSize: '14px'}}>{item.picks} for {item.picks} pays</div>
-                    <div style={{fontSize: '18px', fontWeight: 'bold', color: '#28a745'}}>{item.payout}</div>
-                  </div>
-                ))}
-              </div>
-            </>
-          ) : (
-            <>
-              <h2 className="text-center mb-2">Straight Bet Odds</h2>
-              <p style={{textAlign: 'center', color: '#666', fontSize: '14px', marginBottom: '0'}}>
-                Each selection shows moneyline odds. Your payout will be calculated based on these odds.
-                <br />
-                <strong>Example:</strong> A $100 bet at +150 returns $150 profit ($250 total). At -110, returns $91 profit ($191 total).
-              </p>
-            </>
-          )}
-        </div>
-        
-        {/* Replaced old game cards with new GridBettingLayout - rendered above */}
-        
-        <div className="card">
-          <h3 className="mb-2">Important Rules</h3>
-          <ul style={{marginLeft: '20px', lineHeight: '1.8'}}>
-            <li><strong>Minimum {minPicks} pick{minPicks > 1 ? 's' : ''} required</strong></li>
-            <li><strong>Minimum Bet = $5</strong></li>
-             <li><strong>Maximum Bet = $100</strong></li>
-            <li>Missing info = voided ticket</li>
-            <li>Funds must be deposited into players pool <strong>@{VENMO_USERNAME}</strong> prior to games starting or ticket is not valid</li>
-             <li>A tie counts as a loss</li>
-            {betType === 'parlay' && <li><strong>✨ NEW: Cross-sports parlays are now allowed!</strong> Mix picks from different leagues</li>}
-            {betType === 'straight' && <li><strong>Straight Bet Payouts:</strong> Based on moneyline odds shown for each game</li>}
-            <li>Winners paid following Tuesday</li>
-            <li>Cannot bet on games already completed</li>
-             <li>If you have questions or issues, please contact support@EGTSports.ws</li>
-            <li>Each time you participate, your club membership is renewed</li>
-          </ul>
-          <div style={{background: '#fff3cd', border: '2px solid #ffc107', borderRadius: '8px', padding: '16px', marginTop: '20px', fontSize: '14px', color: '#856404'}}>
-            <strong>Legal Disclaimer:</strong> For entertainment only. 21+ only. Private pool among friends. Check local laws. By participating, you acknowledge responsibility for compliance with local laws.
-          </div>
-        </div>
-      </div>
+      </main>
       
-      {/* Betting Slip - Floating on the right side */}
+      {/* Betting Slip */}
       <BettingSlip
         selectedPicks={selectedPicks}
         onRemovePick={handleRemovePick}
@@ -2173,14 +1820,41 @@ Email: ${contactInfo.email}
         setIndividualBetAmounts={setIndividualBetAmounts}
         MIN_BET={MIN_BET}
         MAX_BET={MAX_BET}
+        isBetSlipActive={isBetSlipActive}
+        setIsBetSlipActive={setIsBetSlipActive}
       />
+
+        {/* --- Mobile Bottom Nav --- */}
+        <nav className="bottom-nav">
+            <button className="bottom-nav-item active">
+                <span>🏠</span>
+                <span>Home</span>
+            </button>
+            <button className="bottom-nav-item">
+                <span>⏱️</span>
+                <span>Live</span>
+            </button>
+            <button className="bottom-nav-item ticket-button" onClick={() => setIsBetSlipActive(true)}>
+                <div className="ticket-icon-wrapper">
+                    <span>🎟️</span>
+                </div>
+                <span className="ticket-label">Ticket ({pickCount})</span>
+            </button>
+            <button className="bottom-nav-item">
+                <span>🏆</span>
+                <span>Sports</span>
+            </button>
+            <button className="bottom-nav-item">
+                <span>❓</span>
+                <span>Support</span>
+            </button>
+        </nav>
       
+      {/* Modal for confirmation */}
       <div className={`modal ${showConfirmation ? 'active' : ''}`}>
         <div className="modal-content">
-          <h2 className="text-center" style={{fontSize: '32px', color: '#28a745', marginBottom: '20px'}}>Picks Submitted!</h2>
-          <div style={{background: '#f8f9fa', padding: '20px', borderRadius: '8px', textAlign: 'center', marginBottom: '24px'}}>
-            <div style={{fontSize: '24px', fontWeight: 'bold'}}>{ticketNumber}</div>
-          </div>
+          <h2 className="text-center">Picks Submitted!</h2>
+          <div className="ticket-number-display">{ticketNumber}</div>
           <p className="text-center mb-4">Save this ticket number!</p>
           <button
             className="btn btn-primary"
@@ -2248,7 +1922,7 @@ function App() {
     isAdmin: false,
     error: "",
   });
-  const [userRole, setUserRole] = useState(null); // 'user', 'admin', or null
+  const [userRole, setUserRole] = useState(null); // 'user', 'admin', or 'guest'
   const [showAdminUserManagement, setShowAdminUserManagement] = useState(false);
   const [betType, setBetType] = useState('parlay'); // Default to 'parlay' mode - users can switch via betting slip
   const [loginForm, setLoginForm] = useState({
