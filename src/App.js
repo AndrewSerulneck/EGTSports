@@ -2059,15 +2059,7 @@ Email: ${contactInfo.email}
             <button className="btn btn-secondary" onClick={onBackToMenu} style={{height: 'fit-content'}}>
               🚪 Sign Out
             </button>
-            <div style={{flex: 1, textAlign: 'center'}}>
-              <h1 style={{fontSize: '42px'}}>
-                {betType === 'parlay' ? 'Multi-Sport Parlays' : `${sport} ${betType === 'straight' ? 'Straight Bets' : 'Bets'}`}
-              </h1>
-              <p style={{fontSize: '22px'}}>
-                {betType === 'parlay' 
-                  ? 'Select picks across multiple sports for bigger payouts'
-                  : 'Make your selections below to get started.'}
-              </p>
+            <div style={{flex: 1}}></div>
               {activeGamesCount > 0 && (
                 <div style={{fontSize: '14px', color: '#ffc107', marginTop: '8px'}}>
                   🔴 {activeGamesCount} live game{activeGamesCount > 1 ? 's' : ''}
@@ -2265,7 +2257,7 @@ function App() {
     isAdmin: false,
     error: "",
   });
-  const [userRole, setUserRole] = useState(null); // 'user', 'admin', 'guest', or null
+  const [userRole, setUserRole] = useState(null); // 'user', 'admin', or null
   const [showAdminUserManagement, setShowAdminUserManagement] = useState(false);
   const [betType, setBetType] = useState('parlay'); // Default to 'parlay' mode - users can switch via betting slip
   const [loginForm, setLoginForm] = useState({
@@ -3233,7 +3225,7 @@ intervalId = setInterval(() => {
   // Auto-initialize default sport when user is logged in but no sport is selected
   // CRITICAL: Do NOT auto-select for admins - let them stay on sport selection menu
   useEffect(() => {
-    if ((authState.user || userRole === 'guest') && !selectedSport && !authState.loading && userRole !== 'admin') {
+    if (authState.user && !selectedSport && !authState.loading && userRole !== 'admin') {
       setSelectedSport('NFL');
       setCurrentViewSport('NFL');
     }
@@ -3447,7 +3439,7 @@ intervalId = setInterval(() => {
     );
   }
 
-  // Show sport selection if no sport selected (for guest and logged-in user)
+  // Show sport selection if no sport selected (for logged-in users)
   // Sport will be auto-selected by useEffect above
   if (!selectedSport) {
     return null; // useEffect will set the default sport
