@@ -383,8 +383,24 @@ ul li {
     width: 100%;
   }
   
-  /* Mobile layout - sidebar becomes top navigation */
+  /* CSS Grid Layout for Mobile - Reposition elements using grid-area */
+  .gradient-bg,
+  body > div,
+  #root,
+  .App {
+    display: grid !important;
+    grid-template-columns: 1fr !important;
+    grid-template-rows: auto 1fr auto !important;
+    grid-template-areas:
+      "sidebar"
+      "content"
+      "slip" !important;
+    min-height: 100vh !important;
+  }
+  
+  /* Assign grid areas to each element */
   .sidebar {
+    grid-area: sidebar !important;
     display: flex !important;
     flex-direction: row !important;
     position: fixed !important;
@@ -401,6 +417,15 @@ ul li {
     overflow-y: hidden !important;
     -webkit-overflow-scrolling: touch;
     box-shadow: 0 2px 8px rgba(0,0,0,0.15) !important;
+  }
+  
+  .container.with-sidebar,
+  .main-content {
+    grid-area: content !important;
+  }
+  
+  .betting-slip {
+    grid-area: slip !important;
   }
   
   .sidebar-content {
@@ -420,13 +445,6 @@ ul li {
     min-width: auto !important;
     border-radius: 20px !important;
     flex-shrink: 0 !important;
-  }
-  
-  /* Force vertical stacking on mobile - override desktop grid/flex */
-  body,
-  #root,
-  .App {
-    display: block !important;
   }
   
   /* Adjust main content for top nav */
