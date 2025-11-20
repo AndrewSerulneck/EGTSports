@@ -30,33 +30,9 @@ function AuthLanding({ onSelectRole }) {
               }}
             >
               <span style={{ fontSize: '48px' }}>👤</span>
-              <span>Member login</span>
+              <span>Member Login</span>
               <span style={{ fontSize: '14px', opacity: '0.9', fontWeight: 'normal' }}>
-                Place wagers without immediate payment
-              </span>
-            </button>
-                  
-           <button
-              className="btn"
-              onClick={() => onSelectRole('guest')}
-              style={{
-                padding: '32px 24px',
-                fontSize: '20px',
-                fontWeight: 'bold',
-                background: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
-                color: 'white',
-                border: 'none',
-                cursor: 'pointer',
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                gap: '12px'
-              }}
-            >
-              <span style={{ fontSize: '48px' }}>🎲</span>
-              <span>Continue as Guest</span>
-              <span style={{ fontSize: '14px', opacity: '0.9', fontWeight: 'normal' }}>
-                Advance payment required via Venmo/Zelle
+                Sign in with your account credentials
               </span>
             </button>
                   
@@ -78,8 +54,9 @@ function AuthLanding({ onSelectRole }) {
               }}
             >
               <span style={{ fontSize: '48px' }}>🔐</span>
-              <span>Login as Admin</span>
+              <span>Admin Login</span>
               <span style={{ fontSize: '14px', opacity: '0.9', fontWeight: 'normal' }}>
+                Administrative access
               </span>
             </button>  
           </div>
