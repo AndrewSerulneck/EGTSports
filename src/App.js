@@ -46,7 +46,7 @@ const getESPNDateRangeURLs = (baseURL) => {
 };
 
 // The Odds API Configuration
-const ODDS_API_KEY = process.env.REACT_APP_ODDS_API_KEY || '4e1df4cc99838c371ae1822316b8eb7c';
+const ODDS_API_KEY = process.env.REACT_APP_ODDS_API_KEY;
 const ODDS_API_BASE_URL = 'https://api.the-odds-api.com/v4';
 const USE_ODDS_API_FALLBACK = true; // Only call The Odds API when ESPN data is missing
 
@@ -61,14 +61,6 @@ const ODDS_API_SPORT_KEYS = {
 };
 
 // Prop bet markets to fetch for each sport
-const PROP_BET_MARKETS = {
-  'NFL': ['player_pass_tds', 'player_pass_yds', 'player_rush_yds', 'player_receptions'],
-  'NBA': ['player_points', 'player_rebounds', 'player_assists', 'player_threes'],
-  'College Football': ['player_pass_tds', 'player_pass_yds', 'player_rush_yds'],
-  'College Basketball': ['player_points', 'player_rebounds', 'player_assists'],
-  'NHL': ['player_points', 'player_shots_on_goal']
-};
-
 
 // Prop bets cache duration - 2 hours to minimize API usage
 const PROP_BETS_CACHE_DURATION = 2 * 60 * 60 * 1000; // 2 hours
@@ -2404,11 +2396,6 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
 
   // Fetch Prop Bets from The Odds API
   const fetchPropBets = async (sportName) => {
-    if (!ODDS_API_KEY) {
-      console.warn('⚠️ No Odds API key configured. Prop bets feature disabled.');
-      return [];
-    }
-
     // Check cache
     const cacheKey = sportName;
     const cachedData = propBetsCache.current[cacheKey];
@@ -2417,126 +2404,46 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
       return cachedData.data;
     }
 
-    const sportKey = ODDS_API_SPORT_KEYS[sportName];
-    if (!sportKey) {
-      console.warn(`⚠️ No Odds API sport key configured for ${sportName}`);
-      return [];
-    }
-
-    const markets = PROP_BET_MARKETS[sportName];
-    if (!markets || markets.length === 0) {
-      console.warn(`⚠️ No prop bet markets configured for ${sportName}`);
-      return [];
-    }
-
     try {
-      console.log(`🎯 Fetching prop bets for ${sportName}...`);
-      const allProps = [];
+      console.log(`🎯 Fetching prop bets for ${sportName} from Vercel API...`);
+      
+      // Call Vercel API endpoint instead of The Odds API directly
+      const response = await fetch(`/api/getPropBets?sport=${sportName}`);
 
-      // Fetch each market separately to get comprehensive prop data
-      for (const market of markets) {
-        try {
-          // Updated URL to use /odds endpoint with markets parameter
-          const url = `${ODDS_API_BASE_URL}/sports/${sportKey}/odds/?apiKey=${ODDS_API_KEY}&regions=us&markets=${market}&oddsFormat=american`;
-          const response = await fetch(url);
-
-          if (!response.ok) {
-            console.error(`⚠️ The Odds API returned status ${response.status} for ${market}`);
-            // Log response for debugging
-            const errorText = await response.text();
-            console.error(`Error details: ${errorText}`);
-            continue;
-          }
-
-          const data = await response.json();
-          console.log(`✅ Fetched ${data.length} events with ${market} props for ${sportName}`);
-
-          // Process each event
-          data.forEach(event => {
-            if (!event.bookmakers || event.bookmakers.length === 0) {
-              console.log(`No bookmakers for event ${event.id}`);
-              return;
-            }
-
-            // Check multiple bookmakers to get best coverage
-            event.bookmakers.forEach(bookmaker => {
-              const marketData = bookmaker.markets?.find(m => m.key === market);
-              
-              if (!marketData || !marketData.outcomes) return;
-
-              // Each outcome is a prop bet
-              marketData.outcomes.forEach(outcome => {
-                // Skip duplicates - only add if not already in allProps
-                const propId = `${event.id}_${market}_${outcome.name}_${outcome.point || 'NA'}`;
-                const exists = allProps.some(p => p.id === propId);
-                
-                if (!exists) {
-                  allProps.push({
-                    id: propId,
-                    sport: sportName,
-                    eventId: event.id,
-                    gameTitle: `${event.away_team} @ ${event.home_team}`,
-                    commence_time: event.commence_time,
-                    market: market,
-                    marketDisplay: formatMarketDisplay(market),
-                    playerName: outcome.name,
-                    description: outcome.description || `${outcome.name} ${formatMarketDisplay(market)}`,
-                    line: outcome.point || null,
-                    overOdds: outcome.name.includes('Over') ? outcome.price : null,
-                    underOdds: outcome.name.includes('Under') ? outcome.price : null,
-                    odds: outcome.price,
-                    bookmaker: bookmaker.title
-                  });
-                }
-              });
-            });
-          });
-        } catch (error) {
-          console.error(`❌ Error fetching ${market} for ${sportName}:`, error);
-        }
+      if (!response.ok) {
+        console.error(`⚠️ Vercel API returned status ${response.status} for ${sportName}`);
+        const errorText = await response.text();
+        console.error(`Error details: ${errorText}`);
+        return [];
       }
 
-      // Sort by event time and limit to most recent/upcoming
-      allProps.sort((a, b) => new Date(a.commence_time) - new Date(b.commence_time));
-      const limitedProps = allProps.slice(0, 50); // Limit to 50 props per sport
+      const data = await response.json();
+      
+      // Check if the API returned an error
+      if (!data.success) {
+        console.error(`⚠️ Vercel API returned error for ${sportName}:`, data.error);
+        return [];
+      }
+
+      const propBets = data.propBets || [];
+      console.log(`✅ Fetched ${propBets.length} prop bets for ${sportName}`);
 
       // Cache the results
       propBetsCache.current[cacheKey] = {
-        data: limitedProps,
+        data: propBets,
         timestamp: Date.now()
       };
 
-      console.log(`🎯 Total prop bets for ${sportName}: ${limitedProps.length}`);
-      return limitedProps;
+      console.log(`🎯 Total prop bets for ${sportName}: ${propBets.length}`);
+      return propBets;
     } catch (error) {
       console.error(`❌ Error fetching prop bets for ${sportName}:`, error);
       return [];
     }
   };
 
-  // Helper to format market display names
-  const formatMarketDisplay = (market) => {
-    const displayNames = {
-      'player_pass_tds': 'Passing Touchdowns',
-      'player_pass_yds': 'Passing Yards',
-      'player_rush_yds': 'Rushing Yards',
-      'player_receptions': 'Receptions',
-      'player_points': 'Points',
-      'player_rebounds': 'Rebounds',
-      'player_assists': 'Assists',
-      'player_threes': '3-Pointers Made',
-      'player_shots_on_goal': 'Shots on Goal'
-    };
-    return displayNames[market] || market;
-  };
-
   // Load all prop bets for configured sports
   const loadAllPropBets = async () => {
-    if (!ODDS_API_KEY) {
-      console.warn('⚠️ Prop bets feature disabled: No API key configured');
-      return;
-    }
-
     setPropBetsLoading(true);
     setPropBetsError(null);
 
