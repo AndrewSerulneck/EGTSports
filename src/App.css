@@ -385,13 +385,17 @@ ul li {
   
   /* Mobile layout - sidebar becomes top navigation */
   .sidebar {
+    display: flex !important;
+    flex-direction: row !important;
     position: fixed !important;
     top: 0 !important;
     left: 0 !important;
     right: 0 !important;
+    bottom: auto !important;
     width: 100% !important;
     height: auto !important;
     max-height: 56px !important;
+    margin: 0 !important;
     z-index: 999 !important;
     overflow-x: auto !important;
     overflow-y: hidden !important;
@@ -418,17 +422,30 @@ ul li {
     flex-shrink: 0 !important;
   }
   
+  /* Force vertical stacking on mobile - override desktop grid/flex */
+  body,
+  #root,
+  .App {
+    display: block !important;
+  }
+  
   /* Adjust main content for top nav */
   .container.with-sidebar {
+    display: block !important;
     margin-left: 0 !important;
     margin-right: 0 !important;
     margin-top: 62px !important;
     width: 100% !important;
+    max-width: 100% !important;
     padding: 12px 10px 250px 10px !important;
+    position: relative !important;
   }
   
   .main-content {
+    display: block !important;
+    width: 100% !important;
     padding: 8px !important;
+    margin: 0 !important;
   }
   
   /* Betting slip becomes bottom sheet on mobile */
