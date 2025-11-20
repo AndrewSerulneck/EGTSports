@@ -17,6 +17,24 @@ body {
     min-height: 100vh;
     padding: 20px;
 }
+
+/* Main layout wrapper - Desktop flexbox layout */
+.main-layout-wrapper {
+    display: flex;
+}
+
+/* Main content positioning for desktop */
+.main-content.with-sidebar {
+    margin-left: 250px;
+    margin-right: 370px;
+    width: calc(100% - 620px);
+}
+
+.main-content:not(.with-sidebar) {
+    margin-left: 0;
+    margin-right: 370px;
+    width: calc(100% - 370px);
+}
 .container {
     max-width: 1000px;
     margin: 0 auto;
@@ -396,6 +414,21 @@ ul li {
       "content"
       "slip" !important;
     min-height: 100vh !important;
+  }
+  
+  /* Override desktop flexbox layout wrapper */
+  .main-layout-wrapper {
+    display: block !important;
+    width: 100% !important;
+  }
+  
+  /* Override desktop margins on main content */
+  .main-content.with-sidebar,
+  .main-content:not(.with-sidebar) {
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
   }
   
   /* Assign grid areas to each element */

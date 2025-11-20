@@ -2030,7 +2030,7 @@ Email: ${contactInfo.email}
   }
 
   return (
-    <div className="gradient-bg" style={{display: 'flex', minHeight: '100vh'}}>
+    <div className="gradient-bg main-layout-wrapper" style={{minHeight: '100vh'}}>
       {/* Left Sidebar - Sports Menu - Always show when allSportsGames is available */}
       {allSportsGames && Object.keys(allSportsGames).length > 0 && (
         <SportsMenu
@@ -2042,10 +2042,7 @@ Email: ${contactInfo.email}
       )}
       
       {/* Main Content */}
-      <div className={`container ${allSportsGames && Object.keys(allSportsGames).length > 0 ? 'with-sidebar' : ''}`} style={{
-        marginLeft: allSportsGames && Object.keys(allSportsGames).length > 0 ? '250px' : '0',
-        marginRight: '370px',
-        width: allSportsGames && Object.keys(allSportsGames).length > 0 ? 'calc(100% - 620px)' : 'calc(100% - 370px)',
+      <div className={`container main-content ${allSportsGames && Object.keys(allSportsGames).length > 0 ? 'with-sidebar' : ''}`} style={{
         transition: 'all 0.3s ease'
       }}>
         <div className="text-center text-white mb-4">

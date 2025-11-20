@@ -159,25 +159,84 @@
 /* Mobile Responsive */
 @media (max-width: 768px) {
   .sports-menu {
-    width: 70px;
-    left: 0;
+    /* Transform to horizontal top navigation */
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    width: 100% !important;
+    height: 56px !important;
+    flex-direction: row !important;
+    overflow-x: auto !important;
+    overflow-y: hidden !important;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1) !important;
+    z-index: 1000 !important;
   }
 
+  .sports-menu.collapsed,
   .sports-menu.expanded {
-    width: 200px;
+    width: 100% !important;
+    height: 56px !important;
+  }
+
+  .sports-menu-header {
+    display: none !important;
+  }
+
+  .sports-menu-content {
+    display: flex !important;
+    flex-direction: row !important;
+    padding: 0 !important;
+    overflow-x: auto !important;
+    overflow-y: hidden !important;
+    white-space: nowrap !important;
+    -webkit-overflow-scrolling: touch !important;
+  }
+
+  .sport-item {
+    display: inline-flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: center !important;
+    padding: 8px 16px !important;
+    min-width: auto !important;
+    height: 56px !important;
+    border-left: none !important;
+    border-bottom: 3px solid transparent !important;
+    white-space: nowrap !important;
+    font-size: 12px !important;
+    gap: 4px !important;
+  }
+
+  .sport-item:hover:not(.disabled) {
+    background: #f0f0f0 !important;
+    border-bottom-color: #667eea !important;
+  }
+
+  .sport-item.active {
+    background: #e8eaff !important;
+    border-bottom-color: #667eea !important;
+  }
+
+  .sport-icon {
+    font-size: 18px !important;
+  }
+
+  .sport-name {
+    font-size: 11px !important;
+    white-space: nowrap !important;
+  }
+
+  .sport-count {
+    display: none !important;
+  }
+
+  .menu-footer {
+    display: none !important;
   }
 
   .menu-title {
     font-size: 16px;
-  }
-
-  .sport-item {
-    padding: 14px 16px;
-    font-size: 14px;
-  }
-
-  .sport-icon {
-    font-size: 20px;
   }
 }
 
