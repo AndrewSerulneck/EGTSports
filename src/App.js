@@ -145,6 +145,10 @@ const PROP_BETS_CACHE_DURATION = 2 * 60 * 60 * 1000;
 const CACHE_DURATION = 6 * 60 * 60 * 1000;
 const COLLEGE_BASKETBALL_CACHE_DURATION = 6 * 60 * 60 * 1000;
 const ODDS_API_CACHE_DURATION = 12 * 60 * 60 * 1000;
+const DEFAULT_SPREAD_ODDS = '-110';
+const DEFAULT_TOTAL_ODDS = '-110';
+const DEFAULT_MONEYLINE_ODDS = '-110';
+const DEFAULT_BET_TYPE = 'parlay';
 
 const gameCache = {};
 const oddsAPICache = {};
@@ -206,7 +210,7 @@ const updateSubmissionStatus = async (submission, status, wins, losses, pickCoun
   try {
     const statusUpdate = {
       ticketNumber: submission.ticketNumber,
-      betType: submission.betType || 'parlay',
+      betType: submission.betType || DEFAULT_BET_TYPE,
       status: status,
       wins: wins,
       losses: losses,
@@ -1090,7 +1094,7 @@ const saveSubmission = async (submission) => {
       if (pickObj.spread) {
         const team = pickObj.spread === 'away' ? game.awayTeam : game.homeTeam;
         const spread = pickObj.spread === 'away' ? game.awaySpread : game.homeSpread;
-        const spreadOdds = pickObj.spread === 'away' ? (game.awaySpreadOdds || '-110') : (game.homeSpreadOdds || '-110');
+        const spreadOdds = pickObj.spread === 'away' ? (game.awaySpreadOdds || DEFAULT_SPREAD_ODDS) : (game.homeSpreadOdds || DEFAULT_SPREAD_ODDS);
         
         picksFormatted.push({
           gameId: game.espnId,
@@ -1107,7 +1111,7 @@ const saveSubmission = async (submission) => {
       }
        if (pickObj.winner) {
         const team = pickObj.winner === 'away' ? game.awayTeam : game.homeTeam;
-        const odds = pickObj.winner === 'away' ? game.awayMoneyline : game.homeMoneyline;
+        const moneylineOdds = pickObj.winner === 'away' ? game.awayMoneyline : game.homeMoneyline;
         
         picksFormatted.push({
           gameId: game.espnId,
@@ -1116,7 +1120,7 @@ const saveSubmission = async (submission) => {
           sport: game.sport,
           pickType: 'winner',
           team,
-          odds: odds || 'N/A',
+          odds: moneylineOdds || DEFAULT_MONEYLINE_ODDS,
           pickedTeamType: pickObj.winner,
           betAmount: betType === 'straight' ? parseFloat(individualBetAmounts[getPickId(gameId, 'winner')]) : undefined
         });
@@ -1130,7 +1134,7 @@ const saveSubmission = async (submission) => {
           pickType: 'total',
           overUnder: pickObj.total,
           total: game.total,
-          odds: '-110',
+          odds: DEFAULT_TOTAL_ODDS,
           betAmount: betType === 'straight' ? parseFloat(individualBetAmounts[getPickId(gameId, 'total')]) : undefined
         });
       }
