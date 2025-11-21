@@ -7,6 +7,7 @@
 body {
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     overflow-x: hidden;
+    background-color: #f0f2f5; /* Light grey background */
 }
 /* Background & Layout */
 .gradient-bg {
@@ -78,102 +79,25 @@ body {
 .btn:hover:not(:disabled) {
     opacity: 0.9;
 }
-/* Game Cards */
-.game-card {
-    background: white;
-    border-radius: 12px;
-    padding: 20px;
-    margin-bottom: 16px;
-}
-.team-row {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 12px 16px;
+
+/* Payout Odds Font Fix */
+.payout-item {
     background: #f8f9fa;
+    padding: 14px;
     border-radius: 8px;
-    cursor: pointer;
-    margin-bottom: 8px;
-    transition: all 0.2s ease;
+    text-align: center;
+    border: 2px solid #e0e0e0;
 }
-.team-row.selected {
-    background: #d4edda;
-    border: 2px solid #28a745;
-}
-.team-row.disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
-}
-.team-info {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    flex: 1;
-    min-width: 0;
-}
-.team-name {
-    font-weight: 600;
-    font-size: 15px;
-}
-.team-spread {
-    font-weight: 700;
-    font-size: 18px;
-    color: #007bff;
-    white-space: nowrap;
-    min-width: 50px;
-    text-align: right;
-}
-/* Over/Under Styles */
-.ou-option {
-    flex: 1;
-    min-width: 100px;
-    margin: 0;
-}
-.ou-option.selected {
-    background: #cfe2ff;
-    border: 2px solid #0d6efd;
-}
-/* Animations */
-.spread-updated {
-    animation: spreadPulse 0.6s ease-out;
-}
-@keyframes spreadPulse {
-    0% { background-color: #fff3cd; }
-    100% { background-color: transparent; }
-}
-.final-score-badge {
-    background: #007bff;
-    color: white;
-    padding: 4px 12px;
-    border-radius: 12px;
+.payout-text {
     font-size: 14px;
-    font-weight: 600;
-    margin-left: 8px;
+    color: #000; /* Ensure text is black */
 }
-.final-header {
-    background: #f8f9fa;
-    padding: 16px;
-    border-radius: 8px;
-    margin-bottom: 16px;
-    border: 2px solid #dee2e6;
+.payout-value {
+    font-size: 18px;
+    font-weight: bold;
+    color: #28a745;
 }
-/* Badges */
-.badge {
-    font-size: 11px;
-    background: #e9ecef;
-    padding: 3px 8px;
-    border-radius: 4px;
-    white-space: nowrap;
-}
-.free-play-badge {
-    background: #28a745;
-    color: white;
-    padding: 4px 12px;
-    border-radius: 12px;
-    font-size: 12px;
-    font-weight: 600;
-    margin-left: 8px;
-}
+
 /* Form Inputs */
 input[type="text"],
 input[type="email"],
@@ -227,7 +151,7 @@ input[type="number"]:focus {
     text-align: center;
 }
 .text-white {
-    color: black;
+    color: white;
 }
 .mb-2 {
     margin-bottom: 16px;
@@ -240,40 +164,6 @@ input[type="number"]:focus {
     display: grid;
     grid-template-columns: repeat(4, 1fr);
     gap: 12px;
-}
-@media (max-width: 768px) {
-    .payout-grid {
-        grid-template-columns: repeat(2, 1fr);
-    }
-}
-/* Radio Buttons */
-.radio-group {
-    display: flex;
-    gap: 20px;
-    margin-bottom: 16px;
-}
-.radio-label {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    cursor: pointer;
-}
-/* Sync Indicator */
-.sync-indicator {
-    display: inline-block;
-    width: 8px;
-    height: 8px;
-    background: #28a745;
-    border-radius: 50%;
-    margin-left: 8px;
-}
-.sync-indicator.syncing {
-    background: #ffc107;
-    animation: pulse 1s infinite;
-}
-@keyframes pulse {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.5; }
 }
 
 /* NEW Sports Menu Styles */
@@ -371,6 +261,11 @@ input[type="number"]:focus {
     background: #138496;
 }
 
+/* Hide Mobile Menu on Desktop */
+.mobile-sports-menu {
+    display: none;
+}
+
 /* Responsive */
 @media (max-width: 960px) {
     /* --- MOBILE STYLES --- */
@@ -454,12 +349,15 @@ input[type="number"]:focus {
     .card {
         padding: 16px;
         border-radius: 0;
+        margin-left: -10px;
+        margin-right: -10px;
+        width: calc(100% + 20px);
     }
-    .card:first-child {
+    .main-content > .card:first-of-type {
         border-top-left-radius: 12px;
         border-top-right-radius: 12px;
     }
-     .card:last-child {
+     .main-content > .card:last-of-type {
         border-bottom-left-radius: 12px;
         border-bottom-right-radius: 12px;
     }
