@@ -206,6 +206,7 @@ const updateSubmissionStatus = async (submission, status, wins, losses, pickCoun
   try {
     const statusUpdate = {
       ticketNumber: submission.ticketNumber,
+      betType: submission.betType || 'parlay',
       status: status,
       wins: wins,
       losses: losses,
@@ -900,7 +901,8 @@ const saveSubmission = async (submission) => {
         error: error.message
       });
       localStorage.setItem('failed-submissions', JSON.stringify(failedSubmissions));
-      
+    }
+  }
 };
 
   const handleGridPickSelection = (gameId, pickType, value) => {
@@ -941,9 +943,6 @@ const saveSubmission = async (submission) => {
     } else if (pickType === 'total') {
       toggleTotal(gameId, value);
     }
-  };
-
-  const handleRemovePick = (gameId, pickType) => {
   };
 
   const handleRemovePick = (gameId, pickType) => {
@@ -1091,29 +1090,33 @@ const saveSubmission = async (submission) => {
       if (pickObj.spread) {
         const team = pickObj.spread === 'away' ? game.awayTeam : game.homeTeam;
         const spread = pickObj.spread === 'away' ? game.awaySpread : game.homeSpread;
+        const spreadOdds = pickObj.spread === 'away' ? (game.awaySpreadOdds || '-110') : (game.homeSpreadOdds || '-110');
         
         picksFormatted.push({
           gameId: game.espnId,
           gameName: gameName + sportLabel,
+          game: gameName,
           sport: game.sport,
           pickType: 'spread',
           team,
           spread,
+          odds: spreadOdds,
           pickedTeamType: pickObj.spread,
           betAmount: betType === 'straight' ? parseFloat(individualBetAmounts[getPickId(gameId, 'spread')]) : undefined
         });
       }
        if (pickObj.winner) {
         const team = pickObj.winner === 'away' ? game.awayTeam : game.homeTeam;
-        const moneyline = pickObj.winner === 'away' ? game.awayMoneyline : game.homeMoneyline;
+        const odds = pickObj.winner === 'away' ? game.awayMoneyline : game.homeMoneyline;
         
         picksFormatted.push({
           gameId: game.espnId,
           gameName: gameName + sportLabel,
+          game: gameName,
           sport: game.sport,
           pickType: 'winner',
           team,
-          moneyline,
+          odds: odds || 'N/A',
           pickedTeamType: pickObj.winner,
           betAmount: betType === 'straight' ? parseFloat(individualBetAmounts[getPickId(gameId, 'winner')]) : undefined
         });
@@ -1122,10 +1125,12 @@ const saveSubmission = async (submission) => {
         picksFormatted.push({
           gameId: game.espnId,
           gameName: gameName + sportLabel,
+          game: gameName,
           sport: game.sport,
           pickType: 'total',
           overUnder: pickObj.total,
           total: game.total,
+          odds: '-110',
           betAmount: betType === 'straight' ? parseFloat(individualBetAmounts[getPickId(gameId, 'total')]) : undefined
         });
       }
