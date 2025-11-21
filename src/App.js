@@ -1,6 +1,3 @@
-
-
-
 import './App.css';
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { initializeApp } from "firebase/app";
@@ -97,8 +94,6 @@ const app = initializeApp(firebaseConfig);
 const database = getDatabase(app);
 const auth = getAuth(app);
 
-const VENMO_USERNAME = process.env.REACT_APP_VENMO_USERNAME || 'EGTSports';
-const ZELLE_EMAIL = process.env.REACT_APP_ZELLE_EMAIL || 'EGTSports@proton.me';
 const MIN_BET = parseInt(process.env.REACT_APP_MIN_BET) || 5;
 const MAX_BET = parseInt(process.env.REACT_APP_MAX_BET) || 100;
 const GOOGLE_SHEET_URL = process.env.REACT_APP_GOOGLE_SHEET_URL || 'https://script.google.com/macros/s/AKfycbzPastor8yKkWQxKx1z0p-0ZibwBJHkJCuVvHDqP9YX7Dv1-vwakdR9RU6Y6oNw4T2W2PA/exec';
@@ -291,6 +286,8 @@ function AdminPanel({ user, games, setGames, isSyncing, setIsSyncing, recentlyUp
         spreadsData[game.espnId] = {
           awaySpread: game.awaySpread || '',
           homeSpread: game.homeSpread || '',
+          awayMoneyline: game.awayMoneyline || '',
+          homeMoneyline: game.homeMoneyline || '',
           total: game.total || '',
           timestamp: new Date().toISOString()
         };
@@ -310,6 +307,16 @@ function AdminPanel({ user, games, setGames, isSyncing, setIsSyncing, recentlyUp
       prevGames.map(game =>
         game.id === gameId
           ? { ...game, [team === 'away' ? 'awaySpread' : 'homeSpread']: value }
+          : game
+      )
+    );
+  };
+
+  const updateMoneyline = (gameId, team, value) => {
+    setGames(prevGames =>
+      prevGames.map(game =>
+        game.id === gameId
+          ? { ...game, [team === 'away' ? 'awayMoneyline' : 'homeMoneyline']: value }
           : game
       )
     );
@@ -489,11 +496,13 @@ function AdminPanel({ user, games, setGames, isSyncing, setIsSyncing, recentlyUp
             </div>
             <div>
               <label><strong>{game.awayTeam} (Away)</strong></label>
-              <input type="text" value={game.awaySpread} onChange={(e) => updateSpread(game.id, 'away', e.target.value)} placeholder="+3.5" />
+              <input type="text" value={game.awaySpread} onChange={(e) => updateSpread(game.id, 'away', e.target.value)} placeholder="Spread, e.g. +3.5" />
+              <input type="text" value={game.awayMoneyline} onChange={(e) => updateMoneyline(game.id, 'away', e.target.value)} placeholder="Moneyline, e.g. +150" />
             </div>
             <div>
               <label><strong>{game.homeTeam} (Home)</strong></label>
-              <input type="text" value={game.homeSpread} onChange={(e) => updateSpread(game.id, 'home', e.target.value)} placeholder="-3.5" />
+              <input type="text" value={game.homeSpread} onChange={(e) => updateSpread(game.id, 'home', e.target.value)} placeholder="Spread, e.g. -3.5" />
+              <input type="text" value={game.homeMoneyline} onChange={(e) => updateMoneyline(game.id, 'home', e.target.value)} placeholder="Moneyline, e.g. -180" />
             </div>
             <div>
               <label><strong>Total (O/U)</strong></label>
@@ -615,12 +624,12 @@ function AdminLandingPage({ onSelectSport, onManageUsers, onSignOut }) {
 }
 
 // Landing Page Component - WITH MANUAL REFRESH BUTTON AND CROSS-SPORT SUPPORT
-function LandingPage({ games, allSportsGames, currentViewSport, onChangeSport, loading, onBackToMenu, sport, betType, onBetTypeChange, apiError, onManualRefresh, lastRefreshTime, propBets, propBetsLoading, propBetsError }) {
+function LandingPage({ games, allSportsGames, currentViewSport, onChangeSport, loading, onBackToMenu, sport, betType, onBetTypeChange, apiError, onManualRefresh, lastRefreshTime, propBets, propBetsLoading, propBetsError, onSignOut }) {
   const [selectedPicks, setSelectedPicks] = useState({});
   const [showConfirmation, setShowConfirmation] = useState(false);
   const [ticketNumber, setTicketNumber] = useState('');
   const [showCheckout, setShowCheckout] = useState(false);
-  const [contactInfo, setContactInfo] = useState({ name: '', email: '', betAmount: '', confirmMethod: 'email', freePlay: 0, paymentMethod: 'venmo' });
+  const [contactInfo, setContactInfo] = useState({ name: '', email: '', betAmount: '' });
   const [individualBetAmounts, setIndividualBetAmounts] = useState({}); // For straight bets: {pickId: amount}
   const [submissions, setSubmissions] = useState([]);
   const [hasSubmitted, setHasSubmitted] = useState(false);
@@ -932,25 +941,6 @@ const saveSubmission = async (submission) => {
     setShowConfirmation(true);
   };
 
-  const openVenmo = (amount) => {
-    const betAmount = amount || contactInfo.betAmount;
-    const note = encodeURIComponent("EGT Sports - " + ticketNumber);
-    
-    // Try mobile app first
-    const venmoAppUrl = `venmo://paycharge?txn=pay&recipients=${VENMO_USERNAME}&amount=${betAmount}&note=${note}`;
-    
-    // Fallback to web
-    const venmoWebUrl = `https://venmo.com/?txn=pay&audience=private&recipients=${VENMO_USERNAME}&amount=${betAmount}&note=${note}`;
-    
-    // Try to open the app
-    window.location.href = venmoAppUrl;
-    
-    // If app doesn't open, fallback to web after a delay
-    setTimeout(() => {
-      window.open(venmoWebUrl, '_blank');
-    }, 1000);
-  };
-
   const handleCheckoutSubmit = async () => {
     // Helper function to generate unique pick ID
     const getPickId = (gameId, pickType) => `${gameId}-${pickType}`;
@@ -1131,57 +1121,45 @@ const saveSubmission = async (submission) => {
       freePlay: 0,
       picks: picksFormatted,
       paymentStatus: 'pending',
-      paymentMethod: contactInfo.paymentMethod,
       sport: betType === 'parlay' ? 'Multi-Sport' : sport,
       betType: betType
     };
     saveSubmission(submission);
+    
     // Send confirmation email
-try {
-  const emailResponse = await fetch('https://api.egtsports.ws/api/send-ticket-confirmation', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      ticketNumber: ticketNumber,
-      contactInfo: {
-        name: contactInfo.name,
-        email: contactInfo.email,
-        paymentMethod: contactInfo.paymentMethod
-      },
-      picks: picksFormatted,
-      betAmount: totalBetAmount,
-      sport: sport,
-      timestamp: submission.timestamp
-    })
-  });
+    try {
+      const emailResponse = await fetch('https://api.egtsports.ws/api/send-ticket-confirmation', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          ticketNumber: ticketNumber,
+          contactInfo: {
+            name: contactInfo.name,
+            email: contactInfo.email,
+          },
+          picks: picksFormatted,
+          betAmount: totalBetAmount,
+          sport: sport,
+          timestamp: submission.timestamp,
+          betType: betType
+        })
+      });
 
-  const emailResult = await emailResponse.json();
-  
-  if (emailResult.success) {
-    console.log('✅ Confirmation email sent to', contactInfo.email);
-  } else {
-    console.error('❌ Email failed:', emailResult.error);
-  }
-} catch (emailError) {
-  console.error('❌ Email error:', emailError);
-  // Don't block ticket submission if email fails
-}
+      const emailResult = await emailResponse.json();
+      
+      if (emailResult.success) {
+        console.log('✅ Confirmation email sent to', contactInfo.email);
+      } else {
+        console.error('❌ Email failed:', emailResult.error);
+      }
+    } catch (emailError) {
+      console.error('❌ Email error:', emailError);
+      // Don't block ticket submission if email fails
+    }
     
     setHasSubmitted(true);
-
-    // Open Venmo only if Venmo is selected
-    if (contactInfo.paymentMethod === 'venmo') {
-      openVenmo(totalBetAmount);
-        } else if (contactInfo.paymentMethod === 'zelle') {
-      // Copy Zelle email to clipboard
-      navigator.clipboard.writeText(ZELLE_EMAIL).then(() => {
-        alert(`⚠️ IMPORTANT - PAYMENT REQUIRED ⚠️\n\n📋 Zelle email copied to clipboard!\n\nYou MUST open your banking app NOW and send $${totalBetAmount.toFixed(2)} via Zelle to:\n\n${ZELLE_EMAIL}\n\nNote: ${ticketNumber}\n\n🚨 Tickets without payment before games start will be VOID 🚨`);
-      }).catch(() => {
-        alert(`⚠️ IMPORTANT - PAYMENT REQUIRED ⚠️\n\nYou MUST open your banking app NOW and send $${totalBetAmount.toFixed(2)} via Zelle to:\n\n${ZELLE_EMAIL}\n\nNote: ${ticketNumber}\n\n🚨 Tickets without payment before games start will be VOID 🚨`);
-      });
-    }
   };
 
   if (loading) {
@@ -1224,6 +1202,9 @@ try {
             onSelectSport={onChangeSport}
             allSportsGames={allSportsGames}
             betType={betType}
+            onSignOut={onSignOut}
+            onManualRefresh={handleManualRefresh}
+            isRefreshing={isRefreshing}
           />
         )}
         
@@ -1276,6 +1257,9 @@ try {
             onSelectSport={onChangeSport}
             allSportsGames={allSportsGames}
             betType={betType}
+            onSignOut={onSignOut}
+            onManualRefresh={handleManualRefresh}
+            isRefreshing={isRefreshing}
           />
         )}
         
@@ -1312,6 +1296,9 @@ try {
             onSelectSport={onChangeSport}
             allSportsGames={allSportsGames}
             betType={betType}
+            onSignOut={onSignOut}
+            onManualRefresh={handleManualRefresh}
+            isRefreshing={isRefreshing}
           />
         )}
         <div className="container" style={{
@@ -1348,9 +1335,6 @@ try {
   // eslint-disable-next-line no-unused-vars
   const canSubmit = pickCount >= minPicks;
 
-  // Count active games - with null check
-  const activeGamesCount = (games && Array.isArray(games)) ? games.filter(g => g.status === 'in' || g.status === 'pre').length : 0;
-
   if (hasSubmitted) {
     // Helper function to generate unique pick ID
     const getPickId = (gameId, pickType) => `${gameId}-${pickType}`;
@@ -1362,7 +1346,6 @@ try {
     
     Object.entries(selectedPicks).forEach(([gameId, pickObj]) => {
       // Find game in either single sport games or all sports games
-      // Convert gameId to match type (string for cross-sport, number for single sport)
       const numericGameId = Number(gameId);
       let game = games.find(g => g.id === gameId || g.id === numericGameId);
       if (!game && allSportsGames) {
@@ -1373,6 +1356,8 @@ try {
       }
       if (!game) return;
       
+      const gameDetails = `${game.awayTeam} @ ${game.homeTeam}`;
+
       if (pickObj.winner) {
         pickCount++;
         const team = pickObj.winner === 'away' ? game.awayTeam : game.homeTeam;
@@ -1381,9 +1366,9 @@ try {
         if (betType === 'straight') {
           const betAmount = parseFloat(individualBetAmounts[getPickId(gameId, 'winner')]) || 0;
           totalAmount += betAmount;
-          picksFormatted.push(`${team} ${moneyline || 'ML'} - $${betAmount.toFixed(2)}`);
+          picksFormatted.push(`${team} ${moneyline || 'ML'} (${gameDetails}) - Bet: $${betAmount.toFixed(2)}`);
         } else {
-          picksFormatted.push(`${team} ${moneyline || 'ML'}`);
+          picksFormatted.push(`${team} ${moneyline || 'ML'} (${gameDetails})`);
         }
       }
       if (pickObj.spread) {
@@ -1394,9 +1379,9 @@ try {
         if (betType === 'straight') {
           const betAmount = parseFloat(individualBetAmounts[getPickId(gameId, 'spread')]) || 0;
           totalAmount += betAmount;
-          picksFormatted.push(`${team} ${spread} - $${betAmount.toFixed(2)}`);
+          picksFormatted.push(`${team} ${spread} (${gameDetails}) - Bet: $${betAmount.toFixed(2)}`);
         } else {
-          picksFormatted.push(`${team} ${spread}`);
+          picksFormatted.push(`${team} ${spread} (${gameDetails})`);
         }
       }
       if (pickObj.total) {
@@ -1404,9 +1389,9 @@ try {
         if (betType === 'straight') {
           const betAmount = parseFloat(individualBetAmounts[getPickId(gameId, 'total')]) || 0;
           totalAmount += betAmount;
-          picksFormatted.push(`[TOTAL] ${pickObj.total === 'over' ? 'OVER' : 'UNDER'} ${game.total} - ${game.awayTeam} @ ${game.homeTeam} - $${betAmount.toFixed(2)}`);
+          picksFormatted.push(`[TOTAL] ${pickObj.total === 'over' ? 'OVER' : 'UNDER'} ${game.total} (${gameDetails}) - Bet: $${betAmount.toFixed(2)}`);
         } else {
-          picksFormatted.push(`[TOTAL] ${pickObj.total === 'over' ? 'OVER' : 'UNDER'} ${game.total} total points - ${game.awayTeam} @ ${game.homeTeam}`);
+          picksFormatted.push(`[TOTAL] ${pickObj.total === 'over' ? 'OVER' : 'UNDER'} ${game.total} total points (${gameDetails})`);
         }
       }
     });
@@ -1454,7 +1439,7 @@ Type: ${betType === 'straight' ? 'Straight Bets' : 'Parlay'}
 Sport: ${sport}
 Total Amount: $${totalAmount.toFixed(2)}
 Picks: ${pickCount}
-${betType === 'parlay' ? `Payout: ${payoutOdds}` : 'Payout: Based on individual odds'}
+${betType === 'parlay' ? `Payout: ${payoutOdds}` : ''}
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 YOUR ${betType === 'straight' ? 'BETS' : 'PICKS'}
@@ -1462,12 +1447,9 @@ YOUR ${betType === 'straight' ? 'BETS' : 'PICKS'}
 ${picksFormatted.map((pick, idx) => `${idx + 1}. ${pick}`).join('\n')}
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-PAYMENT REQUIRED
+PAYMENT INFO
 
-${contactInfo.paymentMethod === 'venmo' 
-  ? `Send $${totalAmount.toFixed(2)} to @${VENMO_USERNAME} on Venmo\nNote: "${ticketNumber}"`
-  : `Send $${totalAmount.toFixed(2)} via Zelle to ${ZELLE_EMAIL}\nNote: "${ticketNumber}"`
-}
+Your ticket has been submitted. Payment must be received before games start for the ticket to be valid.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
@@ -1588,10 +1570,12 @@ Email: ${contactInfo.email}
             <div style={{
               padding: '24px',
               background: 'white',
-              borderBottom: '2px solid #e0e0e0'
+              borderBottom: '2px solid #e0e0e0',
+              maxHeight: '400px',
+              overflowY: 'auto'
             }}>
               <h3 style={{fontSize: '18px', fontWeight: 'bold', marginBottom: '16px', color: '#333'}}>
-                🎲 YOUR PICKS
+                🎲 YOUR {betType === 'straight' ? 'BETS' : 'PICKS'}
               </h3>
               <div style={{display: 'flex', flexDirection: 'column', gap: '8px'}}>
                 {picksFormatted.map((pick, idx) => (
@@ -1634,43 +1618,19 @@ Email: ${contactInfo.email}
               borderBottom: '3px dashed #e0e0e0'
             }}>
               <h3 style={{fontSize: '18px', fontWeight: 'bold', marginBottom: '16px', color: '#856404'}}>
-                💳 PAYMENT REQUIRED
+                ⚠️ ACTION REQUIRED
               </h3>
-              {contactInfo.paymentMethod === 'venmo' ? (
-                <div style={{
+              <div style={{
                   background: 'white',
                   padding: '16px',
                   borderRadius: '8px',
-                  border: '2px solid #ffc107'
+                  border: '2px solid #ffc107',
+                  textAlign: 'center'
                 }}>
-                  <div style={{marginBottom: '12px', fontSize: '15px', color: '#333'}}>
-                    <strong>Send:</strong> <span style={{fontSize: '18px', fontWeight: 'bold', color: '#28a745'}}>${contactInfo.betAmount}</span>
-                  </div>
-                  <div style={{marginBottom: '12px', fontSize: '15px', color: '#333'}}>
-                    <strong>To:</strong> <span style={{fontSize: '16px', fontWeight: 'bold', color: '#007bff'}}>@{VENMO_USERNAME}</span> on Venmo
-                  </div>
-                  <div style={{fontSize: '15px', color: '#333'}}>
-                    <strong>Note:</strong> <span style={{fontSize: '16px', fontWeight: 'bold', fontFamily: 'monospace', background: '#f8f9fa', padding: '4px 8px', borderRadius: '4px'}}>"{ticketNumber}"</span>
-                  </div>
+                  <p style={{fontSize: '15px', color: '#333', margin: '0'}}>
+                    Your ticket is submitted! <strong>Payment must be received before the first game starts</strong> for your ticket to be valid.
+                  </p>
                 </div>
-              ) : (
-                <div style={{
-                  background: 'white',
-                  padding: '16px',
-                  borderRadius: '8px',
-                  border: '2px solid #ffc107'
-                }}>
-                  <div style={{marginBottom: '12px', fontSize: '15px', color: '#333'}}>
-                    <strong>Send:</strong> <span style={{fontSize: '18px', fontWeight: 'bold', color: '#28a745'}}>${contactInfo.betAmount}</span>
-                  </div>
-                  <div style={{marginBottom: '12px', fontSize: '15px', color: '#333'}}>
-                    <strong>To:</strong> <span style={{fontSize: '16px', fontWeight: 'bold', color: '#007bff'}}>{ZELLE_EMAIL}</span> via Zelle
-                  </div>
-                  <div style={{fontSize: '15px', color: '#333'}}>
-                    <strong>Note:</strong> <span style={{fontSize: '16px', fontWeight: 'bold', fontFamily: 'monospace', background: '#f8f9fa', padding: '4px 8px', borderRadius: '4px'}}>"{ticketNumber}"</span>
-                  </div>
-                </div>
-              )}
             </div>
 
             {/* CONTACT INFO */}
@@ -1706,26 +1666,6 @@ Email: ${contactInfo.email}
               <span>📧</span>
               <span>Email This Ticket</span>
             </button>
-
-            {contactInfo.paymentMethod === 'venmo' && (
-              <button
-                className="btn btn-primary"
-                onClick={openVenmo}
-                style={{
-                  width: '100%',
-                  padding: '16px',
-                  fontSize: '18px',
-                  fontWeight: 'bold',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '10px'
-                }}
-              >
-                <span>💰</span>
-                <span>Open Venmo to Pay</span>
-              </button>
-            )}
 
             <button 
               className="btn btn-secondary" 
@@ -1770,6 +1710,53 @@ Email: ${contactInfo.email}
     // Helper function to generate unique pick ID
     const getPickId = (gameId, pickType) => `${gameId}-${pickType}`;
     
+    // Format picks for display on the checkout page
+    const picksForCheckout = [];
+    Object.entries(selectedPicks).forEach(([gameId, pickObj]) => {
+      const numericGameId = Number(gameId);
+      let game = games.find(g => g.id === gameId || g.id === numericGameId);
+      if (!game && allSportsGames) {
+        for (const sportGames of Object.values(allSportsGames)) {
+          game = sportGames.find(g => g.id === gameId || g.id === numericGameId);
+          if (game) break;
+        }
+      }
+      if (!game) return;
+
+      const gameDetails = `${game.awayTeam} @ ${game.homeTeam}`;
+
+      if (pickObj.spread) {
+        const team = pickObj.spread === 'away' ? game.awayTeam : game.homeTeam;
+        const spread = pickObj.spread === 'away' ? game.awaySpread : game.homeSpread;
+        const betAmount = betType === 'straight' ? parseFloat(individualBetAmounts[getPickId(gameId, 'spread')]) || 0 : undefined;
+        picksForCheckout.push({
+          id: getPickId(gameId, 'spread'),
+          text: `[SPREAD] ${team} ${spread} (${gameDetails})`,
+          betAmount
+        });
+      }
+      if (pickObj.winner) {
+        const team = pickObj.winner === 'away' ? game.awayTeam : game.homeTeam;
+        const moneyline = pickObj.winner === 'away' ? game.awayMoneyline : game.homeMoneyline;
+        const betAmount = betType === 'straight' ? parseFloat(individualBetAmounts[getPickId(gameId, 'winner')]) || 0 : undefined;
+        picksForCheckout.push({
+          id: getPickId(gameId, 'winner'),
+          text: `[MONEYLINE] ${team} ${moneyline} (${gameDetails})`,
+          betAmount
+        });
+      }
+      if (pickObj.total) {
+        const total = game.total;
+        const overUnder = pickObj.total === 'over' ? 'Over' : 'Under';
+        const betAmount = betType === 'straight' ? parseFloat(individualBetAmounts[getPickId(gameId, 'total')]) || 0 : undefined;
+        picksForCheckout.push({
+          id: getPickId(gameId, 'total'),
+          text: `[TOTAL] ${overUnder} ${total} (${gameDetails})`,
+          betAmount
+        });
+      }
+    });
+
     return (
       <div className="gradient-bg">
         <div className="container" style={{maxWidth: '600px'}}>
@@ -1783,179 +1770,20 @@ Email: ${contactInfo.email}
               <div style={{fontSize: '24px', fontWeight: 'bold', color: '#28a745'}}>{ticketNumber}</div>
             </div>
             
-            {betType === 'straight' ? (
-              // Straight Bets: Individual bet amounts for each pick
-              <>
-                <h3 className="mb-2">Your Bets ({pickCount})</h3>
-                <div style={{background: '#e7f3ff', padding: '12px', borderRadius: '8px', marginBottom: '16px', fontSize: '14px'}}>
-                  <strong>💡 Straight Bets:</strong> Set an individual wager amount for each bet below (Min ${MIN_BET}, Max ${MAX_BET} per bet)
+            <h3 className="mb-2">Your {betType === 'parlay' ? `Picks (${pickCount})` : `Bets (${pickCount})`}</h3>
+            <div style={{maxHeight: '300px', overflowY: 'auto', padding: '10px', background: '#f8f9fa', borderRadius: '8px', marginBottom: '24px'}}>
+              {picksForCheckout.map((pick, idx) => (
+                <div key={pick.id} style={{padding: '12px', borderBottom: '1px solid #e0e0e0'}}>
+                  <div style={{fontWeight: 'bold'}}>{idx + 1}. {pick.text}</div>
+                  {pick.betAmount !== undefined && (
+                    <div style={{color: '#28a745', fontWeight: 'bold', textAlign: 'right'}}>
+                      Wager: ${pick.betAmount.toFixed(2)}
+                    </div>
+                  )}
                 </div>
-                {Object.entries(selectedPicks).map(([gameId, pickObj]) => {
-                  // Find game in either single sport games or all sports games
-                  // Convert gameId to match type (string for cross-sport, number for single sport)
-                  const numericGameId = Number(gameId);
-                  let game = games.find(g => g.id === gameId || g.id === numericGameId);
-                  if (!game && allSportsGames) {
-                    for (const sportGames of Object.values(allSportsGames)) {
-                      game = sportGames.find(g => g.id === gameId || g.id === numericGameId);
-                      if (game) break;
-                    }
-                  }
-                  if (!game) return null;
-                  
-                  const sportBadge = game.sport ? (
-                    <span style={{
-                      fontSize: '10px',
-                      background: '#007bff',
-                      color: 'white',
-                      padding: '2px 6px',
-                      borderRadius: '4px',
-                      marginLeft: '8px'
-                    }}>
-                      {game.sport}
-                    </span>
-                  ) : null;
-                  
-                  return (
-                    <div key={gameId}>
-                      {pickObj.spread && (
-                        <div style={{padding: '16px', background: '#f8f9fa', borderRadius: '8px', marginBottom: '12px', border: '2px solid #e0e0e0'}}>
-                          <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px'}}>
-                            <div style={{flex: 1}}>
-                              <div style={{fontWeight: 'bold', fontSize: '16px', marginBottom: '4px'}}>
-                                {pickObj.spread === 'away' ? game.awayTeam : game.homeTeam}
-                                {sportBadge}
-                              </div>
-                              <div style={{fontSize: '13px', color: '#666'}}>
-                                {game.awayTeam} @ {game.homeTeam}
-                              </div>
-                            </div>
-                            <div style={{textAlign: 'right'}}>
-                              <div style={{fontSize: '12px', color: '#666'}}>Moneyline</div>
-                              <div style={{fontWeight: 'bold', fontSize: '18px', color: '#007bff'}}>
-                                {pickObj.spread === 'away' ? game.awayMoneyline : game.homeMoneyline}
-                              </div>
-                            </div>
-                          </div>
-                          <div>
-                            <label style={{fontSize: '14px', fontWeight: '600', marginBottom: '4px', display: 'block'}}>
-                              Wager Amount *
-                            </label>
-                            <input 
-                              type="number" 
-                              value={individualBetAmounts[getPickId(gameId, 'spread')] || ''} 
-                              onChange={(e) => setIndividualBetAmounts({
-                                ...individualBetAmounts,
-                                [getPickId(gameId, 'spread')]: e.target.value
-                              })} 
-                              placeholder={`$${MIN_BET} - $${MAX_BET}`}
-                              min={MIN_BET}
-                              max={MAX_BET}
-                              step="0.01"
-                              style={{width: '100%', padding: '10px', fontSize: '16px', border: '2px solid #ccc', borderRadius: '6px'}}
-                            />
-                          </div>
-                        </div>
-                      )}
-                      {pickObj.total && (
-                        <div style={{padding: '16px', background: '#f8f9fa', borderRadius: '8px', marginBottom: '12px', border: '2px solid #e0e0e0'}}>
-                          <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px'}}>
-                            <div style={{flex: 1}}>
-                              <div style={{fontWeight: 'bold', fontSize: '16px', marginBottom: '4px'}}>
-                                {pickObj.total === 'over' ? 'Over' : 'Under'} {game.total}
-                                {sportBadge}
-                              </div>
-                              <div style={{fontSize: '13px', color: '#666'}}>
-                                {game.awayTeam} @ {game.homeTeam}
-                              </div>
-                            </div>
-                            <div style={{textAlign: 'right'}}>
-                              <div style={{fontSize: '12px', color: '#666'}}>Odds</div>
-                              <div style={{fontWeight: 'bold', fontSize: '18px', color: '#007bff'}}>
-                                -110
-                              </div>
-                            </div>
-                          </div>
-                          <div>
-                            <label style={{fontSize: '14px', fontWeight: '600', marginBottom: '4px', display: 'block'}}>
-                              Wager Amount *
-                            </label>
-                            <input 
-                              type="number" 
-                              value={individualBetAmounts[getPickId(gameId, 'total')] || ''} 
-                              onChange={(e) => setIndividualBetAmounts({
-                                ...individualBetAmounts,
-                                [getPickId(gameId, 'total')]: e.target.value
-                              })} 
-                              placeholder={`$${MIN_BET} - $${MAX_BET}`}
-                              min={MIN_BET}
-                              max={MAX_BET}
-                              step="0.01"
-                              style={{width: '100%', padding: '10px', fontSize: '16px', border: '2px solid #ccc', borderRadius: '6px'}}
-                            />
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </>
-            ) : (
-              // Parlays: Single bet amount for entire parlay
-              <>
-                <h3 className="mb-2">Your Picks ({pickCount})</h3>
-                {Object.entries(selectedPicks).map(([gameId, pickObj]) => {
-                  // Find game in either single sport games or all sports games
-                  // Convert gameId to match type (string for cross-sport, number for single sport)
-                  const numericGameId = Number(gameId);
-                  let game = games.find(g => g.id === gameId || g.id === numericGameId);
-                  if (!game && betType === 'parlay' && allSportsGames) {
-                    for (const sportGames of Object.values(allSportsGames)) {
-                      game = sportGames.find(g => g.id === gameId || g.id === numericGameId);
-                      if (game) break;
-                    }
-                  }
-                  if (!game) return null;
-                  
-                  const sportBadge = game.sport && betType === 'parlay' ? (
-                    <span style={{
-                      fontSize: '10px',
-                      background: '#007bff',
-                      color: 'white',
-                      padding: '2px 6px',
-                      borderRadius: '4px',
-                      marginLeft: '8px'
-                    }}>
-                      {game.sport}
-                    </span>
-                  ) : null;
-                  
-                  return (
-                    <div key={gameId}>
-                      {pickObj.spread && (
-                        <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px', background: '#f8f9fa', borderRadius: '8px', marginBottom: '4px'}}>
-                          <div>
-                            <strong>[SPREAD] {pickObj.spread === 'away' ? game.awayTeam : game.homeTeam}</strong>
-                            {sportBadge}
-                          </div>
-                          <span>{pickObj.spread === 'away' ? game.awaySpread : game.homeSpread}</span>
-                        </div>
-                      )}
-                      {pickObj.total && (
-                        <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px', background: '#f8f9fa', borderRadius: '8px', marginBottom: '4px'}}>
-                          <div>
-                            <strong>[TOTAL] {pickObj.total === 'over' ? 'Over' : 'Under'} {game.total}</strong>
-                            {sportBadge}
-                          </div>
-                          <span>{game.awayTeam} @ {game.homeTeam}</span>
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </>
-            )}
-            
+              ))}
+            </div>
+
             <h3 className="mb-2" style={{marginTop: '32px'}}>Contact Information</h3>
             <label>Full Name *</label>
             <input type="text" value={contactInfo.name} onChange={(e) => setContactInfo({...contactInfo, name: e.target.value})} />
@@ -1978,42 +1806,8 @@ Email: ${contactInfo.email}
               </>
             )}
             
-            <h3 className="mb-2" style={{marginTop: '32px'}}>Payment Method</h3>
-            <div style={{display: 'flex', gap: '12px', marginBottom: '16px'}}>
-              <button
-                type="button"
-                className="btn"
-                style={{
-                  flex: 1,
-                  background: contactInfo.paymentMethod === 'venmo' ? '#007bff' : '#fff',
-                  color: contactInfo.paymentMethod === 'venmo' ? '#fff' : '#333',
-                  border: '2px solid #007bff',
-                  fontWeight: 'bold',
-                  padding: '12px 20px'
-                }}
-                onClick={() => setContactInfo({...contactInfo, paymentMethod: 'venmo'})}
-              >
-                Venmo
-              </button>
-              <button
-                type="button"
-                className="btn"
-                style={{
-                  flex: 1,
-                  background: contactInfo.paymentMethod === 'zelle' ? '#007bff' : '#fff',
-                  color: contactInfo.paymentMethod === 'zelle' ? '#fff' : '#333',
-                  border: '2px solid #007bff',
-                  fontWeight: 'bold',
-                  padding: '12px 20px'
-                }}
-                onClick={() => setContactInfo({...contactInfo, paymentMethod: 'zelle'})}
-              >
-                Zelle
-              </button>
-            </div>
-            
             <button className="btn btn-success" onClick={handleCheckoutSubmit} style={{width: '100%', fontSize: '18px', marginTop: '16px'}}>
-              Continue to Payment
+              Send Me My Confirmation Ticket
             </button>
           </div>
         </div>
@@ -2030,6 +1824,9 @@ Email: ${contactInfo.email}
           onSelectSport={onChangeSport}
           allSportsGames={allSportsGames}
           betType={betType}
+          onSignOut={onSignOut}
+          onManualRefresh={handleManualRefresh}
+          isRefreshing={isRefreshing}
         />
       )}
       
@@ -2038,16 +1835,8 @@ Email: ${contactInfo.email}
         transition: 'all 0.3s ease'
       }}>
         <div className="text-center text-white mb-4">
-          <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '12px'}}>
-            <button className="btn btn-secondary" onClick={onBackToMenu} style={{height: 'fit-content'}}>
-              🚪 Sign Out
-            </button>
+          <div style={{display: 'flex', justifyContent: 'center', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '12px'}}>
             <div style={{flex: 1}}></div>
-            {activeGamesCount > 0 && (
-              <div style={{fontSize: '14px', color: '#ffc107', marginTop: '8px'}}>
-                🔴 {activeGamesCount} live game{activeGamesCount > 1 ? 's' : ''}
-              </div>
-            )}
           </div>
           
           {/* Sport indicator for single sport mode */}
@@ -2065,35 +1854,9 @@ Email: ${contactInfo.email}
             </div>
           )}
           
-          {/* MANUAL REFRESH BUTTON */}
-          <div style={{display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '12px', marginBottom: '16px'}}>
-            <button 
-              className="btn btn-info" 
-              onClick={handleManualRefresh} 
-              disabled={isRefreshing}
-              style={{padding: '8px 20px', fontSize: '14px'}}
-            >
-              {isRefreshing ? '🔄 Refreshing...' : '🔄 Refresh Games'}
-            </button>
-            {lastRefreshTime && (
-              <span style={{fontSize: '12px', color: '#ddd'}}>
-                Updated {getTimeSinceRefresh()}
-              </span>
-            )}
-          </div>
-        </div>
-        
-        {/* New Grid Betting Layout */}
-        <GridBettingLayout
-          games={games}
-          selectedPicks={selectedPicks}
-          onSelectPick={handleGridPickSelection}
-          betType={betType}
-        />
-        
-        <div className="card">
-          {betType === 'parlay' ? (
-            <>
+          {/* Payout Odds moved to top */}
+          {betType === 'parlay' && (
+            <div className="card">
               <h2 className="text-center mb-2">Payout Odds</h2>
               <div className="payout-grid">
                 {[
@@ -2112,18 +1875,17 @@ Email: ${contactInfo.email}
                   </div>
                 ))}
               </div>
-            </>
-          ) : (
-            <>
-              <h2 className="text-center mb-2">Straight Bet Odds</h2>
-              <p style={{textAlign: 'center', color: '#666', fontSize: '14px', marginBottom: '0'}}>
-                Each selection shows moneyline odds. Your payout will be calculated based on these odds.
-                <br />
-                <strong>Example:</strong> A $100 bet at +150 returns $150 profit ($250 total). At -110, returns $91 profit ($191 total).
-              </p>
-            </>
+            </div>
           )}
         </div>
+        
+        {/* New Grid Betting Layout */}
+        <GridBettingLayout
+          games={games}
+          selectedPicks={selectedPicks}
+          onSelectPick={handleGridPickSelection}
+          betType={betType}
+        />
         
         {/* Replaced old game cards with new GridBettingLayout - rendered above */}
         
@@ -2134,7 +1896,7 @@ Email: ${contactInfo.email}
             <li><strong>Minimum Bet = $5</strong></li>
              <li><strong>Maximum Bet = $100</strong></li>
             <li>Missing info = voided ticket</li>
-            <li>Funds must be deposited into players pool <strong>@{VENMO_USERNAME}</strong> prior to games starting or ticket is not valid</li>
+            <li>Funds must be deposited into players pool prior to games starting or ticket is not valid</li>
              <li>A tie counts as a loss</li>
             {betType === 'parlay' && <li><strong>✨ NEW: Cross-sports parlays are now allowed!</strong> Mix picks from different leagues</li>}
             {betType === 'straight' && <li><strong>Straight Bet Payouts:</strong> Based on moneyline odds shown for each game</li>}
@@ -2616,8 +2378,11 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
                 const fbGame = firebaseData[espnId];
                 const awaySpreadChanged = game.awaySpread !== fbGame.awaySpread;
                 const homeSpreadChanged = game.homeSpread !== fbGame.homeSpread;
+                const awayMoneylineChanged = game.awayMoneyline !== fbGame.awayMoneyline;
+                const homeMoneylineChanged = game.homeMoneyline !== fbGame.homeMoneyline;
                 const totalChanged = game.total !== fbGame.total;
-                const changed = awaySpreadChanged || homeSpreadChanged || totalChanged;
+                const changed = awaySpreadChanged || homeSpreadChanged || totalChanged || awayMoneylineChanged || homeMoneylineChanged;
+
                 if (changed) {
                   updated = true;
                   setRecentlyUpdated(prev => ({
@@ -2635,6 +2400,8 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
                   ...game,
                   awaySpread: fbGame.awaySpread || '',
                   homeSpread: fbGame.homeSpread || '',
+                  awayMoneyline: fbGame.awayMoneyline || '',
+                  homeMoneyline: fbGame.homeMoneyline || '',
                   total: fbGame.total || ''
                 };
               }
@@ -2949,7 +2716,8 @@ intervalId = setInterval(() => {
   const handleManualRefresh = async () => {
     // Refresh all sports data, not just selectedSport
     // This ensures the sidebar navigation continues to work after refresh
-    await loadAllSports(selectedSport, true); // Force refresh
+    const sportToRefresh = currentViewSportRef.current || selectedSport;
+    await loadAllSports(sportToRefresh, true); // Force refresh
   };
 
   // Sign out handler
@@ -3149,6 +2917,7 @@ intervalId = setInterval(() => {
     apiError={apiError}
     onManualRefresh={handleManualRefresh}
     lastRefreshTime={lastRefreshTime}
+    onSignOut={handleSignOut}
     propBets={propBets}
     propBetsLoading={propBetsLoading}
     propBetsError={propBetsError}
