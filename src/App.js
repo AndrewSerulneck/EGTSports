@@ -32,7 +32,7 @@ function SportsMenu({ currentSport, onSelectSport, allSportsGames, onSignOut, on
                             className={`menu-button ${currentSport === sport ? 'active' : ''}`}
                             onClick={() => onSelectSport(sport)}
                         >
-                            <span>{sport}</span>
+                            <span>{getSportDisplayName(sport)}</span>
                             <span className="game-count">({allSportsGames[sport] ? allSportsGames[sport].length : 0})</span>
                         </button>
                     ))}
@@ -72,7 +72,7 @@ function MobileSportsMenu({ currentSport, onSelectSport, allSportsGames }) {
                     className={`mobile-menu-button ${currentSport === sport ? 'active' : ''}`}
                     onClick={() => onSelectSport(sport)}
                 >
-                    {sport}
+                    {getSportDisplayName(sport)}
                 </button>
             ))}
             {showPropBets && (
@@ -96,6 +96,19 @@ const ESPN_API_ENDPOINTS = {
   'College Basketball': 'https://site.api.espn.com/apis/site/v2/sports/basketball/mens-college-basketball/scoreboard',
   'Major League Baseball': 'https://site.api.espn.com/apis/site/v2/sports/baseball/mlb/scoreboard',
   'NHL': 'https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard'
+};
+
+// Helper function to get sport display name with emoji
+const getSportDisplayName = (sport) => {
+  const sportNames = {
+    'NFL': 'NFL 🏈',
+    'College Football': 'CFB 🏈',
+    'NBA': 'NBA 🏀',
+    'College Basketball': 'CBB 🏀',
+    'Major League Baseball': 'MLB ⚾',
+    'NHL': 'NHL 🏒'
+  };
+  return sportNames[sport] || sport;
 };
 
 // Helper function to get date range URLs for ESPN API
@@ -1748,20 +1761,6 @@ Email: ${contactInfo.email}`;
       
       <div className={`container main-content ${allSportsGames && Object.keys(allSportsGames).length > 0 ? 'with-sidebar' : ''}`}>
         <div className="text-center text-white mb-4">
-          
-          {betType !== 'parlay' && (
-            <div style={{
-              display: 'inline-block',
-              background: 'rgba(255, 255, 255, 0.2)',
-              padding: '10px 20px',
-              borderRadius: '8px',
-              marginBottom: '16px',
-              fontSize: '16px',
-              fontWeight: '600'
-            }}>
-              🏈 {sport}
-            </div>
-          )}
           
           {betType === 'parlay' && (
             <div className="card">
