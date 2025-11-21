@@ -883,13 +883,6 @@ const saveSubmission = async (submission) => {
       syncedAt: new Date().toISOString()
     };
     
-    
-    const submissionWithStatus = {
-      ...submission,
-      syncedToSheets: true,
-      syncedAt: new Date().toISOString()
-    };
-    
     localStorage.setItem(`submission-${submission.ticketNumber}`, JSON.stringify(submissionWithStatus));
     
   } catch (error) {
@@ -910,11 +903,6 @@ const saveSubmission = async (submission) => {
     }
   }
 };
-
-  const handleGridPickSelection = (gameId, pickType, value) => {
-    if (pickType === 'winner') {
-      setSelectedPicks(prev => {
-        const prevPick = prev[gameId] || {};
         const newPick = {
           ...prevPick,
           winner: prevPick.winner === value ? undefined : value,
