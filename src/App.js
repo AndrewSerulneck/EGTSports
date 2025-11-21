@@ -1097,7 +1097,7 @@ const saveSubmission = async (submission) => {
           team,
           spread,
           pickedTeamType: pickObj.spread,
-          betAmount: betType === 'straight' ? parseFloat(individualBetAmounts[getPickId(gameId, 'spread')]) : undefined
+          ...(betType === 'straight' && { betAmount: parseFloat(individualBetAmounts[getPickId(gameId, 'spread')]) })
         });
       }
        if (pickObj.winner) {
@@ -1112,7 +1112,7 @@ const saveSubmission = async (submission) => {
           team,
           moneyline,
           pickedTeamType: pickObj.winner,
-          betAmount: betType === 'straight' ? parseFloat(individualBetAmounts[getPickId(gameId, 'winner')]) : undefined
+          ...(betType === 'straight' && { betAmount: parseFloat(individualBetAmounts[getPickId(gameId, 'winner')]) })
         });
       }
       if (pickObj.total) {
@@ -1123,7 +1123,7 @@ const saveSubmission = async (submission) => {
           pickType: 'total',
           overUnder: pickObj.total,
           total: game.total,
-          betAmount: betType === 'straight' ? parseFloat(individualBetAmounts[getPickId(gameId, 'total')]) : undefined
+          ...(betType === 'straight' && { betAmount: parseFloat(individualBetAmounts[getPickId(gameId, 'total')]) })
         });
       }
     });
