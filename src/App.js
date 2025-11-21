@@ -11,9 +11,46 @@ import {
 import AuthLanding from './components/AuthLanding';
 import UserManagement from './components/UserManagement';
 import BettingSlip from './components/BettingSlip';
-import SportsMenu from './components/SportsMenu';
 import GridBettingLayout from './components/GridBettingLayout';
 import PropBetsView from './components/PropBetsView';
+
+function SportsMenu({ currentSport, onSelectSport, allSportsGames, betType, onSignOut, onManualRefresh, isRefreshing }) {
+  const sports = Object.keys(allSportsGames);
+  const showPropBets = sports.some(sport => ['NFL', 'NBA', 'College Football', 'College Basketball', 'NHL'].includes(sport));
+
+  return (
+    <div className="sports-menu">
+      <h2>Sports Menu</h2>
+      <ul>
+        {sports.map(sport => (
+          <li key={sport} className={currentSport === sport ? 'active' : ''}>
+            <button onClick={() => onSelectSport(sport)}>
+              {sport} ({allSportsGames[sport].length})
+            </button>
+          </li>
+        ))}
+        {showPropBets && (
+          <li className={currentSport === 'Prop Bets' ? 'active' : ''}>
+            <button onClick={() => onSelectSport('Prop Bets')}>
+              Prop Bets
+            </button>
+          </li>
+        )}
+        {/* Sign Out and Refresh Buttons */}
+        <li className="menu-action">
+          <button onClick={onManualRefresh} disabled={isRefreshing}>
+            {isRefreshing ? '🔄 Refreshing...' : '🔄 Refresh Games'}
+          </button>
+        </li>
+        <li className="menu-action">
+          <button onClick={onSignOut}>
+            🚪 Sign Out
+          </button>
+        </li>
+      </ul>
+    </div>
+  );
+}
 
 // ESPN API Endpoints for all sports
 const ESPN_API_ENDPOINTS = {
@@ -497,12 +534,15 @@ function AdminPanel({ user, games, setGames, isSyncing, setIsSyncing, recentlyUp
             <div>
               <label><strong>{game.awayTeam} (Away)</strong></label>
               <input type="text" value={game.awaySpread} onChange={(e) => updateSpread(game.id, 'away', e.target.value)} placeholder="Spread, e.g. +3.5" />
-              <input type="text" value={game.awayMoneyline} onChange={(e) => updateMoneyline(game.id, 'away', e.target.value)} placeholder="Moneyline, e.g. +150" />
             </div>
             <div>
               <label><strong>{game.homeTeam} (Home)</strong></label>
               <input type="text" value={game.homeSpread} onChange={(e) => updateSpread(game.id, 'home', e.target.value)} placeholder="Spread, e.g. -3.5" />
-              <input type="text" value={game.homeMoneyline} onChange={(e) => updateMoneyline(game.id, 'home', e.target.value)} placeholder="Moneyline, e.g. -180" />
+            </div>
+            <div>
+              <label><strong>Moneyline</strong></label>
+              <input type="text" value={game.awayMoneyline} onChange={(e) => updateMoneyline(game.id, 'away', e.target.value)} placeholder={`${game.awayTeam} ML, e.g. +150`} />
+              <input type="text" value={game.homeMoneyline} onChange={(e) => updateMoneyline(game.id, 'home', e.target.value)} placeholder={`${game.homeTeam} ML, e.g. -180`} />
             </div>
             <div>
               <label><strong>Total (O/U)</strong></label>
@@ -636,6 +676,69 @@ function LandingPage({ games, allSportsGames, currentViewSport, onChangeSport, l
   const [isRefreshing, setIsRefreshing] = useState(false);
   const processedTicketsRef = useRef(new Set()); // Track processed tickets to avoid re-processing
 
+  // ---- Financial Calculation Helpers ----
+  const calculateAmericanOddsPayout = (stake, odds) => {
+    if (odds > 0) {
+      return stake * (odds / 100);
+    }
+    return stake / (Math.abs(odds) / 100);
+  };
+
+  const getBetCalculations = (betType, picks, games, individualBetAmounts, parlayBetAmount) => {
+    let totalStake = 0;
+    let potentialPayout = 0;
+  
+    if (betType === 'straight') {
+      Object.keys(picks).forEach(gameId => {
+        const pick = picks[gameId];
+        const game = games.find(g => g.id === gameId);
+        if (!game) return;
+  
+        const processPick = (pickType, oddsStr) => {
+          const pickId = `${gameId}-${pickType}`;
+          const stake = parseFloat(individualBetAmounts[pickId] || 0);
+          if (stake > 0) {
+            totalStake += stake;
+            const odds = parseInt(oddsStr);
+            const profit = calculateAmericanOddsPayout(stake, odds);
+            potentialPayout += stake + profit;
+          }
+        };
+  
+        if (pick.winner) {
+          const odds = pick.winner === 'away' ? game.awayMoneyline : game.homeMoneyline;
+          processPick('winner', odds);
+        }
+        if (pick.spread) {
+           const odds = pick.spread === 'away' ? game.awayMoneyline : game.homeMoneyline;
+           processPick('spread', odds);
+        }
+        if (pick.total) {
+          processPick('total', -110); // Standard odds for totals
+        }
+      });
+    } else { // Parlay
+      totalStake = parseFloat(parlayBetAmount || 0);
+      if (totalStake > 0) {
+        const pickCount = Object.values(picks).reduce((acc, p) => acc + (p.winner ? 1 : 0) + (p.spread ? 1 : 0) + (p.total ? 1 : 0), 0);
+        const multiplier = getPayoutMultiplier(pickCount);
+        potentialPayout = totalStake * multiplier;
+      }
+    }
+  
+    return {
+      totalStake,
+      potentialPayout,
+      potentialProfit: potentialPayout - totalStake,
+    };
+  };
+  
+  // Memoize calculations for checkout
+  const checkoutCalculations = React.useMemo(() => 
+      getBetCalculations(betType, selectedPicks, games, individualBetAmounts, contactInfo.betAmount),
+    [betType, selectedPicks, games, individualBetAmounts, contactInfo.betAmount]
+  );
+  
   useEffect(() => {
     // Load from localStorage first (backup)
     const stored = localStorage.getItem('marcs-parlays-submissions');
@@ -1118,6 +1221,7 @@ const saveSubmission = async (submission) => {
         confirmMethod: 'email'
       },
       betAmount: totalBetAmount,
+      potentialPayout: checkoutCalculations.potentialPayout,
       freePlay: 0,
       picks: picksFormatted,
       paymentStatus: 'pending',
@@ -1141,6 +1245,8 @@ const saveSubmission = async (submission) => {
           },
           picks: picksFormatted,
           betAmount: totalBetAmount,
+          potentialPayout: checkoutCalculations.potentialPayout,
+          potentialProfit: checkoutCalculations.potentialProfit,
           sport: sport,
           timestamp: submission.timestamp,
           betType: betType
@@ -1342,7 +1448,6 @@ const saveSubmission = async (submission) => {
     // Calculate payout odds and format picks based on bet type
     let pickCount = 0;
     const picksFormatted = [];
-    let totalAmount = 0;
     
     Object.entries(selectedPicks).forEach(([gameId, pickObj]) => {
       // Find game in either single sport games or all sports games
@@ -1365,7 +1470,6 @@ const saveSubmission = async (submission) => {
         
         if (betType === 'straight') {
           const betAmount = parseFloat(individualBetAmounts[getPickId(gameId, 'winner')]) || 0;
-          totalAmount += betAmount;
           picksFormatted.push(`${team} ${moneyline || 'ML'} (${gameDetails}) - Bet: $${betAmount.toFixed(2)}`);
         } else {
           picksFormatted.push(`${team} ${moneyline || 'ML'} (${gameDetails})`);
@@ -1378,7 +1482,6 @@ const saveSubmission = async (submission) => {
         
         if (betType === 'straight') {
           const betAmount = parseFloat(individualBetAmounts[getPickId(gameId, 'spread')]) || 0;
-          totalAmount += betAmount;
           picksFormatted.push(`${team} ${spread} (${gameDetails}) - Bet: $${betAmount.toFixed(2)}`);
         } else {
           picksFormatted.push(`${team} ${spread} (${gameDetails})`);
@@ -1388,28 +1491,12 @@ const saveSubmission = async (submission) => {
         pickCount++;
         if (betType === 'straight') {
           const betAmount = parseFloat(individualBetAmounts[getPickId(gameId, 'total')]) || 0;
-          totalAmount += betAmount;
           picksFormatted.push(`[TOTAL] ${pickObj.total === 'over' ? 'OVER' : 'UNDER'} ${game.total} (${gameDetails}) - Bet: $${betAmount.toFixed(2)}`);
         } else {
           picksFormatted.push(`[TOTAL] ${pickObj.total === 'over' ? 'OVER' : 'UNDER'} ${game.total} total points (${gameDetails})`);
         }
       }
     });
-
-    if (betType === 'parlay') {
-      totalAmount = parseFloat(contactInfo.betAmount);
-    }
-
-    const payoutOdds = betType === 'parlay' ? ({
-      3: '8 to 1',
-      4: '15 to 1',
-      5: '25 to 1',
-      6: '50 to 1',
-      7: '100 to 1',
-      8: '150 to 1',
-      9: '200 to 1',
-      10: '250 to 1'
-    }[pickCount] || 'N/A') : 'Varies by odds';
 
     const timestamp = new Date().toLocaleString('en-US', { 
       month: 'short', 
@@ -1437,9 +1524,9 @@ BET DETAILS
 
 Type: ${betType === 'straight' ? 'Straight Bets' : 'Parlay'}
 Sport: ${sport}
-Total Amount: $${totalAmount.toFixed(2)}
-Picks: ${pickCount}
-${betType === 'parlay' ? `Payout: ${payoutOdds}` : ''}
+Total Stake: $${checkoutCalculations.totalStake.toFixed(2)}
+Potential Payout: $${checkoutCalculations.potentialPayout.toFixed(2)}
+Potential Profit: $${checkoutCalculations.potentialProfit.toFixed(2)}
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 YOUR ${betType === 'straight' ? 'BETS' : 'PICKS'}
@@ -1540,29 +1627,27 @@ Email: ${contactInfo.email}
               <h3 style={{fontSize: '18px', fontWeight: 'bold', marginBottom: '16px', color: '#333'}}>
                 📋 BET DETAILS
               </h3>
-              <div style={{display: 'grid', gridTemplateColumns: betType === 'straight' ? '1fr' : '1fr 1fr', gap: '12px'}}>
+              <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px'}}>
                 <div style={{background: 'white', padding: '12px', borderRadius: '8px', border: '1px solid #e0e0e0'}}>
                   <div style={{fontSize: '12px', color: '#666', marginBottom: '4px'}}>Bet Type</div>
                   <div style={{fontSize: '16px', fontWeight: 'bold', color: '#333'}}>{betType === 'straight' ? 'Straight Bets' : 'Parlay'}</div>
                 </div>
                 <div style={{background: 'white', padding: '12px', borderRadius: '8px', border: '1px solid #e0e0e0'}}>
-                  <div style={{fontSize: '12px', color: '#666', marginBottom: '4px'}}>Sport</div>
-                  <div style={{fontSize: '16px', fontWeight: 'bold', color: '#333'}}>{sport}</div>
-                </div>
-                <div style={{background: 'white', padding: '12px', borderRadius: '8px', border: '1px solid #e0e0e0'}}>
-                  <div style={{fontSize: '12px', color: '#666', marginBottom: '4px'}}>Total Amount</div>
-                  <div style={{fontSize: '16px', fontWeight: 'bold', color: '#28a745'}}>${totalAmount.toFixed(2)}</div>
-                </div>
-                <div style={{background: 'white', padding: '12px', borderRadius: '8px', border: '1px solid #e0e0e0'}}>
                   <div style={{fontSize: '12px', color: '#666', marginBottom: '4px'}}>Total Picks</div>
                   <div style={{fontSize: '16px', fontWeight: 'bold', color: '#333'}}>{pickCount}</div>
                 </div>
-                {betType === 'parlay' && (
-                  <div style={{background: 'white', padding: '12px', borderRadius: '8px', border: '1px solid #e0e0e0', gridColumn: 'span 2'}}>
-                    <div style={{fontSize: '12px', color: '#666', marginBottom: '4px'}}>Payout Odds</div>
-                    <div style={{fontSize: '16px', fontWeight: 'bold', color: '#007bff'}}>{payoutOdds}</div>
-                  </div>
-                )}
+                <div style={{background: 'white', padding: '12px', borderRadius: '8px', border: '1px solid #e0e0e0'}}>
+                    <div style={{fontSize: '12px', color: '#666', marginBottom: '4px'}}>Total Stake</div>
+                    <div style={{fontSize: '16px', fontWeight: 'bold', color: '#dc3545'}}>${checkoutCalculations.totalStake.toFixed(2)}</div>
+                </div>
+                <div style={{background: 'white', padding: '12px', borderRadius: '8px', border: '1px solid #e0e0e0'}}>
+                  <div style={{fontSize: '12px', color: '#666', marginBottom: '4px'}}>Potential Payout</div>
+                  <div style={{fontSize: '16px', fontWeight: 'bold', color: '#28a745'}}>${checkoutCalculations.potentialPayout.toFixed(2)}</div>
+                </div>
+                 <div style={{background: 'white', padding: '12px', borderRadius: '8px', border: '1px solid #e0e0e0', gridColumn: 'span 2'}}>
+                  <div style={{fontSize: '12px', color: '#666', marginBottom: '4px'}}>Potential Profit</div>
+                  <div style={{fontSize: '16px', fontWeight: 'bold', color: '#007bff'}}>${checkoutCalculations.potentialProfit.toFixed(2)}</div>
+                </div>
               </div>
             </div>
 
@@ -1784,6 +1869,24 @@ Email: ${contactInfo.email}
               ))}
             </div>
 
+            {/* Financial Summary */}
+            <div style={{marginTop: '24px', background: '#e7f3ff', padding: '16px', borderRadius: '8px'}}>
+              <h3 className="mb-2" style={{color: '#004085'}}>Bet Summary</h3>
+              <div style={{display: 'flex', justifyContent: 'space-between', marginBottom: '8px'}}>
+                <strong>Total Stake:</strong>
+                <span style={{fontWeight: 'bold', color: '#dc3545'}}>${checkoutCalculations.totalStake.toFixed(2)}</span>
+              </div>
+              <div style={{display: 'flex', justifyContent: 'space-between', marginBottom: '8px'}}>
+                <strong>Potential Payout:</strong>
+                <span style={{fontWeight: 'bold', color: '#28a745'}}>${checkoutCalculations.potentialPayout.toFixed(2)}</span>
+              </div>
+              <div style={{display: 'flex', justifyContent: 'space-between'}}>
+                <strong>Potential Profit:</strong>
+                <span style={{fontWeight: 'bold', color: '#007bff'}}>${checkoutCalculations.potentialProfit.toFixed(2)}</span>
+              </div>
+            </div>
+
+
             <h3 className="mb-2" style={{marginTop: '32px'}}>Contact Information</h3>
             <label>Full Name *</label>
             <input type="text" value={contactInfo.name} onChange={(e) => setContactInfo({...contactInfo, name: e.target.value})} />
@@ -1857,7 +1960,7 @@ Email: ${contactInfo.email}
           {/* Payout Odds moved to top */}
           {betType === 'parlay' && (
             <div className="card">
-              <h2 className="text-center mb-2">Payout Odds</h2>
+              <h2 className="text-center mb-2" style={{color: '#000'}}>Payout Odds</h2>
               <div className="payout-grid">
                 {[
                   {picks: 3, payout: '8 to 1'}, 
