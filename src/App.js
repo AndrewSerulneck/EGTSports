@@ -10,9 +10,116 @@ import {
 } from "firebase/auth";
 import AuthLanding from './components/AuthLanding';
 import UserManagement from './components/UserManagement';
-import BettingSlip from './components/BettingSlip';
 import GridBettingLayout from './components/GridBettingLayout';
 import PropBetsView from './components/PropBetsView';
+
+// Correctly defined BettingSlip component
+function BettingSlip({
+  selectedPicks,
+  onRemovePick,
+  onClearAll,
+  onSubmit,
+  betType,
+  onBetTypeChange,
+  games,
+  allSportsGames,
+  individualBetAmounts,
+  setIndividualBetAmounts,
+  parlayBetAmount,
+  onParlayBetAmountChange,
+  MIN_BET,
+  MAX_BET
+}) {
+  const getPickDetails = (gameId, pick) => {
+    let game = games.find(g => g.id === gameId);
+    if (!game && allSportsGames) {
+      for (const sport of Object.keys(allSportsGames)) {
+        game = allSportsGames[sport]?.find(g => g.id === gameId);
+        if (game) break;
+      }
+    }
+    if (!game) return { text: "Game not found" };
+
+    if (pick.winner) {
+      const team = pick.winner === 'away' ? game.awayTeam : game.homeTeam;
+      const moneyline = pick.winner === 'away' ? game.awayMoneyline : game.homeMoneyline;
+      return { text: `${team} ${moneyline || 'ML'}`, gameId, type: 'winner' };
+    }
+    if (pick.spread) {
+      const team = pick.spread === 'away' ? game.awayTeam : game.homeTeam;
+      const spreadVal = pick.spread === 'away' ? game.awaySpread : game.homeSpread;
+      return { text: `${team} ${spreadVal}`, gameId, type: 'spread' };
+    }
+    if (pick.total) {
+      return { text: `Total ${pick.total === 'over' ? 'O' : 'U'} ${game.total}`, gameId, type: 'total' };
+    }
+    return { text: "Invalid Pick" };
+  };
+
+  const pickCount = Object.keys(selectedPicks).reduce((count, gameId) => {
+    const pick = selectedPicks[gameId];
+    return count + (pick.winner ? 1 : 0) + (pick.spread ? 1 : 0) + (pick.total ? 1 : 0);
+  }, 0);
+
+  const canSubmit = betType === 'parlay' ? pickCount >= 3 : pickCount >= 1;
+
+  return (
+    <div id="BettingSlip" className="betting-slip">
+      <div className="card">
+        <h2 className="text-center mb-2">Betting Slip</h2>
+        <div className="bet-type-toggle">
+          <button className={betType === 'parlay' ? 'active' : ''} onClick={() => onBetTypeChange('parlay')}>Parlay</button>
+          <button className={betType === 'straight' ? 'active' : ''} onClick={() => onBetTypeChange('straight')}>Straight</button>
+        </div>
+
+        {pickCount > 0 ? (
+          <div className="picks-list">
+            {Object.entries(selectedPicks).map(([gameId, pick]) => {
+              const details = [];
+              if (pick.winner) details.push(getPickDetails(gameId, { winner: pick.winner }));
+              if (pick.spread) details.push(getPickDetails(gameId, { spread: pick.spread }));
+              if (pick.total) details.push(getPickDetails(gameId, { total: pick.total }));
+
+              return details.map((d, i) => (
+                <div key={`${d.gameId}-${d.type}`} className="pick-item">
+                  <span>{d.text}</span>
+                  <button onClick={() => onRemovePick(d.gameId, d.type)} className="remove-pick-btn">&times;</button>
+                </div>
+              ));
+            })}
+          </div>
+        ) : (
+          <p className="text-center" style={{ color: '#666', margin: '20px 0' }}>Your picks will appear here.</p>
+        )}
+
+        {pickCount > 0 && (
+          <>
+            {/* THIS IS THE CRITICAL FIX FOR THE PARLAY WAGER INPUT */}
+            {betType === 'parlay' && (
+              <div className="parlay-wager-section">
+                <label htmlFor="betAmountInput">Enter Bet Amount:</label>
+                <input
+                  type="number"
+                  id="betAmountInput"
+                  min="1"
+                  max="100"
+                  value={parlayBetAmount}
+                  onChange={(e) => onParlayBetAmountChange(e.target.value)}
+                  placeholder="$1 - $100"
+                />
+              </div>
+            )}
+            <div className="slip-actions">
+              <button onClick={onClearAll} className="btn btn-danger">Clear All</button>
+              <button onClick={onSubmit} className="btn btn-success" disabled={!canSubmit}>Place Bet</button>
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
 
 function SportsMenu({ currentSport, onSelectSport, allSportsGames, onSignOut, onManualRefresh, isRefreshing }) {
     const sportOrder = ['NFL', 'College Football', 'NBA', 'College Basketball', 'Major League Baseball', 'NHL'];
