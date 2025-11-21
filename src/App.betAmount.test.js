@@ -1,15 +1,18 @@
 /**
  * Test for Firebase betAmount fix
- * Validates that parlay bets do not include undefined betAmount properties
+ * Validates that parlay bets do not include betAmount property at all
+ * (previously it was set to undefined which Firebase rejects)
  */
 
 describe('Parlay bet pick formatting', () => {
   test('parlay picks should not include betAmount property', () => {
     const betType = 'parlay';
-    const individualBetAmounts = {};
+    const individualBetAmounts = { 'game1-spread': '50' };
     const getPickId = (gameId, pickType) => `${gameId}-${pickType}`;
     
     // Simulate creating a spread pick for a parlay bet
+    // Note: Even though individualBetAmounts has a value, when betType is 'parlay',
+    // the conditional spread operator should NOT add the betAmount property at all
     const gameId = 'game1';
     const spreadPick = {
       gameId: 'espn123',
@@ -23,6 +26,7 @@ describe('Parlay bet pick formatting', () => {
     };
     
     // Verify that betAmount property is not present in parlay picks
+    // This is crucial because Firebase rejects objects with undefined values
     expect(spreadPick).not.toHaveProperty('betAmount');
     expect(Object.keys(spreadPick)).not.toContain('betAmount');
   });
@@ -52,7 +56,7 @@ describe('Parlay bet pick formatting', () => {
 
   test('winner pick should not include betAmount for parlay', () => {
     const betType = 'parlay';
-    const individualBetAmounts = {};
+    const individualBetAmounts = { 'game1-winner': '75' };
     const getPickId = (gameId, pickType) => `${gameId}-${pickType}`;
     
     const gameId = 'game1';
@@ -72,7 +76,7 @@ describe('Parlay bet pick formatting', () => {
 
   test('total pick should not include betAmount for parlay', () => {
     const betType = 'parlay';
-    const individualBetAmounts = {};
+    const individualBetAmounts = { 'game1-total': '100' };
     const getPickId = (gameId, pickType) => `${gameId}-${pickType}`;
     
     const gameId = 'game1';
