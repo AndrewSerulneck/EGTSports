@@ -907,7 +907,7 @@ const saveSubmission = async (submission) => {
     }
   }
 };
-};
+
         const newPick = {
           ...prevPick,
           winner: prevPick.winner === value ? undefined : value,
