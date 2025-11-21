@@ -19,13 +19,13 @@ function SportsMenu({ currentSport, onSelectSport, allSportsGames, betType, onSi
   const showPropBets = sports.some(sport => ['NFL', 'NBA', 'College Football', 'College Basketball', 'NHL'].includes(sport));
 
   return (
-    <div className="sports-menu">
-      <h2>Sports Menu</h2>
+    <div className="sports-menu card">
+      <h2 style={{textAlign: 'center', marginBottom: '16px'}}>Sports Menu</h2>
       <ul>
         {sports.map(sport => (
           <li key={sport} className={currentSport === sport ? 'active' : ''}>
             <button onClick={() => onSelectSport(sport)}>
-              {sport} ({allSportsGames[sport].length})
+              {sport} ({allSportsGames[sport] ? allSportsGames[sport].length : 0})
             </button>
           </li>
         ))}
@@ -36,14 +36,16 @@ function SportsMenu({ currentSport, onSelectSport, allSportsGames, betType, onSi
             </button>
           </li>
         )}
+        {/* Spacer */}
+        <li style={{height: '20px'}}></li> 
         {/* Sign Out and Refresh Buttons */}
         <li className="menu-action">
-          <button onClick={onManualRefresh} disabled={isRefreshing}>
+          <button onClick={onManualRefresh} disabled={isRefreshing} className="btn btn-info" style={{width: '100%'}}>
             {isRefreshing ? '🔄 Refreshing...' : '🔄 Refresh Games'}
           </button>
         </li>
         <li className="menu-action">
-          <button onClick={onSignOut}>
+          <button onClick={onSignOut} className="btn btn-secondary" style={{width: '100%'}}>
             🚪 Sign Out
           </button>
         </li>
@@ -1035,10 +1037,14 @@ const saveSubmission = async (submission) => {
       if (obj.spread) pickCount++;
       if (obj.total) pickCount++;
     });
-    const minPicks = betType === 'straight' ? 1 : 3;
+    const minPicks = betType === 'straight' ? 1 : (betType === 'parlay' ? 3 : 1);
     if (pickCount < minPicks) {
       alert(`Please select at least ${minPicks} pick${minPicks > 1 ? 's' : ''}!`);
       return;
+    }
+    if (betType === 'parlay' && (!contactInfo.betAmount || parseFloat(contactInfo.betAmount) <= 0)) {
+        alert('Please enter a wager amount for your parlay.');
+        return;
     }
     setTicketNumber(generateTicketNumber());
     setShowConfirmation(true);
@@ -1153,8 +1159,8 @@ const saveSubmission = async (submission) => {
         return;
       }
       
-      if (betAmount < MIN_BET) {
-        alert(`Minimum bet is $${MIN_BET.toFixed(2)}`);
+      if (betAmount < 1) { // Min parlay bet is $1
+        alert(`Minimum parlay bet is $1.00`);
         return;
       }
       
@@ -1342,6 +1348,8 @@ const saveSubmission = async (submission) => {
           allSportsGames={allSportsGames}
           individualBetAmounts={individualBetAmounts}
           setIndividualBetAmounts={setIndividualBetAmounts}
+          parlayBetAmount={contactInfo.betAmount}
+          onParlayBetAmountChange={(amount) => setContactInfo(c => ({...c, betAmount: amount}))}
           MIN_BET={MIN_BET}
           MAX_BET={MAX_BET}
         />
@@ -1896,13 +1904,13 @@ Email: ${contactInfo.email}
 
             {betType === 'parlay' && (
               <>
-                <label>Bet Amount * (Min ${MIN_BET}, Max ${MAX_BET})</label>
+                <label>Bet Amount * (Min $1, Max ${MAX_BET})</label>
                 <input 
                   type="number" 
                   value={contactInfo.betAmount} 
                   onChange={(e) => setContactInfo({...contactInfo, betAmount: e.target.value})} 
-                  placeholder={`Enter amount ($${MIN_BET} - $${MAX_BET})`}
-                  min={MIN_BET}
+                  placeholder={`Enter amount ($1 - $${MAX_BET})`}
+                  min="1"
                   max={MAX_BET}
                   step="0.01"
                 />
@@ -1928,7 +1936,7 @@ Email: ${contactInfo.email}
           allSportsGames={allSportsGames}
           betType={betType}
           onSignOut={onSignOut}
-          onManualRefresh={handleManualRefresh}
+          onManualRefresh={onManualRefresh}
           isRefreshing={isRefreshing}
         />
       )}
@@ -2026,6 +2034,8 @@ Email: ${contactInfo.email}
         allSportsGames={allSportsGames}
         individualBetAmounts={individualBetAmounts}
         setIndividualBetAmounts={setIndividualBetAmounts}
+        parlayBetAmount={contactInfo.betAmount}
+        onParlayBetAmountChange={(amount) => setContactInfo(c => ({...c, betAmount: amount}))}
         MIN_BET={MIN_BET}
         MAX_BET={MAX_BET}
       />
@@ -2725,13 +2735,41 @@ if (USE_ODDS_API_FALLBACK) {
     setLastRefreshTime(Date.now());
   }, [parseESPNOdds, countMissingOdds]);
 
+  useEffect(() => {
+    const unsub = onAuthStateChanged(auth, async (user) => {
+      if (user) {
+        const tokenResult = await user.getIdTokenResult(true);
+        const isAdmin = tokenResult.claims.admin === true;
+        setAuthState({
+          loading: false,
+          user,
+          isAdmin: isAdmin,
+          error: "",
+        });
+        
+        // Auto-refresh data on login for non-admins
+        if (!isAdmin) {
+            console.log('User logged in, triggering auto-refresh...');
+            loadAllSports('NFL', true); // Force refresh on login
+        }
+
+      } else {
+        setAuthState({
+          loading: false,
+          user: null,
+          isAdmin: false,
+          error: "",
+        });
+      }
+    });
+    return unsub;
+  }, [loadAllSports]);
+
   // LOAD GAMES WHEN SPORT IS SELECTED - WITH DYNAMIC REFRESH INTERVAL
   useEffect(() => {
     let intervalId = null;
     
     if (selectedSport) {
-      // Always load all sports to populate the sidebar
-      loadAllSports(selectedSport);
       // Setup Firebase listeners for all sports
       setTimeout(() => {
         Object.keys(ESPN_API_ENDPOINTS).forEach(sport => {
@@ -2742,7 +2780,7 @@ if (USE_ODDS_API_FALLBACK) {
 // Set up interval (reduced frequency - no live scores needed)
 intervalId = setInterval(() => {
   console.log('⏱️ Auto-refresh triggered (occurs every 4 hours)');
-  loadAllSports(selectedSport);
+  loadAllSports(selectedSport, true); // Force refresh
 }, 4 * 60 * 60 * 1000); // 4 hours - no live scores needed
     }
     
@@ -2765,28 +2803,6 @@ intervalId = setInterval(() => {
   useEffect(() => {
     const stored = localStorage.getItem('marcs-parlays-submissions');
     if (stored) setSubmissions(JSON.parse(stored));
-  }, []);
-
-  useEffect(() => {
-    const unsub = onAuthStateChanged(auth, async (user) => {
-      if (user) {
-        const tokenResult = await user.getIdTokenResult(true);
-        setAuthState({
-          loading: false,
-          user,
-          isAdmin: tokenResult.claims.admin === true,
-          error: "",
-        });
-      } else {
-        setAuthState({
-          loading: false,
-          user: null,
-          isAdmin: false,
-          error: "",
-        });
-      }
-    });
-    return unsub;
   }, []);
 
   // Load prop bets when component mounts or when viewing prop bets
