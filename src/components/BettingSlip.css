@@ -258,6 +258,28 @@
   color: #856404;
 }
 
+.parlay-bet-input {
+  margin-bottom: 12px;
+  margin-top: 8px;
+}
+
+.parlay-bet-input label {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 6px;
+}
+
+.parlay-bet-input .bet-amount-input {
+  width: 100%;
+  padding: 10px;
+  border: 2px solid #667eea;
+  border-radius: 6px;
+  font-size: 15px;
+  font-weight: 600;
+}
+
 /* Actions */
 .betting-slip-actions {
   padding: 12px 16px;

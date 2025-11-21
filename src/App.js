@@ -21,6 +21,18 @@ function SportsMenu({ currentSport, onSelectSport, allSportsGames, onSignOut, on
 
     const showPropBets = sortedSports.some(sport => ['NFL', 'NBA', 'College Football', 'College Basketball', 'NHL'].includes(sport));
 
+    const getSportDisplayName = (sport) => {
+        const sportNames = {
+            'NFL': 'NFL 🏈',
+            'College Football': 'CFB 🏈',
+            'NBA': 'NBA 🏀',
+            'College Basketball': 'CBB 🏀',
+            'Major League Baseball': 'MLB ⚾',
+            'NHL': 'NHL 🏒'
+        };
+        return sportNames[sport] || sport;
+    };
+
     return (
         <div className="sports-menu">
             <div className="sports-menu-content">
@@ -32,7 +44,7 @@ function SportsMenu({ currentSport, onSelectSport, allSportsGames, onSignOut, on
                             className={`menu-button ${currentSport === sport ? 'active' : ''}`}
                             onClick={() => onSelectSport(sport)}
                         >
-                            <span>{sport}</span>
+                            <span>{getSportDisplayName(sport)}</span>
                             <span className="game-count">({allSportsGames[sport] ? allSportsGames[sport].length : 0})</span>
                         </button>
                     ))}
@@ -64,6 +76,18 @@ function MobileSportsMenu({ currentSport, onSelectSport, allSportsGames }) {
     const sortedSports = Object.keys(allSportsGames).filter(sport => sportOrder.includes(sport)).sort((a, b) => sportOrder.indexOf(a) - sportOrder.indexOf(b));
     const showPropBets = sortedSports.some(sport => ['NFL', 'NBA', 'College Football', 'College Basketball', 'NHL'].includes(sport));
 
+    const getSportDisplayName = (sport) => {
+        const sportNames = {
+            'NFL': 'NFL 🏈',
+            'College Football': 'CFB 🏈',
+            'NBA': 'NBA 🏀',
+            'College Basketball': 'CBB 🏀',
+            'Major League Baseball': 'MLB ⚾',
+            'NHL': 'NHL 🏒'
+        };
+        return sportNames[sport] || sport;
+    };
+
     return (
         <div className="mobile-sports-menu">
             {sortedSports.map(sport => (
@@ -72,7 +96,7 @@ function MobileSportsMenu({ currentSport, onSelectSport, allSportsGames }) {
                     className={`mobile-menu-button ${currentSport === sport ? 'active' : ''}`}
                     onClick={() => onSelectSport(sport)}
                 >
-                    {sport}
+                    {getSportDisplayName(sport)}
                 </button>
             ))}
             {showPropBets && (
@@ -1748,20 +1772,6 @@ Email: ${contactInfo.email}`;
       
       <div className={`container main-content ${allSportsGames && Object.keys(allSportsGames).length > 0 ? 'with-sidebar' : ''}`}>
         <div className="text-center text-white mb-4">
-          
-          {betType !== 'parlay' && (
-            <div style={{
-              display: 'inline-block',
-              background: 'rgba(255, 255, 255, 0.2)',
-              padding: '10px 20px',
-              borderRadius: '8px',
-              marginBottom: '16px',
-              fontSize: '16px',
-              fontWeight: '600'
-            }}>
-              🏈 {sport}
-            </div>
-          )}
           
           {betType === 'parlay' && (
             <div className="card">

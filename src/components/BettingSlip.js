@@ -16,6 +16,8 @@ function BettingSlip({
   allSportsGames,
   individualBetAmounts,
   setIndividualBetAmounts,
+  parlayBetAmount,
+  onParlayBetAmountChange,
   MIN_BET,
   MAX_BET
 }) {
@@ -363,6 +365,40 @@ function BettingSlip({
                     <span>Multiplier:</span>
                     <span className="summary-value">{getParlayMultiplier(pickCount)}x</span>
                   </div>
+                  {canSubmit && (
+                    <>
+                      <div className="parlay-bet-input">
+                        <label htmlFor="parlay-amount">Parlay Wager:</label>
+                        <input
+                          id="parlay-amount"
+                          type="number"
+                          min="1"
+                          max={MAX_BET}
+                          step="0.01"
+                          placeholder={`$1 - $${MAX_BET}`}
+                          value={parlayBetAmount || ''}
+                          onChange={(e) => onParlayBetAmountChange && onParlayBetAmountChange(e.target.value)}
+                          className="bet-amount-input"
+                        />
+                      </div>
+                      {parlayBetAmount && parseFloat(parlayBetAmount) > 0 && (
+                        <>
+                          <div className="summary-row">
+                            <span>Potential Payout:</span>
+                            <span className="summary-value highlight">
+                              ${(parseFloat(parlayBetAmount) * getParlayMultiplier(pickCount)).toFixed(2)}
+                            </span>
+                          </div>
+                          <div className="summary-row">
+                            <span>Potential Profit:</span>
+                            <span className="summary-value profit">
+                              ${((parseFloat(parlayBetAmount) * getParlayMultiplier(pickCount)) - parseFloat(parlayBetAmount)).toFixed(2)}
+                            </span>
+                          </div>
+                        </>
+                      )}
+                    </>
+                  )}
                   {!canSubmit && (
                     <div className="min-picks-message">
                       Need {minPicks - pickCount} more pick{minPicks - pickCount > 1 ? 's' : ''}
