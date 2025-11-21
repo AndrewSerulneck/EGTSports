@@ -145,6 +145,10 @@ const PROP_BETS_CACHE_DURATION = 2 * 60 * 60 * 1000;
 const CACHE_DURATION = 6 * 60 * 60 * 1000;
 const COLLEGE_BASKETBALL_CACHE_DURATION = 6 * 60 * 60 * 1000;
 const ODDS_API_CACHE_DURATION = 12 * 60 * 60 * 1000;
+const DEFAULT_SPREAD_ODDS = '-110';
+const DEFAULT_TOTAL_ODDS = '-110';
+const DEFAULT_MONEYLINE_ODDS = '-110';
+const DEFAULT_BET_TYPE = 'parlay';
 
 const gameCache = {};
 const oddsAPICache = {};
@@ -206,6 +210,7 @@ const updateSubmissionStatus = async (submission, status, wins, losses, pickCoun
   try {
     const statusUpdate = {
       ticketNumber: submission.ticketNumber,
+      betType: submission.betType || DEFAULT_BET_TYPE,
       status: status,
       wins: wins,
       losses: losses,
@@ -859,6 +864,8 @@ function LandingPage({ games, allSportsGames, currentViewSport, onChangeSport, l
   }, [submissions, games, allSportsGames]);
 
 const saveSubmission = async (submission) => {
+  console.log('🔍 Google Sheet URL:', GOOGLE_SHEET_URL);  // ADD THIS LINE
+  console.log('📊 Submission data:', submission);   
   const allSubmissions = [...submissions, submission];
   setSubmissions(allSubmissions);
   localStorage.setItem('marcs-parlays-submissions', JSON.stringify(allSubmissions));
@@ -900,7 +907,8 @@ const saveSubmission = async (submission) => {
         error: error.message
       });
       localStorage.setItem('failed-submissions', JSON.stringify(failedSubmissions));
-      
+    }
+  }
 };
 
   const handleGridPickSelection = (gameId, pickType, value) => {
@@ -941,9 +949,6 @@ const saveSubmission = async (submission) => {
     } else if (pickType === 'total') {
       toggleTotal(gameId, value);
     }
-  };
-
-  const handleRemovePick = (gameId, pickType) => {
   };
 
   const handleRemovePick = (gameId, pickType) => {
@@ -1091,29 +1096,33 @@ const saveSubmission = async (submission) => {
       if (pickObj.spread) {
         const team = pickObj.spread === 'away' ? game.awayTeam : game.homeTeam;
         const spread = pickObj.spread === 'away' ? game.awaySpread : game.homeSpread;
+        const spreadOdds = pickObj.spread === 'away' ? (game.awaySpreadOdds || DEFAULT_SPREAD_ODDS) : (game.homeSpreadOdds || DEFAULT_SPREAD_ODDS);
         
         picksFormatted.push({
           gameId: game.espnId,
           gameName: gameName + sportLabel,
+          game: gameName,
           sport: game.sport,
           pickType: 'spread',
           team,
           spread,
+          odds: spreadOdds,
           pickedTeamType: pickObj.spread,
           betAmount: betType === 'straight' ? parseFloat(individualBetAmounts[getPickId(gameId, 'spread')]) : undefined
         });
       }
        if (pickObj.winner) {
         const team = pickObj.winner === 'away' ? game.awayTeam : game.homeTeam;
-        const moneyline = pickObj.winner === 'away' ? game.awayMoneyline : game.homeMoneyline;
+        const moneylineOdds = pickObj.winner === 'away' ? game.awayMoneyline : game.homeMoneyline;
         
         picksFormatted.push({
           gameId: game.espnId,
           gameName: gameName + sportLabel,
+          game: gameName,
           sport: game.sport,
           pickType: 'winner',
           team,
-          moneyline,
+          odds: moneylineOdds || DEFAULT_MONEYLINE_ODDS,
           pickedTeamType: pickObj.winner,
           betAmount: betType === 'straight' ? parseFloat(individualBetAmounts[getPickId(gameId, 'winner')]) : undefined
         });
@@ -1122,10 +1131,12 @@ const saveSubmission = async (submission) => {
         picksFormatted.push({
           gameId: game.espnId,
           gameName: gameName + sportLabel,
+          game: gameName,
           sport: game.sport,
           pickType: 'total',
           overUnder: pickObj.total,
           total: game.total,
+          odds: DEFAULT_TOTAL_ODDS,
           betAmount: betType === 'straight' ? parseFloat(individualBetAmounts[getPickId(gameId, 'total')]) : undefined
         });
       }
