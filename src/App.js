@@ -867,14 +867,22 @@ const saveSubmission = async (submission) => {
     const submissionsRef = ref(database, `submissions/${submission.ticketNumber}`);
     await set(submissionsRef, submission);
     
-    await fetch(GOOGLE_SHEET_URL, {
+       const response = await fetch(GOOGLE_SHEET_URL, {
       method: 'POST',
-      mode: 'no-cors',
       headers: { 
         'Content-Type': 'application/json'
       },
       body: JSON.stringify(submission)
     });
+    
+    const result = await response.json();
+    
+       const submissionWithStatus = {
+      ...submission,
+      syncedToSheets: result.success,
+      syncedAt: new Date().toISOString()
+    };
+    
     
     const submissionWithStatus = {
       ...submission,
