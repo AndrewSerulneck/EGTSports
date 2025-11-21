@@ -16,7 +16,6 @@ import PropBetsView from './components/PropBetsView';
 
 function SportsMenu({ currentSport, onSelectSport, allSportsGames, onSignOut, onManualRefresh, isRefreshing }) {
   const sports = Object.keys(allSportsGames);
-  // Prop bets are available if any of the main sports are present
   const showPropBets = sports.some(sport => ['NFL', 'NBA', 'College Football', 'College Basketball', 'NHL'].includes(sport));
 
   return (
@@ -57,6 +56,34 @@ function SportsMenu({ currentSport, onSelectSport, allSportsGames, onSignOut, on
   );
 }
 
+function MobileSportsMenu({ currentSport, onSelectSport, allSportsGames }) {
+    const sports = Object.keys(allSportsGames);
+    const showPropBets = sports.some(sport => ['NFL', 'NBA', 'College Football', 'College Basketball', 'NHL'].includes(sport));
+
+    return (
+        <div className="mobile-sports-menu">
+            {sports.map(sport => (
+                <button
+                    key={sport}
+                    className={`mobile-menu-button ${currentSport === sport ? 'active' : ''}`}
+                    onClick={() => onSelectSport(sport)}
+                >
+                    {sport}
+                </button>
+            ))}
+            {showPropBets && (
+                <button
+                    key="prop-bets"
+                    className={`mobile-menu-button ${currentSport === 'Prop Bets' ? 'active' : ''}`}
+                    onClick={() => onSelectSport('Prop Bets')}
+                >
+                    Prop Bets
+                </button>
+            )}
+        </div>
+    );
+}
+
 // ESPN API Endpoints for all sports
 const ESPN_API_ENDPOINTS = {
   'NFL': 'https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard',
@@ -68,12 +95,10 @@ const ESPN_API_ENDPOINTS = {
 };
 
 // Helper function to get date range URLs for ESPN API
-// ESPN API supports fetching games for specific dates using ?dates=YYYYMMDD format
 const getESPNDateRangeURLs = (baseURL) => {
   const urls = [];
   const today = new Date();
   
-  // Get games from 1 day ago to 14 days in the future
   for (let i = -1; i <= 14; i++) {
     const date = new Date(today);
     date.setDate(date.getDate() + i);
@@ -87,9 +112,8 @@ const getESPNDateRangeURLs = (baseURL) => {
 // The Odds API Configuration
 const ODDS_API_KEY = process.env.REACT_APP_ODDS_API_KEY;
 const ODDS_API_BASE_URL = 'https://api.the-odds-api.com/v4';
-const USE_ODDS_API_FALLBACK = true; // Only call The Odds API when ESPN data is missing
+const USE_ODDS_API_FALLBACK = true;
 
-// Sport keys for The Odds API (for odds data)
 const ODDS_API_SPORT_KEYS = {
   'NFL': 'americanfootball_nfl',
   'NBA': 'basketball_nba',
@@ -99,20 +123,15 @@ const ODDS_API_SPORT_KEYS = {
   'NHL': 'icehockey_nhl'
 };
 
-// Prop bet markets to fetch for each sport
+const PROP_BETS_CACHE_DURATION = 2 * 60 * 60 * 1000;
 
-// Prop bets cache duration - 2 hours to minimize API usage
-const PROP_BETS_CACHE_DURATION = 2 * 60 * 60 * 1000; // 2 hours
-
-// Cache configuration
-const CACHE_DURATION = 6 * 60 * 60 * 1000; // 6 hours - only update a few times per day
-const COLLEGE_BASKETBALL_CACHE_DURATION = 6 * 60 * 60 * 1000; // 6 hours (same as others)
-const ODDS_API_CACHE_DURATION = 12 * 60 * 60 * 1000; // 12 hours - The Odds API data changes less frequently
+const CACHE_DURATION = 6 * 60 * 60 * 1000;
+const COLLEGE_BASKETBALL_CACHE_DURATION = 6 * 60 * 60 * 1000;
+const ODDS_API_CACHE_DURATION = 12 * 60 * 60 * 1000;
 
 const gameCache = {};
-const oddsAPICache = {}; // Separate cache for The Odds API to preserve calls
+const oddsAPICache = {};
 
-// API Usage Tracking
 let apiCallCount = {
   total: 0,
   byEndpoint: {},
@@ -121,7 +140,6 @@ let apiCallCount = {
   lastReset: Date.now()
 };
 
-// Firebase Config
 const firebaseConfig = {
   apiKey: process.env.REACT_APP_FIREBASE_API_KEY || "AIzaSyA9FsWV7hA4ow2Xaq0Krx9kCCMfMibkVOQ",
   authDomain: process.env.REACT_APP_FIREBASE_AUTH_DOMAIN || "marcs-parlays.firebaseapp.com",
@@ -139,9 +157,7 @@ const auth = getAuth(app);
 const MIN_BET = parseInt(process.env.REACT_APP_MIN_BET) || 5;
 const MAX_BET = parseInt(process.env.REACT_APP_MAX_BET) || 100;
 const GOOGLE_SHEET_URL = process.env.REACT_APP_GOOGLE_SHEET_URL || 'https://script.google.com/macros/s/AKfycbzPastor8yKkWQxKx1z0p-0ZibwBJHkJCuVvHDqP9YX7Dv1-vwakdR9RU6Y6oNw4T2W2PA/exec';
-console.log('🔗 GOOGLE_SHEET_URL:', GOOGLE_SHEET_URL);
 
-// Utility: Log API usage to Firebase (for admin monitoring)
 const logAPIUsage = async (sport, success, fromCache) => {
   try {
     const usageRef = ref(database, 'analytics/apiUsage');
@@ -157,7 +173,6 @@ const logAPIUsage = async (sport, success, fromCache) => {
   }
 };
 
-// Utility: Get API stats for display
 const getAPIStats = () => {
   const hoursSinceReset = (Date.now() - apiCallCount.lastReset) / (1000 * 60 * 60);
   return {
@@ -169,7 +184,7 @@ const getAPIStats = () => {
     byEndpoint: apiCallCount.byEndpoint
   };
 };
-// Send win/loss status update to Google Sheets
+
 const updateSubmissionStatus = async (submission, status, wins, losses, pickCount) => {
   try {
     const statusUpdate = {
@@ -180,8 +195,6 @@ const updateSubmissionStatus = async (submission, status, wins, losses, pickCoun
       finalizedAt: new Date().toISOString(),
       payout: status === 'won' ? (submission.betAmount * getPayoutMultiplier(pickCount)) : 0
     };
-    
-    console.log('📤 Sending status update to Google Sheets:', statusUpdate);
     
     await fetch(GOOGLE_SHEET_URL, {
       method: 'POST',
@@ -195,13 +208,11 @@ const updateSubmissionStatus = async (submission, status, wins, losses, pickCoun
       })
     });
     
-    console.log('✅ Status update sent successfully');
   } catch (error) {
     console.error('❌ Error updating status:', error);
   }
 };
 
-// Helper function to get payout multiplier
 const getPayoutMultiplier = (pickCount) => {
   const multipliers = {
     3: 8,
@@ -216,13 +227,11 @@ const getPayoutMultiplier = (pickCount) => {
   return multipliers[pickCount] || 0;
 };
 
-// Admin Panel Component - NOW SPORT-SPECIFIC WITH API STATS
 function AdminPanel({ user, games, setGames, isSyncing, setIsSyncing, recentlyUpdated, setRecentlyUpdated, submissions, sport, onBackToMenu }) {
   const [showSubmissions, setShowSubmissions] = useState(false);
   const [showAPIStats, setShowAPIStats] = useState(false);
   const [apiStats, setApiStats] = useState(getAPIStats());
 
-  // Update API stats every 5 seconds
   useEffect(() => {
     const interval = setInterval(() => {
       setApiStats(getAPIStats());
@@ -231,12 +240,10 @@ function AdminPanel({ user, games, setGames, isSyncing, setIsSyncing, recentlyUp
   }, []);
 
   const calculateResult = useCallback((submission) => {
-    // Return early if games array is not available
     if (!games || !Array.isArray(games)) {
       return { wins: 0, losses: 0, pending: submission.picks ? submission.picks.length : 0 };
     }
     
-    // Return early if submission has no picks
     if (!submission || !submission.picks || !Array.isArray(submission.picks)) {
       return { wins: 0, losses: 0, pending: 0 };
     }
@@ -292,18 +299,14 @@ function AdminPanel({ user, games, setGames, isSyncing, setIsSyncing, recentlyUp
     return { wins, losses, pending, allGamesComplete, parlayWon };
   }, [games]);
 
-  // Auto-update win/loss status when games finalize
   useEffect(() => {
-    // Only run if submissions array is available
     if (!submissions || !Array.isArray(submissions)) return;
     
     submissions.forEach(submission => {
-      // Skip if submission is invalid
       if (!submission || !submission.picks || !Array.isArray(submission.picks)) return;
       
       const result = calculateResult(submission);
       
-      // Check if this submission just finalized
       const storedSubmission = localStorage.getItem(`submission-${submission.ticketNumber}`);
       const wasFinalized = storedSubmission ? JSON.parse(storedSubmission).finalized : false;
       
@@ -311,7 +314,6 @@ function AdminPanel({ user, games, setGames, isSyncing, setIsSyncing, recentlyUp
         const status = result.parlayWon ? 'won' : 'lost';
         updateSubmissionStatus(submission, status, result.wins, result.losses, submission.picks.length);
         
-        // Mark as finalized
         localStorage.setItem(`submission-${submission.ticketNumber}`, JSON.stringify({
           ...submission,
           finalized: true,
@@ -320,6 +322,7 @@ function AdminPanel({ user, games, setGames, isSyncing, setIsSyncing, recentlyUp
       }
     });
   }, [submissions, games, calculateResult]);
+
   const saveSpreadToFirebase = async () => {
     try {
       setIsSyncing(true);
@@ -334,7 +337,6 @@ function AdminPanel({ user, games, setGames, isSyncing, setIsSyncing, recentlyUp
           timestamp: new Date().toISOString()
         };
       });
-      // SPORT-SPECIFIC FIREBASE PATH
       await set(ref(database, `spreads/${sport}`), spreadsData);
       alert('✅ Spreads saved! All devices will update in real-time.');
       setIsSyncing(false);
@@ -374,7 +376,7 @@ function AdminPanel({ user, games, setGames, isSyncing, setIsSyncing, recentlyUp
     );
   };
 
-  if (showAPIStats) {
+    if (showAPIStats) {
     return (
       <div className="gradient-bg">
         <div className="container">
@@ -570,7 +572,6 @@ function AdminPanel({ user, games, setGames, isSyncing, setIsSyncing, recentlyUp
   );
 }
 
-// Admin Landing Page Component - Admin menu before sport selection
 function AdminLandingPage({ onSelectSport, onManageUsers, onSignOut }) {
   const sports = [
     { name: 'NFL', available: true },
@@ -589,7 +590,6 @@ function AdminLandingPage({ onSelectSport, onManageUsers, onSignOut }) {
           <p style={{ fontSize: '20px', marginBottom: '40px' }}>Manage users or select a sport to adjust odds</p>
         </div>
         
-        {/* Admin Actions */}
         <div className="card" style={{ marginBottom: '24px' }}>
           <h2 style={{ marginBottom: '16px' }}>Admin Actions</h2>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px' }}>
@@ -628,7 +628,6 @@ function AdminLandingPage({ onSelectSport, onManageUsers, onSignOut }) {
           </div>
         </div>
 
-        {/* Sport Selection */}
         <div className="card">
           <h2 style={{ marginBottom: '16px' }}>Select Sport to Manage Odds</h2>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px' }}>
@@ -668,19 +667,17 @@ function AdminLandingPage({ onSelectSport, onManageUsers, onSignOut }) {
   );
 }
 
-// Landing Page Component - WITH MANUAL REFRESH BUTTON AND CROSS-SPORT SUPPORT
 function LandingPage({ games, allSportsGames, currentViewSport, onChangeSport, loading, onBackToMenu, sport, betType, onBetTypeChange, apiError, onManualRefresh, lastRefreshTime, propBets, propBetsLoading, propBetsError, onSignOut, isRefreshing }) {
   const [selectedPicks, setSelectedPicks] = useState({});
   const [showConfirmation, setShowConfirmation] = useState(false);
   const [ticketNumber, setTicketNumber] = useState('');
   const [showCheckout, setShowCheckout] = useState(false);
   const [contactInfo, setContactInfo] = useState({ name: '', email: '', betAmount: '' });
-  const [individualBetAmounts, setIndividualBetAmounts] = useState({}); // For straight bets: {pickId: amount}
+  const [individualBetAmounts, setIndividualBetAmounts] = useState({});
   const [submissions, setSubmissions] = useState([]);
   const [hasSubmitted, setHasSubmitted] = useState(false);
-  const processedTicketsRef = useRef(new Set()); // Track processed tickets to avoid re-processing
+  const processedTicketsRef = useRef(new Set());
 
-  // ---- Financial Calculation Helpers ----
   const calculateAmericanOddsPayout = (stake, odds) => {
     if (odds > 0) {
       return stake * (odds / 100);
@@ -724,10 +721,10 @@ function LandingPage({ games, allSportsGames, currentViewSport, onChangeSport, l
            processPick('spread', odds);
         }
         if (pick.total) {
-          processPick('total', -110); // Standard odds for totals
+          processPick('total', -110);
         }
       });
-    } else { // Parlay
+    } else {
       totalStake = parseFloat(parlayBetAmount || 0);
       if (totalStake > 0) {
         const pickCount = Object.values(picks).reduce((acc, p) => acc + (p.winner ? 1 : 0) + (p.spread ? 1 : 0) + (p.total ? 1 : 0), 0);
@@ -743,18 +740,15 @@ function LandingPage({ games, allSportsGames, currentViewSport, onChangeSport, l
     };
   };
   
-  // Memoize calculations for checkout
   const checkoutCalculations = React.useMemo(() => 
       getBetCalculations(betType, selectedPicks, games, allSportsGames, individualBetAmounts, contactInfo.betAmount),
     [betType, selectedPicks, games, allSportsGames, individualBetAmounts, contactInfo.betAmount]
   );
   
   useEffect(() => {
-    // Load from localStorage first (backup)
     const stored = localStorage.getItem('marcs-parlays-submissions');
     if (stored) setSubmissions(JSON.parse(stored));
     
-    // Also listen to Firebase for real-time submissions
     const submissionsRef = ref(database, 'submissions');
     const unsubscribe = onValue(submissionsRef, (snapshot) => {
       if (snapshot.exists()) {
@@ -762,7 +756,6 @@ function LandingPage({ games, allSportsGames, currentViewSport, onChangeSport, l
         snapshot.forEach((childSnapshot) => {
           firebaseSubmissions.push(childSnapshot.val());
         });
-        console.log(`📥 Loaded ${firebaseSubmissions.length} submissions from Firebase`);
         setSubmissions(firebaseSubmissions);
       }
     });
@@ -771,7 +764,6 @@ function LandingPage({ games, allSportsGames, currentViewSport, onChangeSport, l
   }, []);
 
   useEffect(() => {
-    // Auto-calculate and update win/loss status for finalized games
     if (!games || !Array.isArray(games) || !submissions || !Array.isArray(submissions)) return;
     
     submissions.forEach(submission => {
@@ -783,7 +775,6 @@ function LandingPage({ games, allSportsGames, currentViewSport, onChangeSport, l
 
       submission.picks.forEach(pick => {
         let game;
-        // Search in all sports games for a match
         for (const sport of Object.keys(allSportsGames)) {
             game = allSportsGames[sport].find(g => g.espnId === pick.gameId);
             if (game) break;
@@ -836,7 +827,6 @@ function LandingPage({ games, allSportsGames, currentViewSport, onChangeSport, l
       
       if (allGamesComplete && !wasFinalized) {
         const status = parlayWon ? 'won' : 'lost';
-        console.log(`🎯 Ticket ${submission.ticketNumber} finalized: ${status.toUpperCase()}`);
         
         processedTicketsRef.current.add(submission.ticketNumber);
         
@@ -852,28 +842,14 @@ function LandingPage({ games, allSportsGames, currentViewSport, onChangeSport, l
   }, [submissions, games, allSportsGames]);
 
 const saveSubmission = async (submission) => {
-  console.log('🚀 saveSubmission function called');
-  console.log('📋 Submission data:', submission);
-  
-  // Save to localStorage (backup)
   const allSubmissions = [...submissions, submission];
   setSubmissions(allSubmissions);
   localStorage.setItem('marcs-parlays-submissions', JSON.stringify(allSubmissions));
-  console.log('✅ Saved to localStorage');
 
   try {
-    // Save to Firebase for admin access
-    console.log('💾 Attempting to save to Firebase...');
     const submissionsRef = ref(database, `submissions/${submission.ticketNumber}`);
     await set(submissionsRef, submission);
-    console.log('✅ Submission saved to Firebase');
     
-    // Send to Google Sheets
-    console.log('📤 Attempting to send to Google Sheets...');
-    console.log('🔗 Target URL:', GOOGLE_SHEET_URL);
-    console.log('📦 Payload being sent:', JSON.stringify(submission, null, 2));
-    
-    const fetchStartTime = Date.now();
     await fetch(GOOGLE_SHEET_URL, {
       method: 'POST',
       mode: 'no-cors',
@@ -882,9 +858,6 @@ const saveSubmission = async (submission) => {
       },
       body: JSON.stringify(submission)
     });
-    const fetchDuration = Date.now() - fetchStartTime;
-    
-    console.log(`✅ Fetch request completed in ${fetchDuration}ms`);
     
     const submissionWithStatus = {
       ...submission,
@@ -893,7 +866,6 @@ const saveSubmission = async (submission) => {
     };
     
     localStorage.setItem(`submission-${submission.ticketNumber}`, JSON.stringify(submissionWithStatus));
-    console.log('✅ Marked as synced in localStorage');
     
   } catch (error) {
     console.error('❌ Error in saveSubmission:', error);
@@ -913,18 +885,16 @@ const saveSubmission = async (submission) => {
     }
   }
 };
-  // Helper function to handle pick selection for grid layout
+
   const handleGridPickSelection = (gameId, pickType, value) => {
     if (pickType === 'winner') {
-      // Winner picks are mutually exclusive with spread picks for the same game
       setSelectedPicks(prev => {
         const prevPick = prev[gameId] || {};
         const newPick = {
           ...prevPick,
           winner: prevPick.winner === value ? undefined : value,
-          spread: undefined // Clear spread when selecting winner
+          spread: undefined
         };
-        // Remove empty picks
         if (!newPick.winner && !newPick.spread && !newPick.total) {
           const { [gameId]: removed, ...rest } = prev;
           return rest;
@@ -935,15 +905,13 @@ const saveSubmission = async (submission) => {
         };
       });
     } else if (pickType === 'spread') {
-      // Spread picks are mutually exclusive with winner picks for the same game
       setSelectedPicks(prev => {
         const prevPick = prev[gameId] || {};
         const newPick = {
           ...prevPick,
           spread: prevPick.spread === value ? undefined : value,
-          winner: undefined // Clear winner when selecting spread
+          winner: undefined
         };
-        // Remove empty picks
         if (!newPick.winner && !newPick.spread && !newPick.total) {
           const { [gameId]: removed, ...rest } = prev;
           return rest;
@@ -958,7 +926,6 @@ const saveSubmission = async (submission) => {
     }
   };
 
-  // Helper function to remove a pick
   const handleRemovePick = (gameId, pickType) => {
     setSelectedPicks(prev => {
       const newPicks = { ...prev };
@@ -970,7 +937,6 @@ const saveSubmission = async (submission) => {
         } else if (pickType === 'total') {
           delete newPicks[gameId].total;
         }
-        // Remove the game entry if no picks left
         if (!newPicks[gameId].winner && !newPicks[gameId].spread && !newPicks[gameId].total) {
           delete newPicks[gameId];
         }
@@ -979,7 +945,6 @@ const saveSubmission = async (submission) => {
     });
   };
 
-  // Helper function to clear all picks
   const handleClearAll = () => {
     setSelectedPicks({});
     setIndividualBetAmounts({});
@@ -1011,7 +976,7 @@ const saveSubmission = async (submission) => {
       if (obj.spread) pickCount++;
       if (obj.total) pickCount++;
     });
-    const minPicks = betType === 'straight' ? 1 : (betType === 'parlay' ? 3 : 1);
+    const minPicks = betType === 'straight' ? 1 : 3;
     if (pickCount < minPicks) {
       alert(`Please select at least ${minPicks} pick${minPicks > 1 ? 's' : ''}!`);
       return;
@@ -1025,10 +990,8 @@ const saveSubmission = async (submission) => {
   };
 
   const handleCheckoutSubmit = async () => {
-    // Helper function to generate unique pick ID
     const getPickId = (gameId, pickType) => `${gameId}-${pickType}`;
     
-    // Validate contact information
     if (!contactInfo.name || !contactInfo.email) {
       alert('Please fill in all contact information');
       return;
@@ -1073,7 +1036,7 @@ const saveSubmission = async (submission) => {
         alert(`Each bet must be between $${MIN_BET} and $${MAX_BET}`);
         return;
       }
-    } else { // Parlay
+    } else {
       const betAmount = parseFloat(contactInfo.betAmount);
       
       if (!betAmount || betAmount <= 0) {
@@ -1166,9 +1129,8 @@ const saveSubmission = async (submission) => {
     };
     saveSubmission(submission);
     
-    // Send confirmation email
     try {
-      const emailResponse = await fetch('https://api.egtsports.ws/api/send-ticket-confirmation', {
+      await fetch('https://api.egtsports.ws/api/send-ticket-confirmation', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -1189,13 +1151,6 @@ const saveSubmission = async (submission) => {
         })
       });
 
-      const emailResult = await emailResponse.json();
-      
-      if (emailResult.success) {
-        console.log('✅ Confirmation email sent to', contactInfo.email);
-      } else {
-        console.error('❌ Email failed:', emailResult.error);
-      }
     } catch (emailError) {
       console.error('❌ Email error:', emailError);
     }
@@ -1211,7 +1166,6 @@ const saveSubmission = async (submission) => {
     );
   }
 
-  // Show API Error if exists
   if (apiError) {
     return (
       <div className="gradient-bg">
@@ -1231,24 +1185,24 @@ const saveSubmission = async (submission) => {
     );
   }
 
-  // Show Prop Bets View if "Prop Bets" is selected
   const displaySport = currentViewSport || sport;
   if (displaySport === 'Prop Bets') {
     return (
       <div className="gradient-bg main-layout-wrapper">
-        {/* Left Sidebar - Sports Menu */}
-        {allSportsGames && Object.keys(allSportsGames).length > 0 && (
-          <SportsMenu
+        <MobileSportsMenu
+            currentSport={currentViewSport}
+            onSelectSport={onChangeSport}
+            allSportsGames={allSportsGames}
+        />
+        <SportsMenu
             currentSport={currentViewSport}
             onSelectSport={onChangeSport}
             allSportsGames={allSportsGames}
             onSignOut={onSignOut}
             onManualRefresh={onManualRefresh}
             isRefreshing={isRefreshing}
-          />
-        )}
+        />
         
-        {/* Prop Bets Main Content */}
         <div className="main-content with-sidebar">
           <PropBetsView
             propBets={propBets}
@@ -1260,7 +1214,6 @@ const saveSubmission = async (submission) => {
           />
         </div>
         
-        {/* Betting Slip - Floating on the right side */}
         <BettingSlip
           selectedPicks={selectedPicks}
           onRemovePick={handleRemovePick}
@@ -1281,23 +1234,24 @@ const saveSubmission = async (submission) => {
     );
   }
 
-  // Show message if no games available
   const hasGamesInAllSports = allSportsGames && allSportsGames[displaySport] && allSportsGames[displaySport].length > 0;
   
   if (games.length === 0 && !hasGamesInAllSports) {
     return (
       <div className="gradient-bg main-layout-wrapper">
-        {/* Left Sidebar - Sports Menu - Show even when no games */}
-        {allSportsGames && Object.keys(allSportsGames).length > 0 && (
-          <SportsMenu
+        <MobileSportsMenu
+            currentSport={currentViewSport}
+            onSelectSport={onChangeSport}
+            allSportsGames={allSportsGames}
+        />
+        <SportsMenu
             currentSport={currentViewSport}
             onSelectSport={onChangeSport}
             allSportsGames={allSportsGames}
             onSignOut={onSignOut}
             onManualRefresh={onManualRefresh}
             isRefreshing={isRefreshing}
-          />
-        )}
+        />
         
         <div className={`container main-content ${allSportsGames && Object.keys(allSportsGames).length > 0 ? 'with-sidebar' : ''}`}>
           <div className="card text-center">
@@ -1311,20 +1265,22 @@ const saveSubmission = async (submission) => {
     );
   }
   
-  // If games is empty but allSportsGames has data for this sport, show loading state briefly
   if (games.length === 0 && hasGamesInAllSports) {
     return (
       <div className="gradient-bg main-layout-wrapper">
-        {allSportsGames && Object.keys(allSportsGames).length > 0 && (
-          <SportsMenu
+        <MobileSportsMenu
+            currentSport={currentViewSport}
+            onSelectSport={onChangeSport}
+            allSportsGames={allSportsGames}
+        />
+        <SportsMenu
             currentSport={currentViewSport}
             onSelectSport={onChangeSport}
             allSportsGames={allSportsGames}
             onSignOut={onSignOut}
             onManualRefresh={onManualRefresh}
             isRefreshing={isRefreshing}
-          />
-        )}
+        />
         <div className={`container main-content ${allSportsGames && Object.keys(allSportsGames).length > 0 ? 'with-sidebar' : ''}`}>
           <div className="card text-center">
             <h2>Loading {displaySport} games...</h2>
@@ -1343,10 +1299,8 @@ const saveSubmission = async (submission) => {
   const minPicks = betType === 'straight' ? 1 : 3;
 
   if (hasSubmitted) {
-    // Helper function to generate unique pick ID
     const getPickId = (gameId, pickType) => `${gameId}-${pickType}`;
     
-    // Calculate payout odds and format picks based on bet type
     let pickCount = 0;
     const picksFormatted = [];
     
@@ -1406,51 +1360,35 @@ const saveSubmission = async (submission) => {
       hour12: true 
     });
 
-    // Email functionality
     const handleEmailTicket = () => {
       const subject = `EGT Sports Betting Ticket - ${ticketNumber}`;
       const body = `EGT SPORTS BETTING TICKET
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-CONFIRMATION NUMBER
-${ticketNumber}
-
-SUBMITTED
-${timestamp}
-
+CONFIRMATION NUMBER: ${ticketNumber}
+SUBMITTED: ${timestamp}
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 BET DETAILS
-
 Type: ${betType === 'straight' ? 'Straight Bets' : 'Parlay'}
 Sport: ${sport}
 Total Stake: $${checkoutCalculations.totalStake.toFixed(2)}
 Potential Payout: $${checkoutCalculations.potentialPayout.toFixed(2)}
 Potential Profit: $${checkoutCalculations.potentialProfit.toFixed(2)}
-
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 YOUR ${betType === 'straight' ? 'BETS' : 'PICKS'}
-
 ${picksFormatted.map((pick, idx) => `${idx + 1}. ${pick}`).join('\n')}
-
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 PAYMENT INFO
-
 Your ticket has been submitted. Payment must be received before games start for the ticket to be valid.
-
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
 IMPORTANT: Save this email for your records. You will need your ticket number to claim winnings.
-
 Contact: ${contactInfo.name}
-Email: ${contactInfo.email}
-`;
+Email: ${contactInfo.email}`;
       window.location.href = `mailto:${contactInfo.email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
     };
 
     return (
       <div className="gradient-bg">
         <div className="container" style={{maxWidth: '700px', paddingTop: '20px', paddingBottom: '40px'}}>
-          {/* SCREENSHOT INSTRUCTIONS - PROMINENT */}
           <div style={{
             background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
             color: 'white',
@@ -1467,7 +1405,6 @@ Email: ${contactInfo.email}
             </p>
           </div>
 
-          {/* TICKET CARD - ENHANCED DESIGN */}
           <div className="ticket-card" style={{
             background: 'white',
             borderRadius: '16px',
@@ -1475,7 +1412,6 @@ Email: ${contactInfo.email}
             overflow: 'hidden',
             border: '3px dashed #e0e0e0'
           }}>
-            {/* TICKET HEADER */}
             <div style={{
               background: 'linear-gradient(135deg, #1e3c72 0%, #2a5298 100%)',
               color: 'white',
@@ -1491,7 +1427,6 @@ Email: ${contactInfo.email}
               </div>
             </div>
 
-            {/* TICKET NUMBER - PROMINENT */}
             <div style={{
               background: 'white',
               padding: '32px 24px',
@@ -1517,7 +1452,6 @@ Email: ${contactInfo.email}
               </div>
             </div>
 
-            {/* BET DETAILS SECTION */}
             <div style={{
               padding: '24px',
               background: '#f8f9fa',
@@ -1550,7 +1484,6 @@ Email: ${contactInfo.email}
               </div>
             </div>
 
-            {/* YOUR PICKS SECTION */}
             <div style={{
               padding: '24px',
               background: 'white',
@@ -1595,7 +1528,6 @@ Email: ${contactInfo.email}
               </div>
             </div>
 
-            {/* PAYMENT SECTION */}
             <div style={{
               padding: '24px',
               background: '#fff3cd',
@@ -1617,7 +1549,6 @@ Email: ${contactInfo.email}
                 </div>
             </div>
 
-            {/* CONTACT INFO */}
             <div style={{
               padding: '16px 24px',
               background: '#f8f9fa',
@@ -1629,7 +1560,6 @@ Email: ${contactInfo.email}
             </div>
           </div>
 
-          {/* ACTION BUTTONS */}
           <div style={{marginTop: '24px', display: 'flex', flexDirection: 'column', gap: '12px'}}>
             <button
               className="btn btn-info"
@@ -1670,7 +1600,6 @@ Email: ${contactInfo.email}
             </button>
           </div>
 
-          {/* IMPORTANT NOTICE */}
           <div style={{
             marginTop: '24px',
             background: 'rgba(255, 255, 255, 0.1)',
@@ -1691,10 +1620,8 @@ Email: ${contactInfo.email}
   }
 
   if (showCheckout) {
-    // Helper function to generate unique pick ID
     const getPickId = (gameId, pickType) => `${gameId}-${pickType}`;
     
-    // Format picks for display on the checkout page
     const picksForCheckout = [];
     Object.entries(selectedPicks).forEach(([gameId, pickObj]) => {
       let game = games.find(g => g.id === gameId);
@@ -1767,7 +1694,6 @@ Email: ${contactInfo.email}
               ))}
             </div>
 
-            {/* Financial Summary */}
             <div style={{marginTop: '24px', background: '#e7f3ff', padding: '16px', borderRadius: '8px'}}>
               <h3 className="mb-2" style={{color: '#004085'}}>Bet Summary</h3>
               <div style={{display: 'flex', justifyContent: 'space-between', marginBottom: '8px'}}>
@@ -1783,7 +1709,6 @@ Email: ${contactInfo.email}
                 <span style={{fontWeight: 'bold', color: '#007bff'}}>${checkoutCalculations.potentialProfit.toFixed(2)}</span>
               </div>
             </div>
-
 
             <h3 className="mb-2" style={{marginTop: '32px'}}>Contact Information</h3>
             <label>Full Name *</label>
@@ -1818,23 +1743,23 @@ Email: ${contactInfo.email}
 
   return (
     <div className="gradient-bg main-layout-wrapper">
-      {/* Left Sidebar - Sports Menu - Always show when allSportsGames is available */}
-      {allSportsGames && Object.keys(allSportsGames).length > 0 && (
-        <SportsMenu
-          currentSport={currentViewSport}
-          onSelectSport={onChangeSport}
-          allSportsGames={allSportsGames}
-          onSignOut={onSignOut}
-          onManualRefresh={onManualRefresh}
-          isRefreshing={isRefreshing}
+        <MobileSportsMenu
+            currentSport={currentViewSport}
+            onSelectSport={onChangeSport}
+            allSportsGames={allSportsGames}
         />
-      )}
+        <SportsMenu
+            currentSport={currentViewSport}
+            onSelectSport={onChangeSport}
+            allSportsGames={allSportsGames}
+            onSignOut={onSignOut}
+            onManualRefresh={onManualRefresh}
+            isRefreshing={isRefreshing}
+        />
       
-      {/* Main Content */}
       <div className={`container main-content ${allSportsGames && Object.keys(allSportsGames).length > 0 ? 'with-sidebar' : ''}`}>
         <div className="text-center text-white mb-4">
           
-          {/* Sport indicator for single sport mode */}
           {betType !== 'parlay' && (
             <div style={{
               display: 'inline-block',
@@ -1849,7 +1774,6 @@ Email: ${contactInfo.email}
             </div>
           )}
           
-          {/* Payout Odds moved to top */}
           {betType === 'parlay' && (
             <div className="card">
               <h2 className="text-center mb-2" style={{color: '#000'}}>Payout Odds</h2>
@@ -1864,9 +1788,9 @@ Email: ${contactInfo.email}
                   {picks: 9, payout: '200 to 1'}, 
                   {picks: 10, payout: '250 to 1'}
                 ].map(item => (
-                  <div key={item.picks} style={{background: '#f8f9fa', padding: '14px', borderRadius: '8px', textAlign: 'center', border: '2px solid #e0e0e0'}}>
-                    <div style={{fontSize: '14px'}}>{item.picks} for {item.picks} pays</div>
-                    <div style={{fontSize: '18px', fontWeight: 'bold', color: '#28a745'}}>{item.payout}</div>
+                  <div key={item.picks} className="payout-item">
+                    <div className="payout-text">{item.picks} for {item.picks} pays</div>
+                    <div className="payout-value">{item.payout}</div>
                   </div>
                 ))}
               </div>
@@ -1874,7 +1798,6 @@ Email: ${contactInfo.email}
           )}
         </div>
         
-        {/* New Grid Betting Layout */}
         <GridBettingLayout
           games={games}
           selectedPicks={selectedPicks}
@@ -1904,7 +1827,6 @@ Email: ${contactInfo.email}
         </div>
       </div>
       
-      {/* Betting Slip - Floating on the right side */}
       <BettingSlip
         selectedPicks={selectedPicks}
         onRemovePick={handleRemovePick}
@@ -1942,7 +1864,6 @@ Email: ${contactInfo.email}
   );
 }
 
-// Error Boundary Component to catch React errors
 class ErrorBoundary extends React.Component {
   constructor(props) {
     super(props);
@@ -1987,7 +1908,6 @@ class ErrorBoundary extends React.Component {
   }
 }
 
-// Main App Component - WITH SMART REFRESH LOGIC
 function App() {
   const [authState, setAuthState] = useState({
     loading: true,
@@ -1995,17 +1915,17 @@ function App() {
     isAdmin: false,
     error: "",
   });
-  const [userRole, setUserRole] = useState(null); // 'user', 'admin', or null
+  const [userRole, setUserRole] = useState(null);
   const [showAdminUserManagement, setShowAdminUserManagement] = useState(false);
-  const [betType, setBetType] = useState('parlay'); // Default to 'parlay' mode - users can switch via betting slip
+  const [betType, setBetType] = useState('parlay');
   const [loginForm, setLoginForm] = useState({
     email: "",
     password: "",
   });
   const [games, setGames] = useState([]);
-  const [allSportsGames, setAllSportsGames] = useState({}); // For cross-sport parlays
-  const [currentViewSport, setCurrentViewSport] = useState(null); // Currently displayed sport in tabs
-  const currentViewSportRef = useRef(null); // Ref to track currentViewSport without causing re-renders
+  const [allSportsGames, setAllSportsGames] = useState({});
+  const [currentViewSport, setCurrentViewSport] = useState(null);
+  const currentViewSportRef = useRef(null);
   const [loading, setLoading] = useState(true);
   const [apiError, setApiError] = useState(null);
   const [isSyncing, setIsSyncing] = useState(false);
@@ -2015,64 +1935,49 @@ function App() {
   const [selectedSport, setSelectedSport] = useState(null);
   const [lastRefreshTime, setLastRefreshTime] = useState(null);
 
-  // Prop Bets State
   const [propBets, setPropBets] = useState({});
   const [propBetsLoading, setPropBetsLoading] = useState(false);
   const [propBetsError, setPropBetsError] = useState(null);
   const propBetsCache = useRef({});
 
-  // Helper function to detect if odds data is missing or incomplete
-const hasCompleteOddsData = (game) => {
-  // Check if game has at least one complete betting market
-  const hasSpread = game.awaySpread && game.homeSpread && 
-                    game.awaySpread !== '' && game.homeSpread !== '';
-  const hasMoneyline = game.awayMoneyline && game.homeMoneyline && 
-                       game.awayMoneyline !== '' && game.homeMoneyline !== '';
+  const hasCompleteOddsData = (game) => {
+    const hasSpread = game.awaySpread && game.homeSpread && 
+                      game.awaySpread !== '' && game.homeSpread !== '';
+    const hasMoneyline = game.awayMoneyline && game.homeMoneyline && 
+                         game.awayMoneyline !== '' && game.homeMoneyline !== '';
+    return hasSpread || hasMoneyline;
+  };
   
-  // Consider complete if we have at least spread OR moneyline
-  return hasSpread || hasMoneyline;
-};
-  
-// Fetch odds from The Odds API ONLY when ESPN data is incomplete
 const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
   try {
     const sportKey = ODDS_API_SPORT_KEYS[sport];
     if (!sportKey) {
-      console.log(`⚠️ No Odds API sport key configured for ${sport}`);
       return null;
     }
     
-    // Check cache first to avoid unnecessary API calls
     if (!forceRefresh && oddsAPICache[sport]) {
       const cached = oddsAPICache[sport];
       if (Date.now() - cached.timestamp < ODDS_API_CACHE_DURATION) {
-        console.log(`✅ Using cached Odds API data for ${sport} (age: ${Math.round((Date.now() - cached.timestamp) / 1000 / 60)} minutes)`);
         return cached.data;
       }
     }
     
     const url = `${ODDS_API_BASE_URL}/sports/${sportKey}/odds/?apiKey=${ODDS_API_KEY}&regions=us&markets=spreads,totals,h2h&oddsFormat=american`;
     
-    console.log(`📊 Fetching ${sport} odds from The Odds API (fallback mode)...`);
-    
     const response = await fetch(url);
     
     if (!response.ok) {
-      console.error(`⚠️ The Odds API returned status ${response.status} for ${sport}`);
       return null;
     }
     
     const data = await response.json();
-    console.log(`✅ Fetched odds for ${data.length} ${sport} games from The Odds API`);
     
-    // Parse The Odds API response
     const oddsMap = {};
     
     data.forEach(game => {
       const homeTeam = game.home_team;
       const awayTeam = game.away_team;
       
-      // Find markets
       const spreadMarket = game.bookmakers?.[0]?.markets?.find(m => m.key === 'spreads');
       const totalMarket = game.bookmakers?.[0]?.markets?.find(m => m.key === 'totals');
       const h2hMarket = game.bookmakers?.[0]?.markets?.find(m => m.key === 'h2h');
@@ -2083,7 +1988,6 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
       let homeMoneyline = '';
       let awayMoneyline = '';
       
-      // Extract spreads
       if (spreadMarket?.outcomes) {
         const homeOutcome = spreadMarket.outcomes.find(o => o.name === homeTeam);
         const awayOutcome = spreadMarket.outcomes.find(o => o.name === awayTeam);
@@ -2092,12 +1996,10 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
         if (awayOutcome) awaySpread = awayOutcome.point > 0 ? `+${awayOutcome.point}` : String(awayOutcome.point);
       }
       
-      // Extract totals
       if (totalMarket?.outcomes?.[0]) {
         total = `O/U ${totalMarket.outcomes[0].point}`;
       }
       
-      // Extract moneylines (h2h = head-to-head = moneyline)
       if (h2hMarket?.outcomes) {
         const homeOutcome = h2hMarket.outcomes.find(o => o.name === homeTeam);
         const awayOutcome = h2hMarket.outcomes.find(o => o.name === awayTeam);
@@ -2106,12 +2008,10 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
         if (awayOutcome) awayMoneyline = awayOutcome.price > 0 ? `+${awayOutcome.price}` : String(awayOutcome.price);
       }
       
-      // Store in map using team names as key
       const gameKey = `${awayTeam}|${homeTeam}`;
       oddsMap[gameKey] = { awaySpread, homeSpread, total, awayMoneyline, homeMoneyline };
     });
     
-    // Cache the results for 12 hours
     oddsAPICache[sport] = {
       data: oddsMap,
       timestamp: Date.now()
@@ -2125,51 +2025,38 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
   }
 };
 
-  // Match ESPN game data with The Odds API odds data
   const matchOddsToGame = (game, oddsMap) => {
     if (!oddsMap) return { awaySpread: '', homeSpread: '', total: '' };
     
-    // Try exact match
     const gameKey = `${game.awayTeam}|${game.homeTeam}`;
     if (oddsMap[gameKey]) {
       return oddsMap[gameKey];
     }
     
-    // Try fuzzy match (handles name variations)
     for (const [key, value] of Object.entries(oddsMap)) {
       const [oddsAway, oddsHome] = key.split('|');
       
-      // Check if team names contain each other
       if (game.awayTeam.includes(oddsAway) || oddsAway.includes(game.awayTeam)) {
         if (game.homeTeam.includes(oddsHome) || oddsHome.includes(game.homeTeam)) {
-          console.log(`✅ Fuzzy matched: "${game.awayTeam} @ ${game.homeTeam}" with "${oddsAway} @ ${oddsHome}"`);
           return value;
         }
       }
     }
     
-    console.warn(`⚠️ No odds found for ${game.awayTeam} @ ${game.homeTeam}`);
     return { awaySpread: '', homeSpread: '', total: '' };
   };
 
-  // Fetch Prop Bets from The Odds API
   const fetchPropBets = async (sportName) => {
-    // Check cache
     const cacheKey = sportName;
     const cachedData = propBetsCache.current[cacheKey];
     if (cachedData && (Date.now() - cachedData.timestamp < PROP_BETS_CACHE_DURATION)) {
-      console.log(`✅ Using cached prop bets for ${sportName}`);
       return cachedData.data;
     }
 
     try {
-      console.log(`🎯 Fetching prop bets for ${sportName} from Vercel API...`);
-      
-      // Call Vercel API endpoint instead of The Odds API directly
       const response = await fetch(`/api/getPropBets?sport=${sportName}`);
 
       if (!response.ok) {
-        console.error(`⚠️ Vercel API returned status ${response.status} for ${sportName}`);
         const errorText = await response.text();
         console.error(`Error details: ${errorText}`);
         return [];
@@ -2177,22 +2064,17 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
 
       const data = await response.json();
       
-      // Check if the API returned an error
       if (!data.success) {
-        console.error(`⚠️ Vercel API returned error for ${sportName}:`, data.error);
         return [];
       }
 
       const propBets = data.propBets || [];
-      console.log(`✅ Fetched ${propBets.length} prop bets for ${sportName}`);
 
-      // Cache the results
       propBetsCache.current[cacheKey] = {
         data: propBets,
         timestamp: Date.now()
       };
 
-      console.log(`🎯 Total prop bets for ${sportName}: ${propBets.length}`);
       return propBets;
     } catch (error) {
       console.error(`❌ Error fetching prop bets for ${sportName}:`, error);
@@ -2200,7 +2082,6 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
     }
   };
 
-  // Load all prop bets for configured sports
   const loadAllPropBets = async () => {
     setPropBetsLoading(true);
     setPropBetsError(null);
@@ -2215,27 +2096,18 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
       }
 
       setPropBets(allPropBetsData);
-      console.log('✅ All prop bets loaded successfully');
     } catch (error) {
-      console.error('❌ Error loading prop bets:', error);
       setPropBetsError('Failed to load prop bets. Please try again later.');
     } finally {
       setPropBetsLoading(false);
     }
   };
 
-  // Helper function to count games missing odds
   const countMissingOdds = useCallback((games) => {
     return games.filter(game => !hasCompleteOddsData(game)).length;
   }, []);
 
-  // Helper function to parse ESPN odds
   const parseESPNOdds = useCallback((competition, sport) => {
-    // NOTE: ESPN API limitations:
-    // - Not all games have complete odds data (especially college sports and NHL)
-    // - Moneyline odds are often missing for college sports
-    // - Some games only have spread or only have total
-    // - This is an ESPN API data availability issue, not a parsing bug
     let awaySpread = '';
     let homeSpread = '';
     let total = '';
@@ -2244,83 +2116,46 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
     
     try {
       if (!competition.odds || competition.odds.length === 0) {
-        console.log(`No odds data available for this game`);
         return { awaySpread, homeSpread, total, awayMoneyline, homeMoneyline };
       }
       
       const odds = competition.odds[0];
-      const gameName = `${competition.competitors[1].team.displayName} @ ${competition.competitors[0].team.displayName}`;
-      console.log(`\n=== Parsing odds for ${sport}: ${gameName} ===`);
-      console.log('Full odds object:', JSON.stringify(odds, null, 2));
       
-      // Try different ESPN API structures
-      
-      // Method 1: Check if details string exists (e.g., "KC -3.5")
-      if (odds.details) {
-        console.log('Found odds.details:', odds.details);
-        // Parse details string to extract spreads if needed
-      }
-      
-      // Method 2: Check direct spread property (PRIMARY METHOD - PR #16 fix)
       if (odds.spread !== undefined) {
-        console.log('Found odds.spread:', odds.spread);
         const spreadValue = parseFloat(odds.spread);
         if (!isNaN(spreadValue) && Math.abs(spreadValue) < 50) {
-          // ESPN provides the spread from the favorite's perspective
-          // Negative means home team is favored, positive means away team is favored
           homeSpread = spreadValue > 0 ? `+${spreadValue}` : String(spreadValue);
           awaySpread = spreadValue > 0 ? String(-spreadValue) : `+${-spreadValue}`;
-          console.log('✅ Using odds.spread - Home:', homeSpread, 'Away:', awaySpread);
         }
       }
       
-      // Method 3: Check homeTeamOdds/awayTeamOdds structure (fallback)
       if (!homeSpread && !awaySpread && (odds.homeTeamOdds || odds.awayTeamOdds)) {
-        console.log('homeTeamOdds:', JSON.stringify(odds.homeTeamOdds, null, 2));
-        console.log('awayTeamOdds:', JSON.stringify(odds.awayTeamOdds, null, 2));
-        
-        // The issue: we were using 'spreadOdds' which is the betting odds (-110)
-        // We need the actual point spread which might be in 'line', 'point', or 'spread'
         const homeSpreadValue = odds.homeTeamOdds?.line || odds.homeTeamOdds?.point || odds.homeTeamOdds?.spread;
         const awaySpreadValue = odds.awayTeamOdds?.line || odds.awayTeamOdds?.point || odds.awayTeamOdds?.spread;
         
-        console.log('Extracted home spread value:', homeSpreadValue);
-        console.log('Extracted away spread value:', awaySpreadValue);
-        
-        // Sanity check - spreads should be reasonable
         if (homeSpreadValue !== undefined && Math.abs(homeSpreadValue) < 50) {
           homeSpread = homeSpreadValue > 0 ? `+${homeSpreadValue}` : String(homeSpreadValue);
-        } else if (homeSpreadValue !== undefined) {
-          console.warn(`⚠️ Home spread ${homeSpreadValue} seems unrealistic, skipping`);
         }
         
         if (awaySpreadValue !== undefined && Math.abs(awaySpreadValue) < 50) {
           awaySpread = awaySpreadValue > 0 ? `+${awaySpreadValue}` : String(awaySpreadValue);
-        } else if (awaySpreadValue !== undefined) {
-          console.warn(`⚠️ Away spread ${awaySpreadValue} seems unrealistic, skipping`);
         }
       }
       
-      // Method 4: Check for overUnder/total
       if (odds.overUnder !== undefined) {
-        console.log('Found odds.overUnder:', odds.overUnder);
-        if (odds.overUnder > 30 && odds.overUnder < 300) { // Sanity check
+        if (odds.overUnder > 30 && odds.overUnder < 300) {
           total = String(odds.overUnder);
         }
       } else if (odds.total !== undefined) {
-        console.log('Found odds.total:', odds.total);
-        if (odds.total > 30 && odds.total < 300) { // Sanity check
+        if (odds.total > 30 && odds.total < 300) {
           total = String(odds.total);
         }
       }
       
-      // Method 5: Check for moneyline odds (for straight bets)
-      // Moneyline odds are typically in homeTeamOdds.moneyLine or awayTeamOdds.moneyLine
       if (odds.homeTeamOdds?.moneyLine !== undefined) {
         const ml = parseInt(odds.homeTeamOdds.moneyLine);
         if (!isNaN(ml) && ml >= -10000 && ml <= 10000) {
           homeMoneyline = ml > 0 ? `+${ml}` : String(ml);
-          console.log('✅ Found home moneyline:', homeMoneyline);
         }
       }
       
@@ -2328,16 +2163,13 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
         const ml = parseInt(odds.awayTeamOdds.moneyLine);
         if (!isNaN(ml) && ml >= -10000 && ml <= 10000) {
           awayMoneyline = ml > 0 ? `+${ml}` : String(ml);
-          console.log('✅ Found away moneyline:', awayMoneyline);
         }
       }
       
-      // Alternative: Check for 'price' or 'odds' fields
       if (!homeMoneyline && odds.homeTeamOdds?.price !== undefined) {
         const price = parseInt(odds.homeTeamOdds.price);
         if (!isNaN(price) && price >= -10000 && price <= 10000) {
           homeMoneyline = price > 0 ? `+${price}` : String(price);
-          console.log('✅ Found home moneyline from price:', homeMoneyline);
         }
       }
       
@@ -2345,12 +2177,8 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
         const price = parseInt(odds.awayTeamOdds.price);
         if (!isNaN(price) && price >= -10000 && price <= 10000) {
           awayMoneyline = price > 0 ? `+${price}` : String(price);
-          console.log('✅ Found away moneyline from price:', awayMoneyline);
         }
       }
-      
-      console.log('✅ Final parsed values:', { awaySpread, homeSpread, total, awayMoneyline, homeMoneyline });
-      console.log('=====================================\n');
       
     } catch (error) {
       console.error('❌ Error parsing odds:', error);
@@ -2359,7 +2187,6 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
     return { awaySpread, homeSpread, total, awayMoneyline, homeMoneyline };
   }, []);
 
-  // SPORT-SPECIFIC FIREBASE LISTENER
   const setupFirebaseListener = useCallback((sport) => {
     try {
       const spreadsRef = ref(database, `spreads/${sport}`);
@@ -2407,7 +2234,6 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
               setIsSyncing(false);
             }
             
-            // Update cache with Firebase data
             if (gameCache[sport]) {
               gameCache[sport].data = newGames;
             }
@@ -2421,7 +2247,6 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
     }
   }, [setGames, setIsSyncing, setRecentlyUpdated]);
 
-  // NEW: Load all sports for cross-sport parlays
   const loadAllSports = useCallback(async (initialSport, forceRefresh = false) => {
     const allSports = ['NFL', 'NBA', 'College Football', 'College Basketball', 'Major League Baseball', 'NHL'];
     const sportsData = {};
@@ -2429,10 +2254,8 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
     setLoading(true);
     setApiError(null);
     
-    // Load all sports in parallel
     await Promise.all(allSports.map(async (sport) => {
       try {
-        // Check cache first unless force refresh
         if (!forceRefresh) {
           const cached = gameCache[sport];
           const cacheExpiry = sport === 'College Basketball' 
@@ -2440,7 +2263,6 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
             : CACHE_DURATION;
           
           if (cached && Date.now() - cached.timestamp < cacheExpiry) {
-            console.log(`✅ Using cached data for ${sport}`);
             apiCallCount.cacheHits++;
             sportsData[sport] = cached.data;
             logAPIUsage(sport, true, true);
@@ -2450,20 +2272,14 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
         
         const apiEndpoint = ESPN_API_ENDPOINTS[sport];
         const dateURLs = getESPNDateRangeURLs(apiEndpoint);
-        console.log(`🔄 Fetching ${sport} games for ${dateURLs.length} dates (cross-sport parlay)...`);
         
         apiCallCount.total += dateURLs.length;
         apiCallCount.byEndpoint[sport] = (apiCallCount.byEndpoint[sport] || 0) + dateURLs.length;
         
-        // Fetch all dates in parallel
         const responses = await Promise.all(
-          dateURLs.map(url => fetch(url).catch(err => {
-            console.error(`Error fetching ${url}:`, err);
-            return null;
-          }))
+          dateURLs.map(url => fetch(url).catch(err => null))
         );
         
-        // Filter out failed requests
         const validResponses = responses.filter(r => r !== null);
         
         if (validResponses.length === 0) {
@@ -2473,7 +2289,6 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
         
         const rateLimited = validResponses.some(r => r.status === 429);
         if (rateLimited) {
-          console.error(`⚠️ ESPN API rate limit exceeded for ${sport}`);
           apiCallCount.errors++;
           const cached = gameCache[sport];
           if (cached) {
@@ -2484,12 +2299,10 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
           return;
         }
         
-        // Parse all responses
         const allData = await Promise.all(
           validResponses.map(r => r.ok ? r.json() : null)
         );
         
-        // Combine all events from all dates
         const allEvents = [];
         allData.forEach(data => {
           if (data && data.events && data.events.length > 0) {
@@ -2498,14 +2311,11 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
         });
         
         if (allEvents.length === 0) {
-          console.log(`ℹ️ No games available for ${sport}`);
           sportsData[sport] = [];
-          const timestamp = Date.now();
-          gameCache[sport] = { data: [], timestamp };
+          gameCache[sport] = { data: [], timestamp: Date.now() };
           return;
         }
         
-        // Remove duplicate games and sort by date
         const uniqueEvents = [];
         const seenIds = new Set();
         allEvents.forEach(event => {
@@ -2525,9 +2335,9 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
           const { awaySpread, homeSpread, total, awayMoneyline, homeMoneyline } = parseESPNOdds(competition, sport);
           
           return {
-            id: `${sport}-${index + 1}`, // Unique ID with sport prefix
+            id: `${sport}-${index + 1}`,
             espnId: event.id,
-            sport: sport, // Add sport identifier
+            sport: sport,
             date: new Date(event.date).toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' }),
             time: new Date(event.date).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }) + ' ET',
             awayTeam: awayTeam.team.displayName,
@@ -2536,59 +2346,53 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
             homeTeamId: homeTeam.id,
             awayScore: awayTeam.score || '0',
             homeScore: homeTeam.score || '0',
-            awaySpread: awaySpread,
-            homeSpread: homeSpread,
-            total: total,
-            awayMoneyline: awayMoneyline,
-            homeMoneyline: homeMoneyline,
+            awaySpread,
+            homeSpread,
+            total,
+            awayMoneyline,
+            homeMoneyline,
             status: status,
             statusDetail: event.status.type.detail,
             isFinal: status === 'post'
           };
         });
         
-// Smart fallback: Only use The Odds API if ESPN data is incomplete
-if (USE_ODDS_API_FALLBACK) {
-  const missingCount = countMissingOdds(formattedGames);
-  
-  if (missingCount > 0) {
-    console.log(`🔄 ${sport}: ${missingCount} games missing odds, using The Odds API fallback`);
-    const oddsMap = await fetchOddsFromTheOddsAPI(sport);
-    
-    if (oddsMap) {
-      const finalFormattedGames = formattedGames.map(game => {
-        if (hasCompleteOddsData(game)) return game;
+        if (USE_ODDS_API_FALLBACK) {
+          const missingCount = countMissingOdds(formattedGames);
+          
+          if (missingCount > 0) {
+            const oddsMap = await fetchOddsFromTheOddsAPI(sport);
+            
+            if (oddsMap) {
+              const finalFormattedGames = formattedGames.map(game => {
+                if (hasCompleteOddsData(game)) return game;
+                
+                const odds = matchOddsToGame(game, oddsMap);
+                return {
+                  ...game,
+                  awaySpread: odds.awaySpread || game.awaySpread,
+                  homeSpread: odds.homeSpread || game.homeSpread,
+                  total: odds.total || game.total,
+                  awayMoneyline: odds.awayMoneyline || game.awayMoneyline,
+                  homeMoneyline: odds.homeMoneyline || game.homeMoneyline
+                };
+              });
+              
+              sportsData[sport] = finalFormattedGames;
+            } else {
+              sportsData[sport] = formattedGames;
+            }
+          } else {
+            sportsData[sport] = formattedGames;
+          }
+        } else {
+          sportsData[sport] = formattedGames;
+        }
         
-        const odds = matchOddsToGame(game, oddsMap);
-        return {
-          ...game,
-          awaySpread: odds.awaySpread || game.awaySpread,
-          homeSpread: odds.homeSpread || game.homeSpread,
-          total: odds.total || game.total,
-          awayMoneyline: odds.awayMoneyline || game.awayMoneyline,
-          homeMoneyline: odds.homeMoneyline || game.homeMoneyline
-        };
-      });
-      
-      sportsData[sport] = finalFormattedGames;
-    } else {
-      sportsData[sport] = formattedGames;
-    }
-  } else {
-    console.log(`✅ ${sport}: All games have complete ESPN odds`);
-    sportsData[sport] = formattedGames;
-  }
-} else {
-  sportsData[sport] = formattedGames;
-}
-        
-        const timestamp = Date.now();
-        gameCache[sport] = { data: sportsData[sport], timestamp };
-        console.log(`✅ Loaded ${sportsData[sport].length} ${sport} games`);
+        gameCache[sport] = { data: sportsData[sport], timestamp: Date.now() };
         logAPIUsage(sport, true, false);
         
       } catch (error) {
-        console.error(`❌ Error loading ${sport} games:`, error);
         apiCallCount.errors++;
         sportsData[sport] = [];
         logAPIUsage(sport, false, false);
@@ -2596,22 +2400,15 @@ if (USE_ODDS_API_FALLBACK) {
     }));
     
     setAllSportsGames(sportsData);
-    // Only update currentViewSport and games if not already set (initial load)
-    // Don't override when user has navigated to a different sport
     const currentSport = currentViewSportRef.current;
-    if (!currentSport || forceRefresh) { // Also refresh if forced
+    if (!currentSport || forceRefresh) {
       const sportToLoad = initialSport || currentSport || 'NFL';
-      console.log('🏈 loadAllSports: Initial load or force refresh, setting to', sportToLoad, 'with', sportsData[sportToLoad]?.length || 0, 'games');
       setCurrentViewSport(sportToLoad);
       currentViewSportRef.current = sportToLoad;
       setGames(sportsData[sportToLoad] || []);
     } else {
-      // Refresh the games for the currently viewed sport ONLY if we have data
       if (sportsData[currentSport] && sportsData[currentSport].length > 0) {
-        console.log('🔄 loadAllSports: Refreshing', currentSport, 'with', sportsData[currentSport].length, 'games');
         setGames(sportsData[currentSport]);
-      } else {
-        console.log('⚠️ loadAllSports: No games available for', currentSport, '- keeping current games array');
       }
     }
     setLoading(false);
@@ -2630,10 +2427,8 @@ if (USE_ODDS_API_FALLBACK) {
           error: "",
         });
         
-        // Auto-refresh data on login for non-admins
         if (!isAdmin) {
-            console.log('User logged in, triggering auto-refresh...');
-            loadAllSports('NFL', true); // Force refresh on login
+            loadAllSports('NFL', true);
         }
 
       } else {
@@ -2648,23 +2443,19 @@ if (USE_ODDS_API_FALLBACK) {
     return unsub;
   }, [loadAllSports]);
 
-  // LOAD GAMES WHEN SPORT IS SELECTED - WITH DYNAMIC REFRESH INTERVAL
   useEffect(() => {
     let intervalId = null;
     
     if (selectedSport) {
-      // Setup Firebase listeners for all sports
       setTimeout(() => {
         Object.keys(ESPN_API_ENDPOINTS).forEach(sport => {
           setupFirebaseListener(sport);
         });
       }, 500);
       
-// Set up interval (reduced frequency - no live scores needed)
-intervalId = setInterval(() => {
-  console.log('⏱️ Auto-refresh triggered (occurs every 4 hours)');
-  loadAllSports(selectedSport, true); // Force refresh
-}, 4 * 60 * 60 * 1000); // 4 hours - no live scores needed
+    intervalId = setInterval(() => {
+      loadAllSports(selectedSport, true);
+    }, 4 * 60 * 60 * 1000);
     }
     
     return () => {
@@ -2672,10 +2463,8 @@ intervalId = setInterval(() => {
         clearInterval(intervalId);
       }
     };
-  }, [selectedSport, loadAllSports, setupFirebaseListener]); // Removed betType and refreshInterval from dependencies
+  }, [selectedSport, loadAllSports, setupFirebaseListener]);
 
-  // Auto-initialize default sport when user is logged in but no sport is selected
-  // CRITICAL: Do NOT auto-select for admins - let them stay on sport selection menu
   useEffect(() => {
     if (authState.user && !selectedSport && !authState.loading && userRole !== 'admin') {
       setSelectedSport('NFL');
@@ -2687,13 +2476,11 @@ intervalId = setInterval(() => {
     if (stored) setSubmissions(JSON.parse(stored));
   }, []);
 
-  // Load prop bets when component mounts or when viewing prop bets
   useEffect(() => {
     if (selectedSport === 'Prop Bets' && Object.keys(propBets).length === 0 && !propBetsLoading) {
       loadAllPropBets();
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedSport]);
+  }, [selectedSport, propBets, propBetsLoading]);
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -2713,24 +2500,21 @@ intervalId = setInterval(() => {
     }
   };
 
-  // Manual refresh handler
   const handleManualRefresh = async () => {
     setIsRefreshing(true);
     const sportToRefresh = currentViewSportRef.current || selectedSport;
-    await loadAllSports(sportToRefresh, true); // Force refresh
+    await loadAllSports(sportToRefresh, true);
     setIsRefreshing(false);
   };
 
-  // Sign out handler
   const handleSignOut = async () => {
     await signOut(auth);
     setUserRole(null);
-    setBetType('parlay'); // Reset to default parlay mode instead of null
+    setBetType('parlay');
     setSelectedSport(null);
     setShowAdminUserManagement(false);
   };
 
-  // Render UI
   if (authState.loading) return (
     <div className="gradient-bg" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh' }}>
       <div className="text-white" style={{ fontSize: '24px' }}>
@@ -2739,12 +2523,10 @@ intervalId = setInterval(() => {
     </div>
   );
 
-  // Show user management if admin selected it
   if (authState.user && authState.isAdmin && showAdminUserManagement) {
     return <UserManagement onBack={() => setShowAdminUserManagement(false)} />;
   }
 
-  // Show admin panel if logged in as admin and sport is selected
   if (authState.user && authState.isAdmin && selectedSport) {
     return <AdminPanel 
       user={authState.user} 
@@ -2763,7 +2545,6 @@ intervalId = setInterval(() => {
     />;
   }
 
-  // Show admin landing page if logged in as admin (no sport selected)
   if (authState.user && authState.isAdmin && !selectedSport) {
     return <AdminLandingPage 
       onSelectSport={(sport) => setSelectedSport(sport)}
@@ -2772,8 +2553,6 @@ intervalId = setInterval(() => {
     />;
   }
 
-  // Show user welcome screen if logged in as non-admin user
-  // Sport will be auto-selected by useEffect above
   if (authState.user && !authState.isAdmin && !selectedSport) {
     return (
       <div className="gradient-bg" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh' }}>
@@ -2784,12 +2563,10 @@ intervalId = setInterval(() => {
     );
   }
 
-  // Show role selection if not determined yet
   if (!userRole) {
     return <AuthLanding onSelectRole={(role) => setUserRole(role)} />;
   }
 
-  // Handle user login
   if (userRole === 'user' && !authState.user) {
     return (
       <div className="gradient-bg" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh' }}>
@@ -2832,7 +2609,6 @@ intervalId = setInterval(() => {
     );
   }
 
-  // Handle admin login
   if (userRole === 'admin' && !authState.user) {
     return (
       <div className="gradient-bg" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh' }}>
@@ -2875,7 +2651,6 @@ intervalId = setInterval(() => {
     );
   }
 
-  // Show loading while games are loading
   if (loading && !apiError) {
     return (
       <div className="gradient-bg" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh' }}>
@@ -2886,14 +2661,11 @@ intervalId = setInterval(() => {
     );
   }
 
-  // Show Sport-Specific Parlays page
   return <LandingPage 
     games={games} 
     allSportsGames={allSportsGames}
     currentViewSport={currentViewSport}
     onChangeSport={(sport) => {
-      console.log('🔄 Changing sport to:', sport);
-      
       if (sport === 'Prop Bets') {
         setCurrentViewSport('Prop Bets');
         currentViewSportRef.current = 'Prop Bets';
@@ -2925,7 +2697,6 @@ intervalId = setInterval(() => {
   />;
 }
 
-// Wrap App with ErrorBoundary
 function AppWithErrorBoundary() {
   return (
     <ErrorBoundary>
