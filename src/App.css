@@ -1,3 +1,4 @@
+
 /* Global Styles */
 * {
     margin: 0;
@@ -120,19 +121,6 @@ input[type="number"]:focus {
     border-color: #007bff;
     box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
 }
-/* Parlay wager input on betting slip */
-.parlay-wager-section {
-    margin-top: 16px;
-    padding-top: 16px;
-    border-top: 1px solid #e9ecef;
-}
-
-.parlay-wager-section label {
-    font-weight: bold;
-    display: block;
-    margin-bottom: 8px;
-}
-
 /* Modal */
 .modal {
     display: none;
