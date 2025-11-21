@@ -172,7 +172,7 @@ function transformOdds(games, sport, enableDebugLogs = false) {
           // Moneyline - one outcome per team
           market.outcomes.forEach((outcome) => {
             const entry = {
-              id: `${game.id}-${bookmaker.key}-h2h-${outcome.name}`,
+              id: `${game.id}-${bookmaker.key || bookmaker.title}-h2h-${outcome.name}`,
               sport: sport,
               gameTitle: gameTitle,
               gameId: game.id,
@@ -193,7 +193,7 @@ function transformOdds(games, sport, enableDebugLogs = false) {
           // Point Spreads - one outcome per team with point value
           market.outcomes.forEach((outcome) => {
             const entry = {
-              id: `${game.id}-${bookmaker.key}-spreads-${outcome.name}-${outcome.point}`,
+              id: `${game.id}-${bookmaker.key || bookmaker.title}-spreads-${outcome.name}-${outcome.point}`,
               sport: sport,
               gameTitle: gameTitle,
               gameId: game.id,
@@ -208,14 +208,15 @@ function transformOdds(games, sport, enableDebugLogs = false) {
             };
             oddsEntries.push(entry);
             if (enableDebugLogs) {
-              console.log(`      ✓ Added spread: ${outcome.name} ${outcome.point > 0 ? '+' : ''}${outcome.point} @ ${outcome.price}`);
+              const pointDisplay = outcome.point === 0 ? '0' : (outcome.point > 0 ? `+${outcome.point}` : `${outcome.point}`);
+              console.log(`      ✓ Added spread: ${outcome.name} ${pointDisplay} @ ${outcome.price}`);
             }
           });
         } else if (marketType === 'totals') {
           // Over/Under Totals - Over and Under outcomes with point value
           market.outcomes.forEach((outcome) => {
             const entry = {
-              id: `${game.id}-${bookmaker.key}-totals-${outcome.name}-${outcome.point}`,
+              id: `${game.id}-${bookmaker.key || bookmaker.title}-totals-${outcome.name}-${outcome.point}`,
               sport: sport,
               gameTitle: gameTitle,
               gameId: game.id,
