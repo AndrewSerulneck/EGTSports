@@ -867,7 +867,7 @@ const saveSubmission = async (submission) => {
     const submissionsRef = ref(database, `submissions/${submission.ticketNumber}`);
     await set(submissionsRef, submission);
     
-       const response = await fetch(GOOGLE_SHEET_URL, {
+    const response = await fetch(GOOGLE_SHEET_URL, {
       method: 'POST',
       headers: { 
         'Content-Type': 'application/json'
@@ -877,7 +877,11 @@ const saveSubmission = async (submission) => {
     
     const result = await response.json();
     
-       const submissionWithStatus = {
+    if (!result.success) {
+      console.error('Google Sheets error:', result.error);
+    }
+    
+    const submissionWithStatus = {
       ...submission,
       syncedToSheets: result.success,
       syncedAt: new Date().toISOString()
@@ -902,6 +906,7 @@ const saveSubmission = async (submission) => {
       console.warn('⚠️ Google Sheets sync may have failed, but submission is saved to Firebase');
     }
   }
+};
 };
         const newPick = {
           ...prevPick,
