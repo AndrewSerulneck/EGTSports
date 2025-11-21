@@ -864,6 +864,8 @@ function LandingPage({ games, allSportsGames, currentViewSport, onChangeSport, l
   }, [submissions, games, allSportsGames]);
 
 const saveSubmission = async (submission) => {
+  console.log('🔍 Google Sheet URL:', GOOGLE_SHEET_URL);  // ADD THIS LINE
+  console.log('📊 Submission data:', submission);   
   const allSubmissions = [...submissions, submission];
   setSubmissions(allSubmissions);
   localStorage.setItem('marcs-parlays-submissions', JSON.stringify(allSubmissions));
