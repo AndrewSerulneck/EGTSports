@@ -901,13 +901,12 @@ const saveSubmission = async (submission) => {
       });
       localStorage.setItem('failed-submissions', JSON.stringify(failedSubmissions));
       
-      alert('⚠️ Your bet was saved locally but may not have synced to our system. Please contact support with your ticket number: ' + submission.ticketNumber);
-    } else {
-      console.warn('⚠️ Google Sheets sync may have failed, but submission is saved to Firebase');
-    }
-  }
 };
 
+  const handleGridPickSelection = (gameId, pickType, value) => {
+    if (pickType === 'winner') {
+      setSelectedPicks(prev => {
+        const prevPick = prev[gameId] || {};
         const newPick = {
           ...prevPick,
           winner: prevPick.winner === value ? undefined : value,
@@ -942,6 +941,9 @@ const saveSubmission = async (submission) => {
     } else if (pickType === 'total') {
       toggleTotal(gameId, value);
     }
+  };
+
+  const handleRemovePick = (gameId, pickType) => {
   };
 
   const handleRemovePick = (gameId, pickType) => {
