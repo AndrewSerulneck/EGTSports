@@ -21,18 +21,6 @@ function SportsMenu({ currentSport, onSelectSport, allSportsGames, onSignOut, on
 
     const showPropBets = sortedSports.some(sport => ['NFL', 'NBA', 'College Football', 'College Basketball', 'NHL'].includes(sport));
 
-    const getSportDisplayName = (sport) => {
-        const sportNames = {
-            'NFL': 'NFL 🏈',
-            'College Football': 'CFB 🏈',
-            'NBA': 'NBA 🏀',
-            'College Basketball': 'CBB 🏀',
-            'Major League Baseball': 'MLB ⚾',
-            'NHL': 'NHL 🏒'
-        };
-        return sportNames[sport] || sport;
-    };
-
     return (
         <div className="sports-menu">
             <div className="sports-menu-content">
@@ -76,18 +64,6 @@ function MobileSportsMenu({ currentSport, onSelectSport, allSportsGames }) {
     const sortedSports = Object.keys(allSportsGames).filter(sport => sportOrder.includes(sport)).sort((a, b) => sportOrder.indexOf(a) - sportOrder.indexOf(b));
     const showPropBets = sortedSports.some(sport => ['NFL', 'NBA', 'College Football', 'College Basketball', 'NHL'].includes(sport));
 
-    const getSportDisplayName = (sport) => {
-        const sportNames = {
-            'NFL': 'NFL 🏈',
-            'College Football': 'CFB 🏈',
-            'NBA': 'NBA 🏀',
-            'College Basketball': 'CBB 🏀',
-            'Major League Baseball': 'MLB ⚾',
-            'NHL': 'NHL 🏒'
-        };
-        return sportNames[sport] || sport;
-    };
-
     return (
         <div className="mobile-sports-menu">
             {sortedSports.map(sport => (
@@ -120,6 +96,19 @@ const ESPN_API_ENDPOINTS = {
   'College Basketball': 'https://site.api.espn.com/apis/site/v2/sports/basketball/mens-college-basketball/scoreboard',
   'Major League Baseball': 'https://site.api.espn.com/apis/site/v2/sports/baseball/mlb/scoreboard',
   'NHL': 'https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard'
+};
+
+// Helper function to get sport display name with emoji
+const getSportDisplayName = (sport) => {
+  const sportNames = {
+    'NFL': 'NFL 🏈',
+    'College Football': 'CFB 🏈',
+    'NBA': 'NBA 🏀',
+    'College Basketball': 'CBB 🏀',
+    'Major League Baseball': 'MLB ⚾',
+    'NHL': 'NHL 🏒'
+  };
+  return sportNames[sport] || sport;
 };
 
 // Helper function to get date range URLs for ESPN API
