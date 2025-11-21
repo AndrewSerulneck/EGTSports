@@ -15,54 +15,59 @@ import GridBettingLayout from './components/GridBettingLayout';
 import PropBetsView from './components/PropBetsView';
 
 function SportsMenu({ currentSport, onSelectSport, allSportsGames, onSignOut, onManualRefresh, isRefreshing }) {
-  const sports = Object.keys(allSportsGames);
-  const showPropBets = sports.some(sport => ['NFL', 'NBA', 'College Football', 'College Basketball', 'NHL'].includes(sport));
+    const sportOrder = ['NFL', 'College Football', 'NBA', 'College Basketball', 'Major League Baseball', 'NHL'];
+    
+    // Filter and sort the sports based on the defined order
+    const sortedSports = Object.keys(allSportsGames).filter(sport => sportOrder.includes(sport)).sort((a, b) => sportOrder.indexOf(a) - sportOrder.indexOf(b));
 
-  return (
-    <div className="sports-menu">
-      <div className="sports-menu-content">
-        <h2 className="sports-menu-title">Sports Menu</h2>
-        <div className="sports-menu-buttons">
-          {sports.map(sport => (
-            <button 
-              key={sport} 
-              className={`menu-button ${currentSport === sport ? 'active' : ''}`}
-              onClick={() => onSelectSport(sport)}
-            >
-              <span>{sport}</span>
-              <span className="game-count">({allSportsGames[sport] ? allSportsGames[sport].length : 0})</span>
-            </button>
-          ))}
-          {showPropBets && (
-            <button 
-              key="prop-bets"
-              className={`menu-button ${currentSport === 'Prop Bets' ? 'active' : ''}`}
-              onClick={() => onSelectSport('Prop Bets')}
-            >
-              Prop Bets
-            </button>
-          )}
+    const showPropBets = sortedSports.some(sport => ['NFL', 'NBA', 'College Football', 'College Basketball', 'NHL'].includes(sport));
+
+    return (
+        <div className="sports-menu">
+            <div className="sports-menu-content">
+                <h2 className="sports-menu-title">Sports Menu</h2>
+                <div className="sports-menu-buttons">
+                    {sortedSports.map(sport => (
+                        <button
+                            key={sport}
+                            className={`menu-button ${currentSport === sport ? 'active' : ''}`}
+                            onClick={() => onSelectSport(sport)}
+                        >
+                            <span>{sport}</span>
+                            <span className="game-count">({allSportsGames[sport] ? allSportsGames[sport].length : 0})</span>
+                        </button>
+                    ))}
+                    {showPropBets && (
+                        <button
+                            key="prop-bets"
+                            className={`menu-button ${currentSport === 'Prop Bets' ? 'active' : ''}`}
+                            onClick={() => onSelectSport('Prop Bets')}
+                        >
+                            Prop Bets
+                        </button>
+                    )}
+                </div>
+                <div className="sports-menu-actions">
+                    <button onClick={onManualRefresh} disabled={isRefreshing} className="btn btn-info">
+                        {isRefreshing ? '🔄 Refreshing...' : '🔄 Refresh Games'}
+                    </button>
+                    <button onClick={onSignOut} className="btn btn-secondary">
+                        🚪 Sign Out
+                    </button>
+                </div>
+            </div>
         </div>
-        <div className="sports-menu-actions">
-          <button onClick={onManualRefresh} disabled={isRefreshing} className="btn btn-info">
-            {isRefreshing ? '🔄 Refreshing...' : '🔄 Refresh Games'}
-          </button>
-          <button onClick={onSignOut} className="btn btn-secondary">
-            🚪 Sign Out
-          </button>
-        </div>
-      </div>
-    </div>
-  );
+    );
 }
 
 function MobileSportsMenu({ currentSport, onSelectSport, allSportsGames }) {
-    const sports = Object.keys(allSportsGames);
-    const showPropBets = sports.some(sport => ['NFL', 'NBA', 'College Football', 'College Basketball', 'NHL'].includes(sport));
+    const sportOrder = ['NFL', 'College Football', 'NBA', 'College Basketball', 'Major League Baseball', 'NHL'];
+    const sortedSports = Object.keys(allSportsGames).filter(sport => sportOrder.includes(sport)).sort((a, b) => sportOrder.indexOf(a) - sportOrder.indexOf(b));
+    const showPropBets = sortedSports.some(sport => ['NFL', 'NBA', 'College Football', 'College Basketball', 'NHL'].includes(sport));
 
     return (
         <div className="mobile-sports-menu">
-            {sports.map(sport => (
+            {sortedSports.map(sport => (
                 <button
                     key={sport}
                     className={`mobile-menu-button ${currentSport === sport ? 'active' : ''}`}
@@ -1717,21 +1722,6 @@ Email: ${contactInfo.email}`;
             <label>Email *</label>
             <input type="email" value={contactInfo.email} onChange={(e) => setContactInfo({...contactInfo, email: e.target.value})} />
 
-            {betType === 'parlay' && (
-              <>
-                <label>Bet Amount * (Min $1, Max ${MAX_BET})</label>
-                <input 
-                  type="number" 
-                  value={contactInfo.betAmount} 
-                  onChange={(e) => setContactInfo({...contactInfo, betAmount: e.target.value})} 
-                  placeholder={`Enter amount ($1 - $${MAX_BET})`}
-                  min="1"
-                  max={MAX_BET}
-                  step="0.01"
-                />
-              </>
-            )}
-            
             <button className="btn btn-success" onClick={handleCheckoutSubmit} style={{width: '100%', fontSize: '18px', marginTop: '16px'}}>
               Send Me My Confirmation Ticket
             </button>
