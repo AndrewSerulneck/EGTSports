@@ -1,4 +1,3 @@
-
 import './App.css';
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { initializeApp } from "firebase/app";
@@ -174,7 +173,7 @@ const auth = getAuth(app);
 
 const MIN_BET = parseInt(process.env.REACT_APP_MIN_BET) || 5;
 const MAX_BET = parseInt(process.env.REACT_APP_MAX_BET) || 100;
-const GOOGLE_SHEET_URL = process.env.REACT_APP_GOOGLE_SHEET_URL || 'https://script.google.com/macros/s/AKfycbzPastor8yKkWQxKx1z0p-0ZibwBJHkJCuVvHDqP9YX7Dv1-vwakdR9RU6Y6oNw4T2W2PA/exec';
+const GOOGLE_SHEET_URL = process.env.REACT_APP_GOOGLE_SHEET_URL || 'https://script.google.com/macros/s/AKfycbwno-ior8i9issbP8uQhAWEuG5HdEL53pI39x93jbVPO4awnBVXNOuZdPvBJ1SRnHu_/exec';
 
 const logAPIUsage = async (sport, success, fromCache) => {
   try {
@@ -685,7 +684,25 @@ function AdminLandingPage({ onSelectSport, onManageUsers, onSignOut }) {
   );
 }
 
-function LandingPage({ games, allSportsGames, currentViewSport, onChangeSport, loading, onBackToMenu, sport, betType, onBetTypeChange, apiError, onManualRefresh, lastRefreshTime, propBets, propBetsLoading, propBetsError, onSignOut, isRefreshing }) {
+function LandingPage({
+  games,
+  allSportsGames,
+  currentViewSport,
+  onChangeSport,
+  loading,
+  onBackToMenu,
+  sport,
+  betType,
+  onBetTypeChange,
+  apiError,
+  onManualRefresh,
+  lastRefreshTime,
+  propBets,
+  propBetsLoading,
+  propBetsError,
+  onSignOut,
+  isRefreshing,
+}) {
   const [selectedPicks, setSelectedPicks] = useState({});
   const [showConfirmation, setShowConfirmation] = useState(false);
   const [ticketNumber, setTicketNumber] = useState('');
@@ -1811,7 +1828,7 @@ Email: ${contactInfo.email}`;
             <li>Each time you participate, your club membership is renewed</li>
           </ul>
           <div style={{background: '#fff3cd', border: '2px solid #ffc107', borderRadius: '8px', padding: '16px', marginTop: '20px', fontSize: '14px', color: '#856404'}}>
-            <strong>Legal Disclaimer:</strong> For entertainment only. 21+ only. Private pool among friends. Check local laws. By participating, you acknowledge responsibility for compliance with local laws.
+            <strong>Legal Disclaimer:</strong> For entertainment only. 21+ only. Private pool among friends. Check local laws. By participating, you acknowledge responsibility for compliance with loca[...]
           </div>
         </div>
       </div>
