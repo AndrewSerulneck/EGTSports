@@ -1,3 +1,4 @@
+// Forcing a new Vercel build to read updated environment variables.
 import './App.css';
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { initializeApp } from "firebase/app";
@@ -2531,7 +2532,7 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
 
   const handleManualRefresh = async () => {
     setIsRefreshing(true);
-    const sportToRefresh = currentViewSportRef.current || selectedSport;
+s    const sportToRefresh = currentViewSportRef.current || selectedSport;
     await loadAllSports(sportToRefresh, true);
     setIsRefreshing(false);
   };
