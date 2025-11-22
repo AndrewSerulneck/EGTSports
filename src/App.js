@@ -867,21 +867,51 @@ const saveSubmission = async (submission) => {
   setSubmissions(allSubmissions);
   localStorage.setItem('marcs-parlays-submissions', JSON.stringify(allSubmissions));
 
+  let firebaseSaved = false;
+  let sheetsSaved = false;
+  
+  // Step 1: Save to Firebase (critical)
   try {
     const submissionsRef = ref(database, `submissions/${submission.ticketNumber}`);
     await set(submissionsRef, submission);
+    firebaseSaved = true;
+    console.log('✅ Submission saved to Firebase:', submission.ticketNumber);
+  } catch (firebaseError) {
+    console.error('❌ Firebase save failed:', firebaseError);
+    
+    // Firebase failure is critical - store locally for retry
+    const failedSubmissions = JSON.parse(localStorage.getItem('failed-submissions') || '[]');
+    failedSubmissions.push({
+      ...submission,
+      failedAt: new Date().toISOString(),
+      error: firebaseError.message,
+      errorType: 'firebase'
+    });
+    localStorage.setItem('failed-submissions', JSON.stringify(failedSubmissions));
+    
+    alert('⚠️ Your bet was saved locally but could not sync to our system. Please contact support with your ticket number: ' + submission.ticketNumber);
+    return; // Don't proceed to Google Sheets if Firebase failed
+  }
+  
+  // Step 2: Sync to Google Sheets (optional but important)
+  try {
+    console.log('📊 Attempting Google Sheets sync for:', submission.ticketNumber);
+    console.log('📊 Google Sheets URL:', GOOGLE_SHEET_URL);
+    console.log('📊 Submission data:', JSON.stringify(submission, null, 2));
     
     const response = await fetch(GOOGLE_SHEET_URL, {
       method: 'POST',
+      mode: 'no-cors', // Use no-cors mode to avoid CORS preflight issues
       headers: { 
         'Content-Type': 'application/json'
       },
       body: JSON.stringify(submission)
     });
     
-    if (!response.ok) {
-      throw new Error(`Failed to save to Google Sheets: ${response.status} ${response.statusText}`);
-    }
+    // Note: With mode: 'no-cors', response will be opaque and we can't check response.ok
+    // We assume success if no exception was thrown
+    sheetsSaved = true;
+    console.log('✅ Google Sheets sync completed for:', submission.ticketNumber);
     
     const submissionWithStatus = {
       ...submission,
@@ -891,22 +921,36 @@ const saveSubmission = async (submission) => {
     
     localStorage.setItem(`submission-${submission.ticketNumber}`, JSON.stringify(submissionWithStatus));
     
-  } catch (error) {
-    console.error('❌ Error in saveSubmission:', error);
+  } catch (sheetsError) {
+    console.error('❌ Google Sheets sync failed:', sheetsError);
+    console.error('Error type:', sheetsError.name);
+    console.error('Error message:', sheetsError.message);
     
-    if (error.message.includes('Firebase') || error.message.includes('database')) {
-      const failedSubmissions = JSON.parse(localStorage.getItem('failed-submissions') || '[]');
-      failedSubmissions.push({
-        ...submission,
-        failedAt: new Date().toISOString(),
-        error: error.message
-      });
-      localStorage.setItem('failed-submissions', JSON.stringify(failedSubmissions));
-      
-      alert('⚠️ Your bet was saved locally but may not have synced to our system. Please contact support with your ticket number: ' + submission.ticketNumber);
-    } else {
-      console.warn('⚠️ Google Sheets sync may have failed, but submission is saved to Firebase');
+    // Identify the type of error
+    let errorType = 'unknown';
+    if (sheetsError.message.includes('Failed to fetch')) {
+      errorType = 'cors_or_network';
+      console.error('🔍 DIAGNOSIS: This is likely a CORS error or network failure.');
+      console.error('🔍 SOLUTION: Check that the Google Apps Script is deployed as a web app with access set to "Anyone".');
+      console.error('🔍 SOLUTION: Verify the GOOGLE_SHEET_URL environment variable is set correctly in Vercel.');
+    } else if (sheetsError.message.includes('NetworkError')) {
+      errorType = 'network';
+      console.error('🔍 DIAGNOSIS: Network connectivity issue.');
     }
+    
+    // Store failed Google Sheets sync for potential retry
+    const failedSheetsSyncs = JSON.parse(localStorage.getItem('failed-sheets-syncs') || '[]');
+    failedSheetsSyncs.push({
+      ticketNumber: submission.ticketNumber,
+      submission: submission,
+      failedAt: new Date().toISOString(),
+      error: sheetsError.message,
+      errorType: errorType
+    });
+    localStorage.setItem('failed-sheets-syncs', JSON.stringify(failedSheetsSyncs));
+    
+    console.warn('⚠️ Google Sheets sync failed, but submission is saved to Firebase');
+    console.warn('⚠️ Failed sync stored in localStorage for potential retry');
   }
 };
 
