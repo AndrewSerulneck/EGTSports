@@ -11,7 +11,6 @@
  */
 module.exports = async (req, res) => {
   // Enable CORS
-  res.setHeader('Access-Control-Allow-Credentials', true);
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST,OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'X-Requested-With, Content-Type, Accept');
@@ -64,13 +63,15 @@ module.exports = async (req, res) => {
       });
     }
 
+    // Read response body as text first, then parse as JSON
+    const responseText = await googleResponse.text();
+    
     // Parse the JSON response from Google Apps Script
     let responseData;
     try {
-      responseData = await googleResponse.json();
+      responseData = JSON.parse(responseText);
     } catch (parseError) {
       // Handle case where Google Apps Script returns non-JSON response
-      const responseText = await googleResponse.text();
       console.error('Google Script returned non-JSON response:', responseText);
       return res.status(500).json({
         success: false,
