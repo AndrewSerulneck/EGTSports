@@ -9,7 +9,19 @@
  * 3. Forwards the JSON payload from the client directly to the Google Apps Script.
  * 4. Returns the response (and status) from Google back to the client, effectively bypassing browser CORS restrictions.
  */
-export default async function handler(req, res) {
+module.exports = async (req, res) => {
+  // Enable CORS
+  res.setHeader('Access-Control-Allow-Credentials', true);
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'POST,OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'X-Requested-With, Content-Type, Accept');
+
+  // Handle OPTIONS request for CORS
+  if (req.method === 'OPTIONS') {
+    res.status(200).end();
+    return;
+  }
+
   // Ensure the request is a POST request
   if (req.method !== 'POST') {
     res.setHeader('Allow', ['POST']);
