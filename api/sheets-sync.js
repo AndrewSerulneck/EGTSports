@@ -31,11 +31,11 @@ const googleScriptUrl = process.env.REACT_APP_GOOGLE_SHEET_URL;
   }
 
   // Retrieve the secure URL from Vercel's environment variables
-  const googleScriptUrl = process.env.GOOGLE_SCRIPT_URL;
+  const googleScriptUrl = process.env.REACT_APP_GOOGLE_SHEET_URL;
 
   // Validate that the environment variable is set
   if (!googleScriptUrl) {
-    console.error('CRITICAL: GOOGLE_SCRIPT_URL environment variable is not set.');
+    console.error('CRITICAL: REACT_APP_GOOGLE_SHEET_URL environment variable');
     return res.status(500).json({
       success: false,
       message: 'Server configuration error: Sync endpoint is not configured.',
