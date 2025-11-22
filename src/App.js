@@ -909,8 +909,8 @@ const saveSubmission = async (submission) => {
     
     // Note: With mode: 'no-cors', response is opaque and we can't verify success
     // We assume success if no exception was thrown during the fetch
-    console.log('✅ Google Sheets sync request sent for:', submission.ticketNumber);
-    console.log('ℹ️ Note: Cannot verify success due to no-cors mode. Check Google Sheets to confirm.');
+    console.log('📊 Google Sheets sync request attempted for:', submission.ticketNumber);
+    console.log('ℹ️ Note: Cannot verify success due to no-cors mode. Check Google Sheets to confirm data was received.');
     
     const submissionWithStatus = {
       ...submission,
