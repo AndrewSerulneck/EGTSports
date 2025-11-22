@@ -113,11 +113,12 @@ const getSportDisplayName = (sport) => {
 };
 
 // Helper function to get date range URLs for ESPN API
+// Fetches events from 1 day in the past to 7 days in the future
 const getESPNDateRangeURLs = (baseURL) => {
   const urls = [];
   const today = new Date();
   
-  for (let i = -1; i <= 14; i++) {
+  for (let i = -1; i <= 7; i++) {
     const date = new Date(today);
     date.setDate(date.getDate() + i);
     const dateStr = date.toISOString().split('T')[0].replace(/-/g, ''); // Format: YYYYMMDD
@@ -763,6 +764,7 @@ function LandingPage({ games, allSportsGames, currentViewSport, onChangeSport, l
   
   const checkoutCalculations = React.useMemo(() => 
       getBetCalculations(betType, selectedPicks, games, allSportsGames, individualBetAmounts, contactInfo.betAmount),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [betType, selectedPicks, games, allSportsGames, individualBetAmounts, contactInfo.betAmount]
   );
   
@@ -898,7 +900,7 @@ const saveSubmission = async (submission) => {
     // Using mode: 'no-cors' to work around CORS issues with Google Apps Script
     // Trade-off: We can't verify the response, but this prevents CORS preflight errors
     // The Google Apps Script must be properly configured to handle the POST request
-    const response = await fetch(GOOGLE_SHEET_URL, {
+    await fetch(GOOGLE_SHEET_URL, {
       method: 'POST',
       mode: 'no-cors',
       headers: { 
@@ -2479,8 +2481,16 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
           error: "",
         });
         
-        if (!isAdmin) {
-            loadAllSports('NFL', true);
+        // Priority-based role routing: Admin role always takes precedence
+        // If user has admin privileges, clear any non-admin role selection
+        if (isAdmin) {
+          // Ensure admin users don't get stuck in user mode
+          if (userRole === 'user') {
+            setUserRole('admin');
+          }
+        } else {
+          // Non-admin users: load sports data
+          loadAllSports('NFL', true);
         }
 
       } else {
@@ -2493,7 +2503,7 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
       }
     });
     return unsub;
-  }, [loadAllSports]);
+  }, [loadAllSports, userRole]);
 
   useEffect(() => {
     let intervalId = null;
@@ -2532,6 +2542,7 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
     if (selectedSport === 'Prop Bets' && Object.keys(propBets).length === 0 && !propBetsLoading) {
       loadAllPropBets();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedSport, propBets, propBetsLoading]);
 
   const handleLogin = async (e) => {
@@ -2560,11 +2571,54 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
   };
 
   const handleSignOut = async () => {
-    await signOut(auth);
-    setUserRole(null);
-    setBetType('parlay');
-    setSelectedSport(null);
-    setShowAdminUserManagement(false);
+    try {
+      // Step 1: Sign out from Firebase
+      await signOut(auth);
+      
+      // Step 2: Clear all client-side authentication state
+      // Clear localStorage items related to authentication
+      const keysToRemove = [];
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        // Clear any auth-related keys (but preserve submission data)
+        if (key && (key.includes('firebase') || key.includes('auth') || key.includes('token'))) {
+          keysToRemove.push(key);
+        }
+      }
+      keysToRemove.forEach(key => localStorage.removeItem(key));
+      
+      // Clear sessionStorage completely
+      sessionStorage.clear();
+      
+      // Step 3: Reset all application state to initial values
+      setUserRole(null);
+      setBetType('parlay');
+      setSelectedSport(null);
+      setShowAdminUserManagement(false);
+      setGames([]);
+      setAllSportsGames({});
+      setCurrentViewSport(null);
+      currentViewSportRef.current = null;
+      
+      // Step 4: Reset auth state explicitly
+      setAuthState({
+        loading: false,
+        user: null,
+        isAdmin: false,
+        error: "",
+      });
+      
+    } catch (error) {
+      console.error('Error during sign out:', error);
+      // Even if there's an error, clear local state
+      setUserRole(null);
+      setAuthState({
+        loading: false,
+        user: null,
+        isAdmin: false,
+        error: "",
+      });
+    }
   };
 
   if (authState.loading) return (
@@ -2575,6 +2629,8 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
     </div>
   );
 
+  // Priority-based routing: Admin users always get admin interface
+  // This ensures users with both admin and user roles are always routed to admin dashboard
   if (authState.user && authState.isAdmin && showAdminUserManagement) {
     return <UserManagement onBack={() => setShowAdminUserManagement(false)} />;
   }
