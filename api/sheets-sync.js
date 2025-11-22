@@ -30,14 +30,14 @@ export default async function handler(req, res) {
 
   try {
     // Forward the entire request body to the Google Apps Script URL
+    // Note: Vercel serverless functions have a 10-second execution timeout on Hobby plan,
+    // 60 seconds on Pro. If Google Apps Script responses are slower, consider upgrading.
     const googleResponse = await fetch(googleScriptUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify(req.body),
-      // Google Apps Script can be slow, so a longer timeout might be needed.
-      // fetch in Node.js doesn't have a direct timeout, but platforms like Vercel have execution limits.
     });
 
     // Check if the fetch itself was successful
@@ -52,8 +52,20 @@ export default async function handler(req, res) {
       });
     }
 
-    // Assuming the Google Script returns JSON, parse it and send it back to the client.
-    const responseData = await googleResponse.json();
+    // Parse the JSON response from Google Apps Script
+    let responseData;
+    try {
+      responseData = await googleResponse.json();
+    } catch (parseError) {
+      // Handle case where Google Apps Script returns non-JSON response
+      const responseText = await googleResponse.text();
+      console.error('Google Script returned non-JSON response:', responseText);
+      return res.status(500).json({
+        success: false,
+        message: 'Invalid response format from Google Sheets sync service.',
+        details: 'Expected JSON response',
+      });
+    }
 
     // Return the successful response from Google back to the original client
     return res.status(200).json(responseData);
