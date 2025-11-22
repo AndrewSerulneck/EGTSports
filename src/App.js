@@ -2532,7 +2532,7 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
 
   const handleManualRefresh = async () => {
     setIsRefreshing(true);
-s    const sportToRefresh = currentViewSportRef.current || selectedSport;
+    const sportToRefresh = currentViewSportRef.current || selectedSport;
     await loadAllSports(sportToRefresh, true);
     setIsRefreshing(false);
   };
