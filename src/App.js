@@ -173,7 +173,6 @@ const auth = getAuth(app);
 
 const MIN_BET = parseInt(process.env.REACT_APP_MIN_BET) || 5;
 const MAX_BET = parseInt(process.env.REACT_APP_MAX_BET) || 100;
-const GOOGLE_SHEET_URL = process.env.REACT_APP_GOOGLE_SHEET_URL || 'https://script.google.com/macros/s/AKfycbzPastor8yKkWQxKx1z0p-0ZibwBJHkJCuVvHDqP9YX7Dv1-vwakdR9RU6Y6oNw4T2W2PA/exec';
 
 const logAPIUsage = async (sport, success, fromCache) => {
   try {
@@ -213,9 +212,8 @@ const updateSubmissionStatus = async (submission, status, wins, losses, pickCoun
       payout: status === 'won' ? (submission.betAmount * getPayoutMultiplier(pickCount)) : 0
     };
     
-    await fetch(GOOGLE_SHEET_URL, {
+    await fetch('/api/sheets-sync', {
       method: 'POST',
-      mode: 'no-cors',
       headers: { 
         'Content-Type': 'application/json'
       },
@@ -867,9 +865,8 @@ const saveSubmission = async (submission) => {
     const submissionsRef = ref(database, `submissions/${submission.ticketNumber}`);
     await set(submissionsRef, submission);
     
-    await fetch(GOOGLE_SHEET_URL, {
+    await fetch('/api/sheets-sync', {
       method: 'POST',
-      mode: 'no-cors',
       headers: { 
         'Content-Type': 'application/json'
       },
