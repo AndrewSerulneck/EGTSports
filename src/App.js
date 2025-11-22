@@ -1,4 +1,4 @@
-
+// Forcing a new Vercel build to read updated environment variables.
 import './App.css';
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { initializeApp } from "firebase/app";
@@ -174,7 +174,7 @@ const auth = getAuth(app);
 
 const MIN_BET = parseInt(process.env.REACT_APP_MIN_BET) || 5;
 const MAX_BET = parseInt(process.env.REACT_APP_MAX_BET) || 100;
-const GOOGLE_SHEET_URL = process.env.REACT_APP_GOOGLE_SHEET_URL || 'https://script.google.com/macros/s/AKfycbzPastor8yKkWQxKx1z0p-0ZibwBJHkJCuVvHDqP9YX7Dv1-vwakdR9RU6Y6oNw4T2W2PA/exec';
+const GOOGLE_SHEET_URL = process.env.REACT_APP_GOOGLE_SHEET_URL || 'https://script.google.com/macros/s/AKfycbwno-ior8i9issbP8uQhAWEuG5HdEL53pI39x93jbVPO4awnBVXNOuZdPvBJ1SRnHu_/exec';
 
 const logAPIUsage = async (sport, success, fromCache) => {
   try {
@@ -216,7 +216,6 @@ const updateSubmissionStatus = async (submission, status, wins, losses, pickCoun
     
     await fetch(GOOGLE_SHEET_URL, {
       method: 'POST',
-      mode: 'no-cors',
       headers: { 
         'Content-Type': 'application/json'
       },
@@ -685,7 +684,25 @@ function AdminLandingPage({ onSelectSport, onManageUsers, onSignOut }) {
   );
 }
 
-function LandingPage({ games, allSportsGames, currentViewSport, onChangeSport, loading, onBackToMenu, sport, betType, onBetTypeChange, apiError, onManualRefresh, lastRefreshTime, propBets, propBetsLoading, propBetsError, onSignOut, isRefreshing }) {
+function LandingPage({
+  games,
+  allSportsGames,
+  currentViewSport,
+  onChangeSport,
+  loading,
+  onBackToMenu,
+  sport,
+  betType,
+  onBetTypeChange,
+  apiError,
+  onManualRefresh,
+  lastRefreshTime,
+  propBets,
+  propBetsLoading,
+  propBetsError,
+  onSignOut,
+  isRefreshing,
+}) {
   const [selectedPicks, setSelectedPicks] = useState({});
   const [showConfirmation, setShowConfirmation] = useState(false);
   const [ticketNumber, setTicketNumber] = useState('');
@@ -865,41 +882,50 @@ const saveSubmission = async (submission) => {
   localStorage.setItem('marcs-parlays-submissions', JSON.stringify(allSubmissions));
 
   try {
+    // First, save to Firebase as a reliable backup
     const submissionsRef = ref(database, `submissions/${submission.ticketNumber}`);
     await set(submissionsRef, submission);
-    
-    await fetch(GOOGLE_SHEET_URL, {
+
+    // Then, attempt to send to Google Sheets
+    const response = await fetch(GOOGLE_SHEET_URL, {
       method: 'POST',
-      mode: 'no-cors',
-      headers: { 
+      headers: {
         'Content-Type': 'application/json'
       },
       body: JSON.stringify(submission)
     });
-    
+
+    if (!response.ok) {
+      // The request was made, but the server responded with an error status (e.g., 4xx, 5xx)
+      const errorBody = await response.text(); // Get more details from the response body
+      throw new Error(`Google Sheets sync failed: ${response.status} ${response.statusText}. Response: ${errorBody}`);
+    }
+
+    // If the fetch is successful, update local storage to reflect sync status
     const submissionWithStatus = {
       ...submission,
       syncedToSheets: true,
       syncedAt: new Date().toISOString()
     };
-    
     localStorage.setItem(`submission-${submission.ticketNumber}`, JSON.stringify(submissionWithStatus));
-    
+
   } catch (error) {
     console.error('❌ Error in saveSubmission:', error);
-    
-    if (error.message.includes('Firebase') || error.message.includes('database')) {
-      const failedSubmissions = JSON.parse(localStorage.getItem('failed-submissions') || '[]');
-      failedSubmissions.push({
-        ...submission,
-        failedAt: new Date().toISOString(),
-        error: error.message
-      });
-      localStorage.setItem('failed-submissions', JSON.stringify(failedSubmissions));
-      
-      alert('⚠️ Your bet was saved locally but may not have synced to our system. Please contact support with your ticket number: ' + submission.ticketNumber);
+
+    // Save failed submissions to local storage for manual recovery
+    const failedSubmissions = JSON.parse(localStorage.getItem('failed-submissions') || '[]' );
+    failedSubmissions.push({
+      ...submission,
+      failedAt: new Date().toISOString(),
+      error: error.message
+    });
+    localStorage.setItem('failed-submissions', JSON.stringify(failedSubmissions));
+
+    // Alert the user with a specific message
+    if (error.message.includes('Google Sheets') || error.name === 'TypeError') { // TypeError is often a network/CORS error
+      alert('⚠️ Your bet has been saved, but there was an issue sending it to the Google Sheet. Please contact support with your ticket number: ' + submission.ticketNumber);
     } else {
-      console.warn('⚠️ Google Sheets sync may have failed, but submission is saved to Firebase');
+      alert('⚠️ Your bet was saved locally but may not have fully synced to our system. Please contact support with your ticket number: ' + submission.ticketNumber);
     }
   }
 };
@@ -1090,42 +1116,57 @@ const saveSubmission = async (submission) => {
         const team = pickObj.spread === 'away' ? game.awayTeam : game.homeTeam;
         const spread = pickObj.spread === 'away' ? game.awaySpread : game.homeSpread;
         
-        picksFormatted.push({
+        const pick = {
           gameId: game.espnId,
           gameName: gameName + sportLabel,
           sport: game.sport,
           pickType: 'spread',
           team,
           spread,
-          pickedTeamType: pickObj.spread,
-          betAmount: betType === 'straight' ? parseFloat(individualBetAmounts[getPickId(gameId, 'spread')]) : undefined
-        });
+          pickedTeamType: pickObj.spread
+        };
+
+        if (betType === 'straight') {
+          pick.betAmount = parseFloat(individualBetAmounts[getPickId(gameId, 'spread')]);
+        }
+        
+        picksFormatted.push(pick);
       }
        if (pickObj.winner) {
         const team = pickObj.winner === 'away' ? game.awayTeam : game.homeTeam;
         const moneyline = pickObj.winner === 'away' ? game.awayMoneyline : game.homeMoneyline;
         
-        picksFormatted.push({
+        const pick = {
           gameId: game.espnId,
           gameName: gameName + sportLabel,
           sport: game.sport,
           pickType: 'winner',
           team,
           moneyline,
-          pickedTeamType: pickObj.winner,
-          betAmount: betType === 'straight' ? parseFloat(individualBetAmounts[getPickId(gameId, 'winner')]) : undefined
-        });
+          pickedTeamType: pickObj.winner
+        };
+
+        if (betType === 'straight') {
+            pick.betAmount = parseFloat(individualBetAmounts[getPickId(gameId, 'winner')]);
+        }
+
+        picksFormatted.push(pick);
       }
       if (pickObj.total) {
-        picksFormatted.push({
+        const pick = {
           gameId: game.espnId,
           gameName: gameName + sportLabel,
           sport: game.sport,
           pickType: 'total',
           overUnder: pickObj.total,
-          total: game.total,
-          betAmount: betType === 'straight' ? parseFloat(individualBetAmounts[getPickId(gameId, 'total')]) : undefined
-        });
+          total: game.total
+        };
+
+        if (betType === 'straight') {
+            pick.betAmount = parseFloat(individualBetAmounts[getPickId(gameId, 'total')]);
+        }
+
+        picksFormatted.push(pick);
       }
     });
 
@@ -1145,7 +1186,7 @@ const saveSubmission = async (submission) => {
       sport: betType === 'parlay' ? 'Multi-Sport' : sport,
       betType: betType
     };
-    saveSubmission(submission);
+    await saveSubmission(submission);
     
     try {
       await fetch('https://api.egtsports.ws/api/send-ticket-confirmation', {
