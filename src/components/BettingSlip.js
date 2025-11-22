@@ -21,8 +21,27 @@ function BettingSlip({
   MIN_BET,
   MAX_BET
 }) {
-  const [isExpanded, setIsExpanded] = useState(true);
+  // Check if we're on mobile (viewport width <= 768px)
+  const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
+  
+  // On mobile, start collapsed; on desktop, start expanded
+  const [isExpanded, setIsExpanded] = useState(!isMobile);
   const [activeTab, setActiveTab] = useState(betType === 'straight' ? 'single' : 'parlay');
+
+  // Update isMobile on window resize
+  useEffect(() => {
+    const handleResize = () => {
+      const mobile = window.innerWidth <= 768;
+      setIsMobile(mobile);
+      // If transitioning from mobile to desktop, expand the slip
+      if (!mobile && !isExpanded) {
+        setIsExpanded(true);
+      }
+    };
+    
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, [isExpanded]);
 
   // Sync activeTab when betType changes externally
   useEffect(() => {

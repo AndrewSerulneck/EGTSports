@@ -2534,6 +2534,14 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
     }
   }, [authState.user, authState.loading, userRole, selectedSport]);
 
+  // Load games when admin selects a sport
+  useEffect(() => {
+    if (authState.isAdmin && selectedSport && selectedSport !== 'Prop Bets') {
+      // Load the selected sport's games for admin to manage
+      loadAllSports(selectedSport, false);
+    }
+  }, [authState.isAdmin, selectedSport, loadAllSports]);
+
   useEffect(() => {
     const stored = localStorage.getItem('marcs-parlays-submissions');
     if (stored) setSubmissions(JSON.parse(stored));
