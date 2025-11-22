@@ -866,15 +866,11 @@ const saveSubmission = async (submission) => {
   const allSubmissions = [...submissions, submission];
   setSubmissions(allSubmissions);
   localStorage.setItem('marcs-parlays-submissions', JSON.stringify(allSubmissions));
-
-  let firebaseSaved = false;
-  let sheetsSaved = false;
   
   // Step 1: Save to Firebase (critical)
   try {
     const submissionsRef = ref(database, `submissions/${submission.ticketNumber}`);
     await set(submissionsRef, submission);
-    firebaseSaved = true;
     console.log('✅ Submission saved to Firebase:', submission.ticketNumber);
   } catch (firebaseError) {
     console.error('❌ Firebase save failed:', firebaseError);
@@ -899,19 +895,22 @@ const saveSubmission = async (submission) => {
     console.log('📊 Google Sheets URL:', GOOGLE_SHEET_URL);
     console.log('📊 Submission data:', JSON.stringify(submission, null, 2));
     
+    // Using mode: 'no-cors' to work around CORS issues with Google Apps Script
+    // Trade-off: We can't verify the response, but this prevents CORS preflight errors
+    // The Google Apps Script must be properly configured to handle the POST request
     const response = await fetch(GOOGLE_SHEET_URL, {
       method: 'POST',
-      mode: 'no-cors', // Use no-cors mode to avoid CORS preflight issues
+      mode: 'no-cors',
       headers: { 
         'Content-Type': 'application/json'
       },
       body: JSON.stringify(submission)
     });
     
-    // Note: With mode: 'no-cors', response will be opaque and we can't check response.ok
-    // We assume success if no exception was thrown
-    sheetsSaved = true;
-    console.log('✅ Google Sheets sync completed for:', submission.ticketNumber);
+    // Note: With mode: 'no-cors', response is opaque and we can't verify success
+    // We assume success if no exception was thrown during the fetch
+    console.log('✅ Google Sheets sync request sent for:', submission.ticketNumber);
+    console.log('ℹ️ Note: Cannot verify success due to no-cors mode. Check Google Sheets to confirm.');
     
     const submissionWithStatus = {
       ...submission,
@@ -941,7 +940,6 @@ const saveSubmission = async (submission) => {
     // Store failed Google Sheets sync for potential retry
     const failedSheetsSyncs = JSON.parse(localStorage.getItem('failed-sheets-syncs') || '[]');
     failedSheetsSyncs.push({
-      ticketNumber: submission.ticketNumber,
       submission: submission,
       failedAt: new Date().toISOString(),
       error: sheetsError.message,
