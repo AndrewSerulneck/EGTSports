@@ -21,22 +21,29 @@ function BettingSlip({
   MIN_BET,
   MAX_BET
 }) {
-  // Check if we're on mobile (viewport width <= 768px)
-  const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
-  
   // On mobile, start collapsed; on desktop, start expanded
-  const [isExpanded, setIsExpanded] = useState(!isMobile);
+  // Default to expanded for SSR safety, then update on mount
+  const [isExpanded, setIsExpanded] = useState(true);
   const [activeTab, setActiveTab] = useState(betType === 'straight' ? 'single' : 'parlay');
 
-  // Update isMobile on window resize
+  // Detect mobile on mount and set initial expanded state
   useEffect(() => {
+    const isMobile = typeof window !== 'undefined' && window.innerWidth <= 768;
+    setIsExpanded(!isMobile);
+  }, []);
+
+  // Update expanded state on window resize
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    
     const handleResize = () => {
-      const mobile = window.innerWidth <= 768;
-      setIsMobile(mobile);
+      const isMobile = window.innerWidth <= 768;
       // If transitioning from mobile to desktop, expand the slip
-      if (!mobile && !isExpanded) {
+      if (!isMobile && !isExpanded) {
         setIsExpanded(true);
       }
+      // If on mobile and expanded, optionally collapse (maintain user choice)
+      // We don't auto-collapse on mobile to respect user preference
     };
     
     window.addEventListener('resize', handleResize);
