@@ -215,7 +215,6 @@ const updateSubmissionStatus = async (submission, status, wins, losses, pickCoun
     
     await fetch(GOOGLE_SHEET_URL, {
       method: 'POST',
-      mode: 'no-cors',
       headers: { 
         'Content-Type': 'application/json'
       },
@@ -882,41 +881,50 @@ const saveSubmission = async (submission) => {
   localStorage.setItem('marcs-parlays-submissions', JSON.stringify(allSubmissions));
 
   try {
+    // First, save to Firebase as a reliable backup
     const submissionsRef = ref(database, `submissions/${submission.ticketNumber}`);
     await set(submissionsRef, submission);
-    
-    await fetch(GOOGLE_SHEET_URL, {
+
+    // Then, attempt to send to Google Sheets
+    const response = await fetch(GOOGLE_SHEET_URL, {
       method: 'POST',
-      mode: 'no-cors',
-      headers: { 
+      headers: {
         'Content-Type': 'application/json'
       },
       body: JSON.stringify(submission)
     });
-    
+
+    if (!response.ok) {
+      // The request was made, but the server responded with an error status (e.g., 4xx, 5xx)
+      const errorBody = await response.text(); // Get more details from the response body
+      throw new Error(`Google Sheets sync failed: ${response.status} ${response.statusText}. Response: ${errorBody}`);
+    }
+
+    // If the fetch is successful, update local storage to reflect sync status
     const submissionWithStatus = {
       ...submission,
       syncedToSheets: true,
       syncedAt: new Date().toISOString()
     };
-    
     localStorage.setItem(`submission-${submission.ticketNumber}`, JSON.stringify(submissionWithStatus));
-    
+
   } catch (error) {
     console.error('❌ Error in saveSubmission:', error);
-    
-    if (error.message.includes('Firebase') || error.message.includes('database')) {
-      const failedSubmissions = JSON.parse(localStorage.getItem('failed-submissions') || '[]');
-      failedSubmissions.push({
-        ...submission,
-        failedAt: new Date().toISOString(),
-        error: error.message
-      });
-      localStorage.setItem('failed-submissions', JSON.stringify(failedSubmissions));
-      
-      alert('⚠️ Your bet was saved locally but may not have synced to our system. Please contact support with your ticket number: ' + submission.ticketNumber);
+
+    // Save failed submissions to local storage for manual recovery
+    const failedSubmissions = JSON.parse(localStorage.getItem('failed-submissions') || '[]' );
+    failedSubmissions.push({
+      ...submission,
+      failedAt: new Date().toISOString(),
+      error: error.message
+    });
+    localStorage.setItem('failed-submissions', JSON.stringify(failedSubmissions));
+
+    // Alert the user with a specific message
+    if (error.message.includes('Google Sheets') || error.name === 'TypeError') { // TypeError is often a network/CORS error
+      alert('⚠️ Your bet has been saved, but there was an issue sending it to the Google Sheet. Please contact support with your ticket number: ' + submission.ticketNumber);
     } else {
-      console.warn('⚠️ Google Sheets sync may have failed, but submission is saved to Firebase');
+      alert('⚠️ Your bet was saved locally but may not have fully synced to our system. Please contact support with your ticket number: ' + submission.ticketNumber);
     }
   }
 };
@@ -1828,7 +1836,7 @@ Email: ${contactInfo.email}`;
             <li>Each time you participate, your club membership is renewed</li>
           </ul>
           <div style={{background: '#fff3cd', border: '2px solid #ffc107', borderRadius: '8px', padding: '16px', marginTop: '20px', fontSize: '14px', color: '#856404'}}>
-            <strong>Legal Disclaimer:</strong> For entertainment only. 21+ only. Private pool among friends. Check local laws. By participating, you acknowledge responsibility for compliance with loca[...]
+            <strong>Legal Disclaimer:</strong> For entertainment only. 21+ only. Private pool among friends. Check local laws. By participating, you acknowledge responsibility for compliance with local laws.
           </div>
         </div>
       </div>
