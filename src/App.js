@@ -764,6 +764,7 @@ function LandingPage({ games, allSportsGames, currentViewSport, onChangeSport, l
   
   const checkoutCalculations = React.useMemo(() => 
       getBetCalculations(betType, selectedPicks, games, allSportsGames, individualBetAmounts, contactInfo.betAmount),
+    // getBetCalculations is defined in the same scope and doesn't need to be in deps
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [betType, selectedPicks, games, allSportsGames, individualBetAmounts, contactInfo.betAmount]
   );
@@ -898,8 +899,8 @@ const saveSubmission = async (submission) => {
     console.log('📊 Submission data:', JSON.stringify(submission, null, 2));
     
     // Using mode: 'no-cors' to work around CORS issues with Google Apps Script
-    // Trade-off: We can't verify the response, but this prevents CORS preflight errors
-    // The Google Apps Script must be properly configured to handle the POST request
+    // Note: With no-cors mode, the response is opaque and cannot be inspected
+    // The fetch will only throw if there's a network error, not for HTTP errors
     await fetch(GOOGLE_SHEET_URL, {
       method: 'POST',
       mode: 'no-cors',
@@ -909,8 +910,8 @@ const saveSubmission = async (submission) => {
       body: JSON.stringify(submission)
     });
     
-    // Note: With mode: 'no-cors', response is opaque and we can't verify success
-    // We assume success if no exception was thrown during the fetch
+    // The request was sent successfully (no exception thrown)
+    // We cannot verify if Google Sheets received it due to no-cors mode
     console.log('📊 Google Sheets sync request attempted for:', submission.ticketNumber);
     console.log('ℹ️ Note: Cannot verify success due to no-cors mode. Check Google Sheets to confirm data was received.');
     
@@ -2542,6 +2543,7 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
     if (selectedSport === 'Prop Bets' && Object.keys(propBets).length === 0 && !propBetsLoading) {
       loadAllPropBets();
     }
+    // loadAllPropBets is a stable function reference and doesn't need to be in deps
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedSport, propBets, propBetsLoading]);
 
