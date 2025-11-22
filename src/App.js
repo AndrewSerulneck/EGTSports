@@ -866,22 +866,51 @@ const saveSubmission = async (submission) => {
   const allSubmissions = [...submissions, submission];
   setSubmissions(allSubmissions);
   localStorage.setItem('marcs-parlays-submissions', JSON.stringify(allSubmissions));
-
+  
+  // Step 1: Save to Firebase (critical)
   try {
     const submissionsRef = ref(database, `submissions/${submission.ticketNumber}`);
     await set(submissionsRef, submission);
+    console.log('✅ Submission saved to Firebase:', submission.ticketNumber);
+  } catch (firebaseError) {
+    console.error('❌ Firebase save failed:', firebaseError);
     
+    // Firebase failure is critical - store locally for retry
+    const failedSubmissions = JSON.parse(localStorage.getItem('failed-submissions') || '[]');
+    failedSubmissions.push({
+      ...submission,
+      failedAt: new Date().toISOString(),
+      error: firebaseError.message,
+      errorType: 'firebase'
+    });
+    localStorage.setItem('failed-submissions', JSON.stringify(failedSubmissions));
+    
+    alert('⚠️ Your bet was saved locally but could not sync to our system. Please contact support with your ticket number: ' + submission.ticketNumber);
+    return; // Don't proceed to Google Sheets if Firebase failed
+  }
+  
+  // Step 2: Sync to Google Sheets (optional but important)
+  try {
+    console.log('📊 Attempting Google Sheets sync for:', submission.ticketNumber);
+    console.log('📊 Google Sheets URL:', GOOGLE_SHEET_URL);
+    console.log('📊 Submission data:', JSON.stringify(submission, null, 2));
+    
+    // Using mode: 'no-cors' to work around CORS issues with Google Apps Script
+    // Trade-off: We can't verify the response, but this prevents CORS preflight errors
+    // The Google Apps Script must be properly configured to handle the POST request
     const response = await fetch(GOOGLE_SHEET_URL, {
       method: 'POST',
+      mode: 'no-cors',
       headers: { 
         'Content-Type': 'application/json'
       },
       body: JSON.stringify(submission)
     });
     
-    if (!response.ok) {
-      throw new Error(`Failed to save to Google Sheets: ${response.status} ${response.statusText}`);
-    }
+    // Note: With mode: 'no-cors', response is opaque and we can't verify success
+    // We assume success if no exception was thrown during the fetch
+    console.log('📊 Google Sheets sync request attempted for:', submission.ticketNumber);
+    console.log('ℹ️ Note: Cannot verify success due to no-cors mode. Check Google Sheets to confirm data was received.');
     
     const submissionWithStatus = {
       ...submission,
@@ -891,22 +920,35 @@ const saveSubmission = async (submission) => {
     
     localStorage.setItem(`submission-${submission.ticketNumber}`, JSON.stringify(submissionWithStatus));
     
-  } catch (error) {
-    console.error('❌ Error in saveSubmission:', error);
+  } catch (sheetsError) {
+    console.error('❌ Google Sheets sync failed:', sheetsError);
+    console.error('Error type:', sheetsError.name);
+    console.error('Error message:', sheetsError.message);
     
-    if (error.message.includes('Firebase') || error.message.includes('database')) {
-      const failedSubmissions = JSON.parse(localStorage.getItem('failed-submissions') || '[]');
-      failedSubmissions.push({
-        ...submission,
-        failedAt: new Date().toISOString(),
-        error: error.message
-      });
-      localStorage.setItem('failed-submissions', JSON.stringify(failedSubmissions));
-      
-      alert('⚠️ Your bet was saved locally but may not have synced to our system. Please contact support with your ticket number: ' + submission.ticketNumber);
-    } else {
-      console.warn('⚠️ Google Sheets sync may have failed, but submission is saved to Firebase');
+    // Identify the type of error
+    let errorType = 'unknown';
+    if (sheetsError.message.includes('Failed to fetch')) {
+      errorType = 'cors_or_network';
+      console.error('🔍 DIAGNOSIS: This is likely a CORS error or network failure.');
+      console.error('🔍 SOLUTION: Check that the Google Apps Script is deployed as a web app with access set to "Anyone".');
+      console.error('🔍 SOLUTION: Verify the GOOGLE_SHEET_URL environment variable is set correctly in Vercel.');
+    } else if (sheetsError.message.includes('NetworkError')) {
+      errorType = 'network';
+      console.error('🔍 DIAGNOSIS: Network connectivity issue.');
     }
+    
+    // Store failed Google Sheets sync for potential retry
+    const failedSheetsSyncs = JSON.parse(localStorage.getItem('failed-sheets-syncs') || '[]');
+    failedSheetsSyncs.push({
+      submission: submission,
+      failedAt: new Date().toISOString(),
+      error: sheetsError.message,
+      errorType: errorType
+    });
+    localStorage.setItem('failed-sheets-syncs', JSON.stringify(failedSheetsSyncs));
+    
+    console.warn('⚠️ Google Sheets sync failed, but submission is saved to Firebase');
+    console.warn('⚠️ Failed sync stored in localStorage for potential retry');
   }
 };
 
@@ -1096,42 +1138,57 @@ const saveSubmission = async (submission) => {
         const team = pickObj.spread === 'away' ? game.awayTeam : game.homeTeam;
         const spread = pickObj.spread === 'away' ? game.awaySpread : game.homeSpread;
         
-        picksFormatted.push({
+        const pick = {
           gameId: game.espnId,
           gameName: gameName + sportLabel,
           sport: game.sport,
           pickType: 'spread',
           team,
           spread,
-          pickedTeamType: pickObj.spread,
-          betAmount: betType === 'straight' ? parseFloat(individualBetAmounts[getPickId(gameId, 'spread')]) : undefined
-        });
+          pickedTeamType: pickObj.spread
+        };
+        
+        if (betType === 'straight') {
+          pick.betAmount = parseFloat(individualBetAmounts[getPickId(gameId, 'spread')]);
+        }
+        
+        picksFormatted.push(pick);
       }
        if (pickObj.winner) {
         const team = pickObj.winner === 'away' ? game.awayTeam : game.homeTeam;
         const moneyline = pickObj.winner === 'away' ? game.awayMoneyline : game.homeMoneyline;
         
-        picksFormatted.push({
+        const pick = {
           gameId: game.espnId,
           gameName: gameName + sportLabel,
           sport: game.sport,
           pickType: 'winner',
           team,
           moneyline,
-          pickedTeamType: pickObj.winner,
-          betAmount: betType === 'straight' ? parseFloat(individualBetAmounts[getPickId(gameId, 'winner')]) : undefined
-        });
+          pickedTeamType: pickObj.winner
+        };
+        
+        if (betType === 'straight') {
+          pick.betAmount = parseFloat(individualBetAmounts[getPickId(gameId, 'winner')]);
+        }
+        
+        picksFormatted.push(pick);
       }
       if (pickObj.total) {
-        picksFormatted.push({
+        const pick = {
           gameId: game.espnId,
           gameName: gameName + sportLabel,
           sport: game.sport,
           pickType: 'total',
           overUnder: pickObj.total,
-          total: game.total,
-          betAmount: betType === 'straight' ? parseFloat(individualBetAmounts[getPickId(gameId, 'total')]) : undefined
-        });
+          total: game.total
+        };
+        
+        if (betType === 'straight') {
+          pick.betAmount = parseFloat(individualBetAmounts[getPickId(gameId, 'total')]);
+        }
+        
+        picksFormatted.push(pick);
       }
     });
 
