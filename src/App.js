@@ -1115,42 +1115,57 @@ const saveSubmission = async (submission) => {
         const team = pickObj.spread === 'away' ? game.awayTeam : game.homeTeam;
         const spread = pickObj.spread === 'away' ? game.awaySpread : game.homeSpread;
         
-        picksFormatted.push({
+        const pick = {
           gameId: game.espnId,
           gameName: gameName + sportLabel,
           sport: game.sport,
           pickType: 'spread',
           team,
           spread,
-          pickedTeamType: pickObj.spread,
-          betAmount: betType === 'straight' ? parseFloat(individualBetAmounts[getPickId(gameId, 'spread')]) : undefined
-        });
+          pickedTeamType: pickObj.spread
+        };
+
+        if (betType === 'straight') {
+          pick.betAmount = parseFloat(individualBetAmounts[getPickId(gameId, 'spread')]);
+        }
+        
+        picksFormatted.push(pick);
       }
        if (pickObj.winner) {
         const team = pickObj.winner === 'away' ? game.awayTeam : game.homeTeam;
         const moneyline = pickObj.winner === 'away' ? game.awayMoneyline : game.homeMoneyline;
         
-        picksFormatted.push({
+        const pick = {
           gameId: game.espnId,
           gameName: gameName + sportLabel,
           sport: game.sport,
           pickType: 'winner',
           team,
           moneyline,
-          pickedTeamType: pickObj.winner,
-          betAmount: betType === 'straight' ? parseFloat(individualBetAmounts[getPickId(gameId, 'winner')]) : undefined
-        });
+          pickedTeamType: pickObj.winner
+        };
+
+        if (betType === 'straight') {
+            pick.betAmount = parseFloat(individualBetAmounts[getPickId(gameId, 'winner')]);
+        }
+
+        picksFormatted.push(pick);
       }
       if (pickObj.total) {
-        picksFormatted.push({
+        const pick = {
           gameId: game.espnId,
           gameName: gameName + sportLabel,
           sport: game.sport,
           pickType: 'total',
           overUnder: pickObj.total,
-          total: game.total,
-          betAmount: betType === 'straight' ? parseFloat(individualBetAmounts[getPickId(gameId, 'total')]) : undefined
-        });
+          total: game.total
+        };
+
+        if (betType === 'straight') {
+            pick.betAmount = parseFloat(individualBetAmounts[getPickId(gameId, 'total')]);
+        }
+
+        picksFormatted.push(pick);
       }
     });
 
@@ -1170,7 +1185,7 @@ const saveSubmission = async (submission) => {
       sport: betType === 'parlay' ? 'Multi-Sport' : sport,
       betType: betType
     };
-    saveSubmission(submission);
+    await saveSubmission(submission);
     
     try {
       await fetch('https://api.egtsports.ws/api/send-ticket-confirmation', {
