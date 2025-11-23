@@ -1,57 +1,61 @@
 import { render, screen, waitFor } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
 import userEvent from '@testing-library/user-event';
 import App from './App';
 
+// Helper to render App with Router
+const renderApp = () => {
+  return render(
+    <MemoryRouter>
+      <App />
+    </MemoryRouter>
+  );
+};
+
 test('renders auth landing page with role selection', async () => {
-  render(<App />);
+  renderApp();
   const headingElement = await screen.findByText(/Welcome to EGT Sports/i);
   expect(headingElement).toBeInTheDocument();
-  expect(screen.getByRole('button', { name: /Member login/i })).toBeInTheDocument();
-  expect(screen.getByRole('button', { name: /Continue as Guest/i })).toBeInTheDocument();
-  expect(screen.getByRole('button', { name: /Login as Admin/i })).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: /Member Login/i })).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: /Admin Login/i })).toBeInTheDocument();
 });
 
-test('guest flow shows bet type selection', async () => {
-  render(<App />);
-  const guestButton = await screen.findByRole('button', { name: /Continue as Guest/i });
-  await userEvent.click(guestButton);
+test('clicking Member Login shows login form', async () => {
+  renderApp();
+  const memberButton = await screen.findByRole('button', { name: /Member Login/i });
+  await userEvent.click(memberButton);
   
-  // Should now show bet type selection
+  // Should navigate to login page
   await waitFor(() => {
-    expect(screen.getByText(/Choose Your Bet Type/i)).toBeInTheDocument();
+    expect(screen.getByText(/User Login/i)).toBeInTheDocument();
   });
-  expect(screen.getByRole('button', { name: /Straight Bets/i })).toBeInTheDocument();
-  expect(screen.getByRole('button', { name: /Parlays/i })).toBeInTheDocument();
+  expect(screen.getByPlaceholderText(/Email/i)).toBeInTheDocument();
+  expect(screen.getByPlaceholderText(/Password/i)).toBeInTheDocument();
 });
 
-test('selecting parlay shows sport selection', async () => {
-  render(<App />);
-  const guestButton = await screen.findByRole('button', { name: /Continue as Guest/i });
-  await userEvent.click(guestButton);
+test('clicking Admin Login shows admin login form', async () => {
+  renderApp();
+  const adminButton = await screen.findByRole('button', { name: /Admin Login/i });
+  await userEvent.click(adminButton);
   
-  const parlayButton = await screen.findByRole('button', { name: /Parlays/i });
-  await userEvent.click(parlayButton);
-  
-  // Should now show sport selection with all sports available
+  // Should navigate to admin login page
   await waitFor(() => {
-    expect(screen.getByText(/Select a sport to get started/i)).toBeInTheDocument();
+    expect(screen.getByText(/Admin Login/i)).toBeInTheDocument();
   });
-  expect(screen.getByRole('button', { name: /NFL/i })).toBeInTheDocument();
-  expect(screen.getByRole('button', { name: /NBA/i })).toBeInTheDocument();
+  expect(screen.getByPlaceholderText(/Admin Email/i)).toBeInTheDocument();
+  expect(screen.getByPlaceholderText(/Password/i)).toBeInTheDocument();
 });
 
-test('all sports are enabled', async () => {
-  render(<App />);
-  const guestButton = await screen.findByRole('button', { name: /Continue as Guest/i });
-  await userEvent.click(guestButton);
+test('login form has back button', async () => {
+  renderApp();
+  const memberButton = await screen.findByRole('button', { name: /Member Login/i });
+  await userEvent.click(memberButton);
   
-  const parlayButton = await screen.findByRole('button', { name: /Parlays/i });
-  await userEvent.click(parlayButton);
-  
-  // All sport buttons should be enabled
   await waitFor(() => {
-    expect(screen.getByRole('button', { name: /NFL/i })).toBeEnabled();
+    expect(screen.getByText(/User Login/i)).toBeInTheDocument();
   });
-  expect(screen.getByRole('button', { name: /NBA/i })).toBeEnabled();
-  expect(screen.getByRole('button', { name: /NHL/i })).toBeEnabled();
+  
+  // Should have a back button
+  const backButton = screen.getByRole('button', { name: /Back/i });
+  expect(backButton).toBeInTheDocument();
 });

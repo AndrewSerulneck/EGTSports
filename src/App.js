@@ -1,6 +1,7 @@
 
 import './App.css';
 import React, { useState, useEffect, useCallback, useRef } from "react";
+import { Routes, Route, useNavigate, useParams, Navigate } from 'react-router-dom';
 import { initializeApp } from "firebase/app";
 import { getDatabase, ref, set, onValue, push } from "firebase/database";
 import {
@@ -147,6 +148,8 @@ const PROP_BETS_CACHE_DURATION = 2 * 60 * 60 * 1000;
 const CACHE_DURATION = 6 * 60 * 60 * 1000;
 const COLLEGE_BASKETBALL_CACHE_DURATION = 6 * 60 * 60 * 1000;
 const ODDS_API_CACHE_DURATION = 12 * 60 * 60 * 1000;
+const DATA_REFRESH_INTERVAL = 4 * 60 * 60 * 1000; // 4 hours
+const FIREBASE_LISTENER_SETUP_DELAY = 500; // ms
 
 const gameCache = {};
 const oddsAPICache = {};
@@ -594,7 +597,8 @@ function AdminPanel({ user, games, setGames, isSyncing, setIsSyncing, recentlyUp
   );
 }
 
-function AdminLandingPage({ onSelectSport, onManageUsers, onViewSubmissions, onSignOut }) {
+function AdminLandingPage({ onManageUsers, onViewSubmissions, onSignOut }) {
+  const navigate = useNavigate();
   const sports = [
     { name: 'NFL', available: true },
     { name: 'NBA', available: true },
@@ -673,7 +677,7 @@ function AdminLandingPage({ onSelectSport, onManageUsers, onViewSubmissions, onS
               <button
                 key={sport.name}
                 className="btn"
-                onClick={() => sport.available && onSelectSport(sport.name)}
+                onClick={() => sport.available && navigate(`/admin/${sport.name}`)}
                 disabled={!sport.available}
                 style={{
                   padding: '32px 24px',
@@ -2171,7 +2175,120 @@ class ErrorBoundary extends React.Component {
   }
 }
 
+// Route wrapper components
+function AdminSportRoute({ 
+  authState, 
+  games, 
+  setGames, 
+  isSyncing, 
+  setIsSyncing, 
+  recentlyUpdated, 
+  setRecentlyUpdated, 
+  submissions, 
+  allSportsGames,
+  loadAllSports 
+}) {
+  const navigate = useNavigate();
+  const { sport } = useParams();
+  
+  // Load games for the selected sport
+  useEffect(() => {
+    if (sport && sport !== 'Prop Bets') {
+      loadAllSports(sport, false);
+    }
+  }, [sport, loadAllSports]);
+  
+  const sportGames = allSportsGames[sport] || [];
+  
+  return (
+    <AdminPanel
+      user={authState.user}
+      games={sportGames}
+      setGames={setGames}
+      isSyncing={isSyncing}
+      setIsSyncing={setIsSyncing}
+      recentlyUpdated={recentlyUpdated}
+      setRecentlyUpdated={setRecentlyUpdated}
+      submissions={submissions}
+      sport={sport}
+      onBackToMenu={() => navigate('/admin/dashboard')}
+    />
+  );
+}
+
+function MemberSportRoute({
+  games,
+  allSportsGames,
+  betType,
+  onBetTypeChange,
+  loading,
+  apiError,
+  onManualRefresh,
+  lastRefreshTime,
+  onSignOut,
+  isRefreshing,
+  propBets,
+  propBetsLoading,
+  propBetsError,
+  setCurrentViewSport,
+  currentViewSportRef,
+  setGames,
+  loadAllPropBets
+}) {
+  const { sport } = useParams();
+  const navigate = useNavigate();
+  
+  useEffect(() => {
+    if (sport === 'prop-bets') {
+      setCurrentViewSport('Prop Bets');
+      currentViewSportRef.current = 'Prop Bets';
+      setGames([]);
+      if (Object.keys(propBets).length === 0 && !propBetsLoading) {
+        loadAllPropBets();
+      }
+    } else {
+      const gamesForSport = allSportsGames[sport] || [];
+      setCurrentViewSport(sport);
+      currentViewSportRef.current = sport;
+      setGames(gamesForSport);
+    }
+  }, [sport, allSportsGames, propBets, propBetsLoading, setCurrentViewSport, currentViewSportRef, setGames, loadAllPropBets]);
+  
+  const currentSport = sport === 'prop-bets' ? 'Prop Bets' : sport;
+  
+  const handleChangeSport = (newSport) => {
+    if (newSport === 'Prop Bets') {
+      navigate('/member/prop-bets');
+    } else {
+      navigate(`/member/${newSport}`);
+    }
+  };
+  
+  return (
+    <LandingPage
+      games={games}
+      allSportsGames={allSportsGames}
+      currentViewSport={currentSport}
+      onChangeSport={handleChangeSport}
+      loading={loading}
+      onBackToMenu={onSignOut}
+      sport={currentSport}
+      betType={betType}
+      onBetTypeChange={onBetTypeChange}
+      apiError={apiError}
+      onManualRefresh={onManualRefresh}
+      lastRefreshTime={lastRefreshTime}
+      onSignOut={onSignOut}
+      isRefreshing={isRefreshing}
+      propBets={propBets}
+      propBetsLoading={propBetsLoading}
+      propBetsError={propBetsError}
+    />
+  );
+}
+
 function App() {
+  const navigate = useNavigate();
   const [authState, setAuthState] = useState({
     loading: true,
     user: null,
@@ -2179,8 +2296,6 @@ function App() {
     error: "",
   });
   const [userRole, setUserRole] = useState(null);
-  const [showAdminUserManagement, setShowAdminUserManagement] = useState(false);
-  const [showAdminSubmissions, setShowAdminSubmissions] = useState(false);
   const [betType, setBetType] = useState('parlay');
   const [loginForm, setLoginForm] = useState({
     email: "",
@@ -2188,6 +2303,7 @@ function App() {
   });
   const [games, setGames] = useState([]);
   const [allSportsGames, setAllSportsGames] = useState({});
+  // eslint-disable-next-line no-unused-vars
   const [currentViewSport, setCurrentViewSport] = useState(null);
   const currentViewSportRef = useRef(null);
   const [loading, setLoading] = useState(true);
@@ -2196,7 +2312,6 @@ function App() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [recentlyUpdated, setRecentlyUpdated] = useState({});
   const [submissions, setSubmissions] = useState([]);
-  const [selectedSport, setSelectedSport] = useState(null);
   const [lastRefreshTime, setLastRefreshTime] = useState(null);
 
   const [propBets, setPropBets] = useState({});
@@ -2716,53 +2831,39 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
   }, [loadAllSports, userRole]);
 
   useEffect(() => {
-    let intervalId = null;
+    // Setup Firebase listeners for all sports after a short delay
+    // to ensure Firebase is fully initialized
+    const timeoutId = setTimeout(() => {
+      Object.keys(ESPN_API_ENDPOINTS).forEach(sport => {
+        setupFirebaseListener(sport);
+      });
+    }, FIREBASE_LISTENER_SETUP_DELAY);
     
-    if (selectedSport) {
-      setTimeout(() => {
-        Object.keys(ESPN_API_ENDPOINTS).forEach(sport => {
-          setupFirebaseListener(sport);
-        });
-      }, 500);
-      
-    intervalId = setInterval(() => {
-      loadAllSports(selectedSport, true);
-    }, 4 * 60 * 60 * 1000);
-    }
+    // Refresh data periodically
+    const intervalId = setInterval(() => {
+      const currentSport = currentViewSportRef.current;
+      if (currentSport) {
+        loadAllSports(currentSport, true);
+      }
+    }, DATA_REFRESH_INTERVAL);
     
     return () => {
-      if (intervalId) {
-        clearInterval(intervalId);
-      }
+      clearTimeout(timeoutId);
+      clearInterval(intervalId);
     };
-  }, [selectedSport, loadAllSports, setupFirebaseListener]);
+  }, [loadAllSports, setupFirebaseListener]);
 
   useEffect(() => {
-    if (authState.user && !selectedSport && !authState.loading && userRole !== 'admin') {
-      setSelectedSport('NFL');
+    // Load initial data for non-admin users
+    if (authState.user && !authState.loading && !authState.isAdmin) {
+      loadAllSports('NFL', true);
     }
-  }, [authState.user, authState.loading, userRole, selectedSport]);
-
-  // Load games when admin selects a sport
-  useEffect(() => {
-    if (authState.isAdmin && selectedSport && selectedSport !== 'Prop Bets') {
-      // Load the selected sport's games for admin to manage
-      loadAllSports(selectedSport, false);
-    }
-  }, [authState.isAdmin, selectedSport, loadAllSports]);
+  }, [authState.user, authState.loading, authState.isAdmin, loadAllSports]);
 
   useEffect(() => {
     const stored = localStorage.getItem('marcs-parlays-submissions');
     if (stored) setSubmissions(JSON.parse(stored));
   }, []);
-
-  useEffect(() => {
-    if (selectedSport === 'Prop Bets' && Object.keys(propBets).length === 0 && !propBetsLoading) {
-      loadAllPropBets();
-    }
-    // loadAllPropBets is a stable function reference and doesn't need to be in deps
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedSport, propBets, propBetsLoading]);
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -2802,8 +2903,12 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
         return;
       }
       
-      // Login successful with correct role
-      // The onAuthStateChanged handler will update authState
+      // Login successful with correct role - navigate to appropriate dashboard
+      if (isActuallyAdmin) {
+        navigate('/admin/dashboard');
+      } else {
+        navigate('/member/NFL');
+      }
       
     } catch (err) {
       setAuthState((a) => ({
@@ -2816,8 +2921,10 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
 
   const handleManualRefresh = async () => {
     setIsRefreshing(true);
-    const sportToRefresh = currentViewSportRef.current || selectedSport;
-    await loadAllSports(sportToRefresh, true);
+    const sportToRefresh = currentViewSportRef.current;
+    if (sportToRefresh) {
+      await loadAllSports(sportToRefresh, true);
+    }
     setIsRefreshing(false);
   };
 
@@ -2857,9 +2964,6 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
       // Step 4: Reset all application state to initial values
       setUserRole(null);
       setBetType('parlay');
-      setSelectedSport(null);
-      setShowAdminUserManagement(false);
-      setShowAdminSubmissions(false);
       setGames([]);
       setAllSportsGames({});
       setCurrentViewSport(null);
@@ -2894,197 +2998,202 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
     }
   };
 
-  if (authState.loading) return (
-    <div className="gradient-bg" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh' }}>
-      <div className="text-white" style={{ fontSize: '24px' }}>
-        Loading...
+  if (authState.loading) {
+    return (
+      <div className="gradient-bg" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh' }}>
+        <div className="text-white" style={{ fontSize: '24px' }}>
+          Loading...
+        </div>
       </div>
-    </div>
+    );
+  }
+
+  return (
+    <Routes>
+      {/* Root - Role selection or redirect */}
+      <Route path="/" element={
+        !userRole ? (
+          <AuthLanding onSelectRole={(role) => {
+            setUserRole(role);
+            navigate(role === 'admin' ? '/login/admin' : '/login/user');
+          }} />
+        ) : authState.user ? (
+          <Navigate to={authState.isAdmin ? '/admin/dashboard' : '/member/NFL'} replace />
+        ) : (
+          <Navigate to={userRole === 'admin' ? '/login/admin' : '/login/user'} replace />
+        )
+      } />
+
+      {/* Login routes */}
+      <Route path="/login/user" element={
+        authState.user ? (
+          <Navigate to="/member/NFL" replace />
+        ) : (
+          <div className="gradient-bg" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh' }}>
+            <div className="card" style={{ maxWidth: '400px', width: '100%', margin: '0 auto', padding: 40 }}>
+              <h2 className="text-center mb-4">User Login</h2>
+              <form onSubmit={handleLogin} style={{ maxWidth: 300, margin: 'auto' }}>
+                <input
+                  type="email"
+                  placeholder="Email"
+                  required
+                  value={loginForm.email}
+                  onChange={(e) => setLoginForm((f) => ({ ...f, email: e.target.value }))}
+                />
+                <input
+                  type="password"
+                  placeholder="Password"
+                  required
+                  value={loginForm.password}
+                  onChange={(e) => setLoginForm((f) => ({ ...f, password: e.target.value }))}
+                />
+                <button className="btn btn-primary" type="submit" style={{ width: '100%', marginBottom: '12px' }}>Login</button>
+                <button 
+                  className="btn btn-secondary" 
+                  type="button" 
+                  onClick={() => { setUserRole(null); navigate('/'); }} 
+                  style={{ width: '100%' }}
+                >
+                  Back
+                </button>
+                {authState.error && (
+                  <div style={{ color: "red", marginTop: 10, textAlign: 'center' }}>{authState.error}</div>
+                )}
+              </form>
+            </div>
+          </div>
+        )
+      } />
+
+      <Route path="/login/admin" element={
+        authState.user ? (
+          <Navigate to="/admin/dashboard" replace />
+        ) : (
+          <div className="gradient-bg" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh' }}>
+            <div className="card" style={{ maxWidth: '400px', width: '100%', margin: '0 auto', padding: 40 }}>
+              <h2 className="text-center mb-4">Admin Login</h2>
+              <form onSubmit={handleLogin} style={{ maxWidth: 300, margin: 'auto' }}>
+                <input
+                  type="email"
+                  placeholder="Admin Email"
+                  required
+                  value={loginForm.email}
+                  onChange={(e) => setLoginForm((f) => ({ ...f, email: e.target.value }))}
+                />
+                <input
+                  type="password"
+                  placeholder="Password"
+                  required
+                  value={loginForm.password}
+                  onChange={(e) => setLoginForm((f) => ({ ...f, password: e.target.value }))}
+                />
+                <button className="btn btn-primary" type="submit" style={{ width: '100%', marginBottom: '12px' }}>Login</button>
+                <button 
+                  className="btn btn-secondary" 
+                  type="button" 
+                  onClick={() => { setUserRole(null); navigate('/'); }} 
+                  style={{ width: '100%' }}
+                >
+                  Back
+                </button>
+                {authState.error && (
+                  <div style={{ color: "red", marginTop: 10, textAlign: 'center' }}>{authState.error}</div>
+                )}
+              </form>
+            </div>
+          </div>
+        )
+      } />
+
+      {/* Admin routes - require authentication */}
+      <Route path="/admin/dashboard" element={
+        !authState.user || !authState.isAdmin ? (
+          <Navigate to="/login/admin" replace />
+        ) : (
+          <AdminLandingPage
+            onManageUsers={() => navigate('/admin/users')}
+            onViewSubmissions={() => navigate('/admin/submissions')}
+            onSignOut={handleSignOut}
+          />
+        )
+      } />
+
+      <Route path="/admin/users" element={
+        !authState.user || !authState.isAdmin ? (
+          <Navigate to="/login/admin" replace />
+        ) : (
+          <UserManagement onBack={() => navigate('/admin/dashboard')} />
+        )
+      } />
+
+      <Route path="/admin/submissions" element={
+        !authState.user || !authState.isAdmin ? (
+          <Navigate to="/login/admin" replace />
+        ) : (
+          <AdminSubmissionsView
+            submissions={submissions}
+            allSportsGames={allSportsGames}
+            onBack={() => navigate('/admin/dashboard')}
+          />
+        )
+      } />
+
+      <Route path="/admin/:sport" element={
+        !authState.user || !authState.isAdmin ? (
+          <Navigate to="/login/admin" replace />
+        ) : (
+          <AdminSportRoute
+            authState={authState}
+            games={games}
+            setGames={setGames}
+            isSyncing={isSyncing}
+            setIsSyncing={setIsSyncing}
+            recentlyUpdated={recentlyUpdated}
+            setRecentlyUpdated={setRecentlyUpdated}
+            submissions={submissions}
+            allSportsGames={allSportsGames}
+            loadAllSports={loadAllSports}
+          />
+        )
+      } />
+
+      {/* Member routes - require authentication */}
+      <Route path="/member/:sport" element={
+        !authState.user || authState.isAdmin ? (
+          <Navigate to="/login/user" replace />
+        ) : loading && !apiError ? (
+          <div className="gradient-bg" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh' }}>
+            <div className="text-white" style={{ fontSize: '24px' }}>
+              Loading games...
+            </div>
+          </div>
+        ) : (
+          <MemberSportRoute
+            games={games}
+            allSportsGames={allSportsGames}
+            betType={betType}
+            onBetTypeChange={setBetType}
+            loading={loading}
+            apiError={apiError}
+            onManualRefresh={handleManualRefresh}
+            lastRefreshTime={lastRefreshTime}
+            onSignOut={handleSignOut}
+            isRefreshing={isRefreshing}
+            propBets={propBets}
+            propBetsLoading={propBetsLoading}
+            propBetsError={propBetsError}
+            setCurrentViewSport={setCurrentViewSport}
+            currentViewSportRef={currentViewSportRef}
+            setGames={setGames}
+            loadAllPropBets={loadAllPropBets}
+          />
+        )
+      } />
+
+      {/* Catch all - redirect to root */}
+      <Route path="*" element={<Navigate to="/" replace />} />
+    </Routes>
   );
-
-  // Priority-based routing: Admin users always get admin interface
-  // This ensures users with both admin and user roles are always routed to admin dashboard
-  if (authState.user && authState.isAdmin && showAdminUserManagement) {
-    return <UserManagement onBack={() => setShowAdminUserManagement(false)} />;
-  }
-
-  if (authState.user && authState.isAdmin && showAdminSubmissions) {
-    return <AdminSubmissionsView 
-      submissions={submissions} 
-      allSportsGames={allSportsGames}
-      onBack={() => setShowAdminSubmissions(false)} 
-    />;
-  }
-
-  if (authState.user && authState.isAdmin && selectedSport) {
-    return <AdminPanel 
-      user={authState.user} 
-      games={games} 
-      setGames={setGames} 
-      isSyncing={isSyncing} 
-      setIsSyncing={setIsSyncing} 
-      recentlyUpdated={recentlyUpdated} 
-      setRecentlyUpdated={setRecentlyUpdated} 
-      submissions={submissions} 
-      sport={selectedSport}
-      onBackToMenu={() => {
-        setSelectedSport(null);
-        setCurrentViewSport(null);
-      }}
-    />;
-  }
-
-  if (authState.user && authState.isAdmin && !selectedSport) {
-    return <AdminLandingPage 
-      onSelectSport={(sport) => setSelectedSport(sport)}
-      onManageUsers={() => setShowAdminUserManagement(true)}
-      onViewSubmissions={() => setShowAdminSubmissions(true)}
-      onSignOut={handleSignOut}
-    />;
-  }
-
-  if (authState.user && !authState.isAdmin && !selectedSport) {
-    return (
-      <div className="gradient-bg" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh' }}>
-        <div className="text-white" style={{ fontSize: '24px' }}>
-          Loading Sports Data...
-        </div>
-      </div>
-    );
-  }
-
-  if (!userRole) {
-    return <AuthLanding onSelectRole={(role) => setUserRole(role)} />;
-  }
-
-  if (userRole === 'user' && !authState.user) {
-    return (
-      <div className="gradient-bg" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh' }}>
-        <div className="card" style={{ maxWidth: '400px', width: '100%', margin: '0 auto', padding: 40 }}>
-          <h2 className="text-center mb-4">User Login</h2>
-          <form onSubmit={handleLogin} style={{ maxWidth: 300, margin: 'auto' }}>
-            <input
-              type="email"
-              placeholder="Email"
-              required
-              value={loginForm.email}
-              onChange={(e) =>
-                setLoginForm((f) => ({ ...f, email: e.target.value }))
-              }
-            />
-            <input
-              type="password"
-              placeholder="Password"
-              required
-              value={loginForm.password}
-              onChange={(e) =>
-                setLoginForm((f) => ({ ...f, password: e.target.value }))
-              }
-            />
-            <button className="btn btn-primary" type="submit" style={{ width: '100%', marginBottom: '12px' }}>Login</button>
-            <button 
-              className="btn btn-secondary" 
-              type="button" 
-              onClick={() => setUserRole(null)} 
-              style={{ width: '100%' }}
-            >
-              Back
-            </button>
-            {authState.error && (
-              <div style={{ color: "red", marginTop: 10, textAlign: 'center' }}>{authState.error}</div>
-            )}
-          </form>
-        </div>
-      </div>
-    );
-  }
-
-  if (userRole === 'admin' && !authState.user) {
-    return (
-      <div className="gradient-bg" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh' }}>
-        <div className="card" style={{ maxWidth: '400px', width: '100%', margin: '0 auto', padding: 40 }}>
-          <h2 className="text-center mb-4">Admin Login</h2>
-          <form onSubmit={handleLogin} style={{ maxWidth: 300, margin: 'auto' }}>
-            <input
-              type="email"
-              placeholder="Admin Email"
-              required
-              value={loginForm.email}
-              onChange={(e) =>
-                setLoginForm((f) => ({ ...f, email: e.target.value }))
-              }
-            />
-            <input
-              type="password"
-              placeholder="Password"
-              required
-              value={loginForm.password}
-              onChange={(e) =>
-                setLoginForm((f) => ({ ...f, password: e.target.value }))
-              }
-            />
-            <button className="btn btn-primary" type="submit" style={{ width: '100%', marginBottom: '12px' }}>Login</button>
-            <button 
-              className="btn btn-secondary" 
-              type="button" 
-              onClick={() => setUserRole(null)} 
-              style={{ width: '100%' }}
-            >
-              Back
-            </button>
-            {authState.error && (
-              <div style={{ color: "red", marginTop: 10, textAlign: 'center' }}>{authState.error}</div>
-            )}
-          </form>
-        </div>
-      </div>
-    );
-  }
-
-  if (loading && !apiError) {
-    return (
-      <div className="gradient-bg" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh' }}>
-        <div className="text-white" style={{ fontSize: '24px' }}>
-          Loading {selectedSport} games...
-        </div>
-      </div>
-    );
-  }
-
-  return <LandingPage 
-    games={games} 
-    allSportsGames={allSportsGames}
-    currentViewSport={currentViewSport}
-    onChangeSport={(sport) => {
-      if (sport === 'Prop Bets') {
-        setCurrentViewSport('Prop Bets');
-        currentViewSportRef.current = 'Prop Bets';
-        setGames([]); 
-        if (Object.keys(propBets).length === 0 && !propBetsLoading) {
-            loadAllPropBets();
-        }
-        return;
-      }
-      
-      const gamesForSport = allSportsGames[sport] || [];
-      setCurrentViewSport(sport);
-      currentViewSportRef.current = sport;
-      setGames(gamesForSport);
-    }}
-    loading={loading} 
-    onBackToMenu={handleSignOut} 
-    sport={currentViewSport || selectedSport}
-    betType={betType}
-    onBetTypeChange={(type) => setBetType(type)}
-    apiError={apiError}
-    onManualRefresh={handleManualRefresh}
-    lastRefreshTime={lastRefreshTime}
-    onSignOut={handleSignOut}
-    isRefreshing={isRefreshing}
-    propBets={propBets}
-    propBetsLoading={propBetsLoading}
-    propBetsError={propBetsError}
-  />;
 }
 
 function AppWithErrorBoundary() {
