@@ -2822,6 +2822,12 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
   };
 
   const handleSignOut = async () => {
+    const forceReloadToLogin = () => {
+      setTimeout(() => {
+        window.location.href = window.location.origin;
+      }, 100);
+    };
+
     try {
       // Step 1: Sign out from Firebase
       await signOut(auth);
@@ -2833,16 +2839,19 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
       // Clear sessionStorage completely
       sessionStorage.clear();
       
-      // Step 3: Clear IndexedDB (Firebase persistence)
-      try {
-        const databases = await window.indexedDB.databases();
-        databases.forEach(db => {
-          if (db.name) {
-            window.indexedDB.deleteDatabase(db.name);
-          }
-        });
-      } catch (idbError) {
-        console.warn('Could not clear IndexedDB:', idbError);
+      // Step 3: Clear IndexedDB (Firebase persistence) - with browser compatibility check
+      if (window.indexedDB && typeof window.indexedDB.databases === 'function') {
+        try {
+          const databases = await window.indexedDB.databases();
+          databases.forEach(db => {
+            if (db.name) {
+              window.indexedDB.deleteDatabase(db.name);
+            }
+          });
+        } catch (idbError) {
+          // Some browsers may not support this, but we can continue
+          console.warn('Could not clear IndexedDB:', idbError);
+        }
       }
       
       // Step 4: Reset all application state to initial values
@@ -2865,10 +2874,7 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
       });
       
       // Step 6: Force reload to ensure clean slate (mandatory re-login)
-      // Use a small delay to ensure state updates are processed
-      setTimeout(() => {
-        window.location.href = window.location.origin;
-      }, 100);
+      forceReloadToLogin();
       
     } catch (error) {
       console.error('Error during sign out:', error);
@@ -2884,9 +2890,7 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
       });
       
       // Force reload even on error to ensure clean state
-      setTimeout(() => {
-        window.location.href = window.location.origin;
-      }, 100);
+      forceReloadToLogin();
     }
   };
 

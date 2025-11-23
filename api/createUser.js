@@ -6,23 +6,37 @@ const admin = require('firebase-admin');
 // Initialize Firebase Admin SDK
 if (!admin.apps.length) {
   try {
+    // Validate required environment variables
+    if (!process.env.FIREBASE_PROJECT_ID || !process.env.FIREBASE_CLIENT_EMAIL || !process.env.FIREBASE_PRIVATE_KEY) {
+      throw new Error('Missing required Firebase Admin SDK environment variables. Please configure FIREBASE_PROJECT_ID, FIREBASE_CLIENT_EMAIL, and FIREBASE_PRIVATE_KEY.');
+    }
+
+    const databaseURL = process.env.FIREBASE_DATABASE_URL;
+    if (!databaseURL) {
+      throw new Error('Missing required FIREBASE_DATABASE_URL environment variable.');
+    }
+
     admin.initializeApp({
       credential: admin.credential.cert({
         projectId: process.env.FIREBASE_PROJECT_ID,
         clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
         privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
       }),
-      databaseURL: process.env.FIREBASE_DATABASE_URL || 'https://marcs-parlays-default-rtdb.firebaseio.com'
+      databaseURL: databaseURL
     });
   } catch (error) {
     console.error('Firebase admin initialization error:', error);
+    throw error;
   }
 }
 
 module.exports = async (req, res) => {
-  // Set CORS headers
+  // Get allowed origin from environment or use the request origin for development
+  const allowedOrigin = process.env.ALLOWED_ORIGIN || req.headers.origin;
+  
+  // Set CORS headers with specific origin
   res.setHeader('Access-Control-Allow-Credentials', true);
-  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Origin', allowedOrigin);
   res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
   res.setHeader(
     'Access-Control-Allow-Headers',
