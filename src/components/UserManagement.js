@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { getAuth } from 'firebase/auth';
+import { getAuth, createUserWithEmailAndPassword } from 'firebase/auth';
 import { getDatabase, ref, set, onValue, remove } from 'firebase/database';
 import '../App.css';
 
@@ -55,35 +55,25 @@ function UserManagement({ onBack }) {
         throw new Error('Password must be at least 6 characters');
       }
 
-      // Get the current admin's ID token for authentication
-      const currentUser = auth.currentUser;
-      if (!currentUser) {
-        throw new Error('Not authenticated');
-      }
-      
-      const idToken = await currentUser.getIdToken();
+      // Create user in Firebase Auth
+      const userCredential = await createUserWithEmailAndPassword(
+        auth,
+        newUser.email,
+        newUser.password
+      );
 
-      // Call the serverless function to create user using Admin SDK
-      // This prevents the admin from being logged out
-      const response = await fetch('/api/createUser', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${idToken}`
-        },
-        body: JSON.stringify({
-          email: newUser.email,
-          password: newUser.password,
-          displayName: newUser.displayName,
-          creditLimit: parseFloat(newUser.creditLimit) || 100
-        })
+      const uid = userCredential.user.uid;
+
+      // Store user data in Realtime Database
+      await set(ref(database, `users/${uid}`), {
+        email: newUser.email,
+        displayName: newUser.displayName,
+        creditLimit: parseFloat(newUser.creditLimit) || 100,
+        currentCredit: 0,
+        role: 'user',
+        createdAt: new Date().toISOString(),
+        createdBy: auth.currentUser.uid
       });
-
-      const result = await response.json();
-
-      if (!response.ok || !result.success) {
-        throw new Error(result.error || 'Failed to create user');
-      }
 
       setSuccess(`User ${newUser.displayName} created successfully!`);
       
