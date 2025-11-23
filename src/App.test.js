@@ -2,8 +2,23 @@ import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import App from './App';
 
+// Mock react-router-dom since we're using routing now
+jest.mock('react-router-dom', () => ({
+  BrowserRouter: ({ children }) => <div>{children}</div>,
+  Routes: ({ children }) => <div data-testid="routes">{children}</div>,
+  Route: ({ element }) => <div>{element}</div>,
+  useNavigate: () => jest.fn(),
+  useParams: () => ({}),
+  Navigate: ({ to }) => <div data-testid="navigate">{`Navigate to ${to}`}</div>,
+}));
+
+// Helper to render App
+const renderApp = () => {
+  return render(<App />);
+};
+
 test('renders auth landing page with role selection', async () => {
-  render(<App />);
+  renderApp();
   const headingElement = await screen.findByText(/Welcome to EGT Sports/i);
   expect(headingElement).toBeInTheDocument();
   expect(screen.getByRole('button', { name: /Member login/i })).toBeInTheDocument();
@@ -12,7 +27,7 @@ test('renders auth landing page with role selection', async () => {
 });
 
 test('guest flow shows bet type selection', async () => {
-  render(<App />);
+  renderApp();
   const guestButton = await screen.findByRole('button', { name: /Continue as Guest/i });
   await userEvent.click(guestButton);
   
@@ -25,7 +40,7 @@ test('guest flow shows bet type selection', async () => {
 });
 
 test('selecting parlay shows sport selection', async () => {
-  render(<App />);
+  renderApp();
   const guestButton = await screen.findByRole('button', { name: /Continue as Guest/i });
   await userEvent.click(guestButton);
   
@@ -41,7 +56,7 @@ test('selecting parlay shows sport selection', async () => {
 });
 
 test('all sports are enabled', async () => {
-  render(<App />);
+  renderApp();
   const guestButton = await screen.findByRole('button', { name: /Continue as Guest/i });
   await userEvent.click(guestButton);
   
