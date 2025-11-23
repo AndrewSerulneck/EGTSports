@@ -730,8 +730,8 @@ function AdminSubmissionsView({ submissions, allSportsGames, onBack }) {
       }
 
       if (pick.pickType === 'spread') {
-        const awayScore = parseInt(game.awayScore);
-        const homeScore = parseInt(game.homeScore);
+        const awayScore = Number(game.awayScore) || 0;
+        const homeScore = Number(game.homeScore) || 0;
         const spread = parseFloat(pick.spread);
         let won = false;
 
@@ -746,8 +746,8 @@ function AdminSubmissionsView({ submissions, allSportsGames, onBack }) {
         if (won) wins++;
         else losses++;
       } else if (pick.pickType === 'total') {
-        const awayScore = parseInt(game.awayScore);
-        const homeScore = parseInt(game.homeScore);
+        const awayScore = Number(game.awayScore) || 0;
+        const homeScore = Number(game.homeScore) || 0;
         const totalScore = awayScore + homeScore;
         const total = parseFloat(pick.total);
         let won = false;
@@ -761,8 +761,8 @@ function AdminSubmissionsView({ submissions, allSportsGames, onBack }) {
         if (won) wins++;
         else losses++;
       } else if (pick.pickType === 'winner') {
-        const awayScore = parseInt(game.awayScore);
-        const homeScore = parseInt(game.homeScore);
+        const awayScore = Number(game.awayScore) || 0;
+        const homeScore = Number(game.homeScore) || 0;
         let won = false;
 
         if (pick.pickedTeamType === 'away') {
@@ -2777,7 +2777,7 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
       
       // Get user's actual role from token claims
       const tokenResult = await userCredential.user.getIdTokenResult(true);
-      const isActuallyAdmin = tokenResult.claims.admin === true;
+      const isActuallyAdmin = tokenResult?.claims?.admin === true;
       
       // Enforce role-based access control
       if (userRole === 'admin' && !isActuallyAdmin) {
