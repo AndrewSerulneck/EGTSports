@@ -32,8 +32,10 @@ describe('Role-Based Access Control - Implementation Verification', () => {
     expect(appSource).toMatch(/const\s+isActuallyAdmin\s*=/);
   });
 
-  test('RBAC check rejects admin users trying to use Member Login', () => {
-    // Verify the check exists
+  test('RBAC check rejects member users trying to use Admin Login', () => {
+    // When a user without admin privileges tries to login via Admin Login
+    // userRole is 'admin' (from clicking Admin Login button)
+    // but isActuallyAdmin is false (they don't have admin claim in token)
     expect(appSource).toContain("userRole === 'admin' && !isActuallyAdmin");
     
     // Verify it signs out the user
@@ -43,8 +45,10 @@ describe('Role-Based Access Control - Implementation Verification', () => {
     expect(appSource).toContain('You do not have administrator privileges');
   });
 
-  test('RBAC check rejects member users trying to use Admin Login', () => {
-    // Verify the check exists
+  test('RBAC check rejects admin users trying to use Member Login', () => {
+    // When a user with admin privileges tries to login via Member Login
+    // userRole is 'user' (from clicking Member Login button)
+    // but isActuallyAdmin is true (they have admin claim in token)
     expect(appSource).toContain("userRole === 'user' && isActuallyAdmin");
     
     // Verify error message
