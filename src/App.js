@@ -2827,21 +2827,25 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
       await signOut(auth);
       
       // Step 2: Clear all client-side authentication state
-      // Clear localStorage items related to authentication
-      const keysToRemove = [];
-      for (let i = 0; i < localStorage.length; i++) {
-        const key = localStorage.key(i);
-        // Clear any auth-related keys (but preserve submission data)
-        if (key && (key.includes('firebase') || key.includes('auth') || key.includes('token'))) {
-          keysToRemove.push(key);
-        }
-      }
-      keysToRemove.forEach(key => localStorage.removeItem(key));
+      // Clear ALL localStorage (complete wipe for security)
+      localStorage.clear();
       
       // Clear sessionStorage completely
       sessionStorage.clear();
       
-      // Step 3: Reset all application state to initial values
+      // Step 3: Clear IndexedDB (Firebase persistence)
+      try {
+        const databases = await window.indexedDB.databases();
+        databases.forEach(db => {
+          if (db.name) {
+            window.indexedDB.deleteDatabase(db.name);
+          }
+        });
+      } catch (idbError) {
+        console.warn('Could not clear IndexedDB:', idbError);
+      }
+      
+      // Step 4: Reset all application state to initial values
       setUserRole(null);
       setBetType('parlay');
       setSelectedSport(null);
@@ -2852,7 +2856,7 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
       setCurrentViewSport(null);
       currentViewSportRef.current = null;
       
-      // Step 4: Reset auth state explicitly
+      // Step 5: Reset auth state explicitly
       setAuthState({
         loading: false,
         user: null,
@@ -2860,9 +2864,17 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
         error: "",
       });
       
+      // Step 6: Force reload to ensure clean slate (mandatory re-login)
+      // Use a small delay to ensure state updates are processed
+      setTimeout(() => {
+        window.location.href = window.location.origin;
+      }, 100);
+      
     } catch (error) {
       console.error('Error during sign out:', error);
-      // Even if there's an error, clear local state
+      // Even if there's an error, clear local state and force reload
+      localStorage.clear();
+      sessionStorage.clear();
       setUserRole(null);
       setAuthState({
         loading: false,
@@ -2870,6 +2882,11 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
         isAdmin: false,
         error: "",
       });
+      
+      // Force reload even on error to ensure clean state
+      setTimeout(() => {
+        window.location.href = window.location.origin;
+      }, 100);
     }
   };
 
