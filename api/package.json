@@ -1,0 +1,1 @@
+{"name":"egt-sports-api","version":"1.0.0","description":"API endpoints for EGT Sports","main":"index.js","dependencies":{"firebase-admin":"^12.0.0"}}
