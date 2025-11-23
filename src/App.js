@@ -148,6 +148,8 @@ const PROP_BETS_CACHE_DURATION = 2 * 60 * 60 * 1000;
 const CACHE_DURATION = 6 * 60 * 60 * 1000;
 const COLLEGE_BASKETBALL_CACHE_DURATION = 6 * 60 * 60 * 1000;
 const ODDS_API_CACHE_DURATION = 12 * 60 * 60 * 1000;
+const DATA_REFRESH_INTERVAL = 4 * 60 * 60 * 1000; // 4 hours
+const FIREBASE_LISTENER_SETUP_DELAY = 500; // ms
 
 const gameCache = {};
 const oddsAPICache = {};
@@ -2829,12 +2831,13 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
   }, [loadAllSports, userRole]);
 
   useEffect(() => {
-    // Setup Firebase listeners for all sports
-    setTimeout(() => {
+    // Setup Firebase listeners for all sports after a short delay
+    // to ensure Firebase is fully initialized
+    const timeoutId = setTimeout(() => {
       Object.keys(ESPN_API_ENDPOINTS).forEach(sport => {
         setupFirebaseListener(sport);
       });
-    }, 500);
+    }, FIREBASE_LISTENER_SETUP_DELAY);
     
     // Refresh data periodically
     const intervalId = setInterval(() => {
@@ -2842,9 +2845,10 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
       if (currentSport) {
         loadAllSports(currentSport, true);
       }
-    }, 4 * 60 * 60 * 1000);
+    }, DATA_REFRESH_INTERVAL);
     
     return () => {
+      clearTimeout(timeoutId);
       clearInterval(intervalId);
     };
   }, [loadAllSports, setupFirebaseListener]);
