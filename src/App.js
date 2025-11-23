@@ -594,7 +594,7 @@ function AdminPanel({ user, games, setGames, isSyncing, setIsSyncing, recentlyUp
   );
 }
 
-function AdminLandingPage({ onSelectSport, onManageUsers, onSignOut }) {
+function AdminLandingPage({ onSelectSport, onManageUsers, onViewSubmissions, onSignOut }) {
   const sports = [
     { name: 'NFL', available: true },
     { name: 'NBA', available: true },
@@ -630,6 +630,22 @@ function AdminLandingPage({ onSelectSport, onManageUsers, onSignOut }) {
             >
               <span style={{ fontSize: '48px' }}>👥</span>
               <span>Manage Users</span>
+            </button>
+            <button
+              className="btn btn-primary"
+              onClick={onViewSubmissions}
+              style={{
+                padding: '32px 24px',
+                fontSize: '18px',
+                fontWeight: 'bold',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                gap: '8px'
+              }}
+            >
+              <span style={{ fontSize: '48px' }}>📋</span>
+              <span>View Submissions</span>
             </button>
             <button
               className="btn btn-secondary"
@@ -684,6 +700,198 @@ function AdminLandingPage({ onSelectSport, onManageUsers, onSignOut }) {
             ))}
           </div>
         </div>
+      </div>
+    </div>
+  );
+}
+
+function AdminSubmissionsView({ submissions, allSportsGames, onBack }) {
+  const calculateSubmissionResult = (submission) => {
+    if (!submission || !submission.picks || !Array.isArray(submission.picks)) {
+      return { wins: 0, losses: 0, pending: 0 };
+    }
+    
+    let wins = 0;
+    let losses = 0;
+    let pending = 0;
+
+    submission.picks.forEach(pick => {
+      let game = null;
+      
+      // Search across all sports for the game
+      for (const sport of Object.keys(allSportsGames)) {
+        game = allSportsGames[sport]?.find(g => g.espnId === pick.gameId);
+        if (game) break;
+      }
+
+      if (!game || !game.isFinal) {
+        pending++;
+        return;
+      }
+
+      if (pick.pickType === 'spread') {
+        const awayScore = Number(game.awayScore) || 0;
+        const homeScore = Number(game.homeScore) || 0;
+        const spread = parseFloat(pick.spread);
+        let won = false;
+
+        if (pick.pickedTeamType === 'away') {
+          const adjustedScore = awayScore + spread;
+          won = adjustedScore > homeScore;
+        } else {
+          const adjustedScore = homeScore + spread;
+          won = adjustedScore > awayScore;
+        }
+
+        if (won) wins++;
+        else losses++;
+      } else if (pick.pickType === 'total') {
+        const awayScore = Number(game.awayScore) || 0;
+        const homeScore = Number(game.homeScore) || 0;
+        const totalScore = awayScore + homeScore;
+        const total = parseFloat(pick.total);
+        let won = false;
+
+        if (pick.overUnder === 'over') {
+          won = totalScore > total;
+        } else {
+          won = totalScore < total;
+        }
+
+        if (won) wins++;
+        else losses++;
+      } else if (pick.pickType === 'winner') {
+        const awayScore = Number(game.awayScore) || 0;
+        const homeScore = Number(game.homeScore) || 0;
+        let won = false;
+
+        if (pick.pickedTeamType === 'away') {
+          won = awayScore > homeScore;
+        } else {
+          won = homeScore > awayScore;
+        }
+
+        if (won) wins++;
+        else losses++;
+      }
+    });
+
+    const allGamesComplete = pending === 0;
+    const parlayWon = allGamesComplete && losses === 0 && wins === submission.picks.length;
+
+    return { wins, losses, pending, allGamesComplete, parlayWon };
+  };
+
+  const getPayoutMultiplier = (pickCount) => {
+    const multipliers = {
+      3: 8,
+      4: 15,
+      5: 25,
+      6: 50,
+      7: 100,
+      8: 150,
+      9: 200,
+      10: 250
+    };
+    return multipliers[pickCount] || 0;
+  };
+
+  return (
+    <div className="gradient-bg">
+      <div className="container">
+        <div className="card">
+          <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px'}}>
+            <h1>📋 All Submissions ({submissions.length})</h1>
+            <button className="btn btn-secondary" onClick={onBack}>← Back to Dashboard</button>
+          </div>
+        </div>
+        
+        {submissions.length === 0 ? (
+          <div className="card text-center">
+            <p>No submissions yet</p>
+          </div>
+        ) : (
+          submissions.slice().reverse().map((sub, idx) => {
+            const result = calculateSubmissionResult(sub);
+            return (
+              <div key={idx} className="card">
+                <div style={{marginBottom: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'start'}}>
+                  <div>
+                    <strong style={{fontSize: '20px', color: '#28a745'}}>{sub.ticketNumber}</strong>
+                    {sub.freePlay > 0 && <span className="free-play-badge">${sub.freePlay}</span>}
+                    <div style={{color: '#666', fontSize: '14px'}}>{new Date(sub.timestamp).toLocaleString()}</div>
+                    <div style={{fontSize: '12px', color: '#999', marginTop: '4px'}}>
+                      Sport: {sub.sport} | Bet Type: {sub.betType === 'parlay' ? 'Parlay' : 'Straight Bets'}
+                    </div>
+                  </div>
+                  {result.allGamesComplete && (
+                    <div style={{display: 'flex', flexDirection: 'column', gap: '8px', alignItems: 'flex-end'}}>
+                      <div style={{
+                        padding: '8px 16px',
+                        borderRadius: '8px',
+                        fontWeight: 'bold',
+                        background: result.parlayWon ? '#28a745' : '#dc3545',
+                        color: 'white'
+                      }}>
+                        {result.parlayWon ? 'WON' : 'LOST'}
+                      </div>
+                      {result.parlayWon && (
+                        <div style={{fontSize: '14px', fontWeight: 'bold', color: '#28a745'}}>
+                          Payout: ${(sub.betAmount * getPayoutMultiplier(sub.picks.length)).toFixed(2)}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+                
+                <div style={{marginBottom: '16px', padding: '16px', background: '#f8f9fa', borderRadius: '8px'}}>
+                  <div><strong>Name:</strong> {sub.contactInfo.name}</div>
+                  <div><strong>Email:</strong> {sub.contactInfo.email}</div>
+                  <div><strong>Bet Amount:</strong> ${sub.betAmount.toFixed(2)}</div>
+                  <div><strong>Potential Payout:</strong> ${sub.potentialPayout ? sub.potentialPayout.toFixed(2) : 'N/A'}</div>
+                </div>
+                
+                <div style={{marginBottom: '16px'}}>
+                  <strong>Record: {result.wins}-{result.losses}</strong>
+                  {result.pending > 0 && <span style={{color: '#666'}}> ({result.pending} pending)</span>}
+                  {result.allGamesComplete && (
+                    <div style={{
+                      marginTop: '8px',
+                      padding: '8px 12px',
+                      borderRadius: '6px',
+                      display: 'inline-block',
+                      fontWeight: 'bold',
+                      background: result.parlayWon ? '#d4edda' : '#f8d7da',
+                      color: result.parlayWon ? '#155724' : '#721c24',
+                      border: result.parlayWon ? '1px solid #c3e6cb' : '1px solid #f5c6cb'
+                    }}>
+                      {result.parlayWon ? '✅ ALL PICKS WON' : '❌ SOME PICKS LOST'}
+                    </div>
+                  )}
+                </div>
+                
+                <div>
+                  <strong style={{marginBottom: '8px', display: 'block'}}>Picks ({sub.picks.length}):</strong>
+                  <div style={{display: 'flex', flexDirection: 'column', gap: '4px'}}>
+                    {sub.picks.map((pick, pickIdx) => (
+                      <div key={pickIdx} style={{
+                        padding: '8px',
+                        background: '#fff',
+                        borderRadius: '4px',
+                        border: '1px solid #e0e0e0',
+                        fontSize: '14px'
+                      }}>
+                        {pick.gameName} - {pick.pickType === 'spread' ? `${pick.team} ${pick.spread}` : 
+                         pick.pickType === 'total' ? `${pick.overUnder} ${pick.total}` : 
+                         pick.pickType === 'winner' ? `${pick.team} ${pick.moneyline}` : 'Unknown'}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            );
+          })
+        )}
       </div>
     </div>
   );
@@ -1972,6 +2180,7 @@ function App() {
   });
   const [userRole, setUserRole] = useState(null);
   const [showAdminUserManagement, setShowAdminUserManagement] = useState(false);
+  const [showAdminSubmissions, setShowAdminSubmissions] = useState(false);
   const [betType, setBetType] = useState('parlay');
   const [loginForm, setLoginForm] = useState({
     email: "",
@@ -2559,11 +2768,43 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
     e.preventDefault();
     setAuthState((a) => ({ ...a, loading: true, error: "" }));
     try {
-      await signInWithEmailAndPassword(
+      // Sign in with Firebase Auth
+      const userCredential = await signInWithEmailAndPassword(
         auth,
         loginForm.email,
         loginForm.password
       );
+      
+      // Get user's actual role from token claims
+      const tokenResult = await userCredential.user.getIdTokenResult(true);
+      const isActuallyAdmin = tokenResult?.claims?.admin === true;
+      
+      // Enforce role-based access control
+      if (userRole === 'admin' && !isActuallyAdmin) {
+        // User clicked "Admin Login" but doesn't have admin role
+        await signOut(auth);
+        setAuthState((a) => ({
+          ...a,
+          loading: false,
+          error: "Access Denied: You do not have administrator privileges.",
+        }));
+        return;
+      }
+      
+      if (userRole === 'user' && isActuallyAdmin) {
+        // User clicked "Member Login" but has admin role
+        await signOut(auth);
+        setAuthState((a) => ({
+          ...a,
+          loading: false,
+          error: "Access Denied: Please use the appropriate login method for your account type.",
+        }));
+        return;
+      }
+      
+      // Login successful with correct role
+      // The onAuthStateChanged handler will update authState
+      
     } catch (err) {
       setAuthState((a) => ({
         ...a,
@@ -2581,36 +2822,50 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
   };
 
   const handleSignOut = async () => {
+    const forceReloadToLogin = () => {
+      setTimeout(() => {
+        window.location.href = window.location.origin;
+      }, 100);
+    };
+
     try {
       // Step 1: Sign out from Firebase
       await signOut(auth);
       
       // Step 2: Clear all client-side authentication state
-      // Clear localStorage items related to authentication
-      const keysToRemove = [];
-      for (let i = 0; i < localStorage.length; i++) {
-        const key = localStorage.key(i);
-        // Clear any auth-related keys (but preserve submission data)
-        if (key && (key.includes('firebase') || key.includes('auth') || key.includes('token'))) {
-          keysToRemove.push(key);
-        }
-      }
-      keysToRemove.forEach(key => localStorage.removeItem(key));
+      // Clear ALL localStorage (complete wipe for security)
+      localStorage.clear();
       
       // Clear sessionStorage completely
       sessionStorage.clear();
       
-      // Step 3: Reset all application state to initial values
+      // Step 3: Clear IndexedDB (Firebase persistence) - with browser compatibility check
+      if (window.indexedDB && typeof window.indexedDB.databases === 'function') {
+        try {
+          const databases = await window.indexedDB.databases();
+          databases.forEach(db => {
+            if (db.name) {
+              window.indexedDB.deleteDatabase(db.name);
+            }
+          });
+        } catch (idbError) {
+          // Some browsers may not support this, but we can continue
+          console.warn('Could not clear IndexedDB:', idbError);
+        }
+      }
+      
+      // Step 4: Reset all application state to initial values
       setUserRole(null);
       setBetType('parlay');
       setSelectedSport(null);
       setShowAdminUserManagement(false);
+      setShowAdminSubmissions(false);
       setGames([]);
       setAllSportsGames({});
       setCurrentViewSport(null);
       currentViewSportRef.current = null;
       
-      // Step 4: Reset auth state explicitly
+      // Step 5: Reset auth state explicitly
       setAuthState({
         loading: false,
         user: null,
@@ -2618,9 +2873,14 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
         error: "",
       });
       
+      // Step 6: Force reload to ensure clean slate (mandatory re-login)
+      forceReloadToLogin();
+      
     } catch (error) {
       console.error('Error during sign out:', error);
-      // Even if there's an error, clear local state
+      // Even if there's an error, clear local state and force reload
+      localStorage.clear();
+      sessionStorage.clear();
       setUserRole(null);
       setAuthState({
         loading: false,
@@ -2628,6 +2888,9 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
         isAdmin: false,
         error: "",
       });
+      
+      // Force reload even on error to ensure clean state
+      forceReloadToLogin();
     }
   };
 
@@ -2643,6 +2906,14 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
   // This ensures users with both admin and user roles are always routed to admin dashboard
   if (authState.user && authState.isAdmin && showAdminUserManagement) {
     return <UserManagement onBack={() => setShowAdminUserManagement(false)} />;
+  }
+
+  if (authState.user && authState.isAdmin && showAdminSubmissions) {
+    return <AdminSubmissionsView 
+      submissions={submissions} 
+      allSportsGames={allSportsGames}
+      onBack={() => setShowAdminSubmissions(false)} 
+    />;
   }
 
   if (authState.user && authState.isAdmin && selectedSport) {
@@ -2667,6 +2938,7 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
     return <AdminLandingPage 
       onSelectSport={(sport) => setSelectedSport(sport)}
       onManageUsers={() => setShowAdminUserManagement(true)}
+      onViewSubmissions={() => setShowAdminSubmissions(true)}
       onSignOut={handleSignOut}
     />;
   }
