@@ -114,12 +114,12 @@ const getSportDisplayName = (sport) => {
 };
 
 // Helper function to get date range URLs for ESPN API
-// Fetches events from 1 day in the past to 7 days in the future
+// Fetches events from today (0) to 7 days in the future
 const getESPNDateRangeURLs = (baseURL) => {
   const urls = [];
   const today = new Date();
   
-  for (let i = -1; i <= 7; i++) {
+  for (let i = 0; i <= 7; i++) {
     const date = new Date(today);
     date.setDate(date.getDate() + i);
     const dateStr = date.toISOString().split('T')[0].replace(/-/g, ''); // Format: YYYYMMDD
@@ -2806,15 +2806,8 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
           error: "",
         });
         
-        // Priority-based role routing: Admin role always takes precedence
-        // If user has admin privileges, clear any non-admin role selection
-        if (isAdmin) {
-          // Ensure admin users don't get stuck in user mode
-          if (userRole === 'user') {
-            setUserRole('admin');
-          }
-        } else {
-          // Non-admin users: load sports data
+        // Non-admin users: load sports data
+        if (!isAdmin) {
           loadAllSports('NFL', true);
         }
 
@@ -2828,7 +2821,7 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
       }
     });
     return unsub;
-  }, [loadAllSports, userRole]);
+  }, [loadAllSports]);
 
   useEffect(() => {
     // Setup Firebase listeners for all sports after a short delay

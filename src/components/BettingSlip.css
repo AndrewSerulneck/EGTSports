@@ -341,6 +341,20 @@
     box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.2);
   }
 
+  /* Full-screen when expanded on mobile */
+  .betting-slip.expanded {
+    position: fixed;
+    width: 100vw;
+    height: 100vh;
+    max-height: 100vh;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    border-radius: 0;
+    z-index: 9999;
+  }
+
   .betting-slip.collapsed {
     width: 100%;
     bottom: 0;
@@ -352,10 +366,22 @@
     border-radius: 16px 16px 0 0;
   }
 
+  .betting-slip.expanded .betting-slip-header {
+    border-radius: 0;
+  }
+
   .betting-slip-picks {
     max-height: calc(80vh - 320px);
     min-height: 120px;
     padding: 8px 12px;
+    overflow-y: auto;
+  }
+
+  /* Full-screen expanded state - make picks list fill available space */
+  .betting-slip.expanded .betting-slip-picks {
+    max-height: calc(100vh - 320px);
+    flex: 1;
+    overflow-y: auto;
   }
 
   .betting-slip-pick {
