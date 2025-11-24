@@ -5,6 +5,10 @@ import './BettingSlip.css';
  * BettingSlip Component - A persistent floating betting slip that follows the user
  * Supports both Single bets and Parlay bets with tab switching
  */
+
+// Mobile breakpoint constant
+const MOBILE_BREAKPOINT = 768;
+
 function BettingSlip({ 
   selectedPicks, 
   onRemovePick, 
@@ -29,7 +33,7 @@ function BettingSlip({
 
   // Detect mobile on mount and set initial expanded state
   useEffect(() => {
-    const checkMobile = typeof window !== 'undefined' && window.innerWidth <= 768;
+    const checkMobile = typeof window !== 'undefined' && window.innerWidth <= MOBILE_BREAKPOINT;
     setIsMobile(checkMobile);
     setIsExpanded(!checkMobile);
   }, []);
@@ -39,7 +43,7 @@ function BettingSlip({
     if (typeof window === 'undefined') return;
     
     const handleResize = () => {
-      const checkMobile = window.innerWidth <= 768;
+      const checkMobile = window.innerWidth <= MOBILE_BREAKPOINT;
       setIsMobile(checkMobile);
       // If transitioning from mobile to desktop, expand the slip
       if (!checkMobile && !isExpanded) {
