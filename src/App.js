@@ -2323,6 +2323,8 @@ function App() {
   const authInitialized = useRef(false);
   const isNavigatingRef = useRef(false);
   const sportsDataLoadedRef = useRef(false);
+  // Synchronous admin status ref to prevent route guard race conditions
+  const isAdminRef = useRef(false);
 
   const hasCompleteOddsData = (game) => {
     const hasSpread = game.awaySpread && game.homeSpread && 
@@ -2807,6 +2809,9 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
         const tokenResult = await user.getIdTokenResult();
         const isAdmin = tokenResult.claims.admin === true;
         
+        // Update synchronous ref BEFORE async state to prevent race conditions
+        isAdminRef.current = isAdmin;
+        
         setAuthState({
           loading: false,
           user,
@@ -2827,6 +2832,9 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
         }
 
       } else {
+        // Clear admin status on logout
+        isAdminRef.current = false;
+        
         setAuthState({
           loading: false,
           user: null,
@@ -2911,6 +2919,7 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
       if (userRole === 'admin' && !isActuallyAdmin) {
         // User clicked "Admin Login" but doesn't have admin role
         await signOut(auth);
+        isAdminRef.current = false;
         setAuthState((a) => ({
           ...a,
           loading: false,
@@ -2922,6 +2931,7 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
       if (userRole === 'user' && isActuallyAdmin) {
         // User clicked "Member Login" but has admin role
         await signOut(auth);
+        isAdminRef.current = false;
         setAuthState((a) => ({
           ...a,
           loading: false,
@@ -2929,6 +2939,11 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
         }));
         return;
       }
+      
+      // CRITICAL: Update synchronous ref FIRST to prevent route guard race conditions
+      // This ensures route guards see the correct admin status immediately
+      isAdminRef.current = isActuallyAdmin;
+      authInitialized.current = true;
       
       // Update auth state with explicit admin status to prevent race conditions
       setAuthState({
@@ -3018,7 +3033,12 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
       setCurrentViewSport(null);
       currentViewSportRef.current = null;
       
-      // Step 5: Reset auth state explicitly
+      // Step 5: Reset auth state and refs explicitly
+      isAdminRef.current = false;
+      authInitialized.current = false;
+      isNavigatingRef.current = false;
+      sportsDataLoadedRef.current = false;
+      
       setAuthState({
         loading: false,
         user: null,
@@ -3035,6 +3055,10 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
       localStorage.clear();
       sessionStorage.clear();
       setUserRole(null);
+      isAdminRef.current = false;
+      authInitialized.current = false;
+      isNavigatingRef.current = false;
+      sportsDataLoadedRef.current = false;
       setAuthState({
         loading: false,
         user: null,
@@ -3070,8 +3094,9 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
             }
             navigate(role === 'admin' ? '/login/admin' : '/login/user');
           }} />
-        ) : authState.user && authInitialized.current ? (
-          <Navigate to={authState.isAdmin ? '/admin/dashboard' : '/member/NFL'} replace />
+        ) : authState.user && authInitialized.current && !isNavigatingRef.current ? (
+          // Use synchronous ref for routing decision to prevent race conditions
+          <Navigate to={isAdminRef.current ? '/admin/dashboard' : '/member/NFL'} replace />
         ) : (
           <Navigate to={userRole === 'admin' ? '/login/admin' : '/login/user'} replace />
         )
@@ -3079,7 +3104,9 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
 
       {/* Login routes */}
       <Route path="/login/user" element={
-        authState.user && authInitialized.current ? (
+        // Check synchronous ref as primary source of truth to prevent race conditions
+        // isAdminRef is updated before async authState, ensuring correct routing
+        authState.user && authInitialized.current && !isAdminRef.current && !isNavigatingRef.current ? (
           <Navigate to="/member/NFL" replace />
         ) : (
           <div className="gradient-bg" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh' }}>
@@ -3119,7 +3146,9 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
       } />
 
       <Route path="/login/admin" element={
-        authState.user && authInitialized.current ? (
+        // Check synchronous ref as primary source of truth to prevent race conditions
+        // isAdminRef is updated before async authState, ensuring correct routing
+        authState.user && authInitialized.current && isAdminRef.current && !isNavigatingRef.current ? (
           <Navigate to="/admin/dashboard" replace />
         ) : (
           <div className="gradient-bg" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh' }}>
@@ -3160,7 +3189,7 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
 
       {/* Admin routes - require authentication */}
       <Route path="/admin/dashboard" element={
-        !authState.user || !authState.isAdmin ? (
+        !authState.user || (!authState.isAdmin && !isAdminRef.current) ? (
           <Navigate to="/login/admin" replace />
         ) : (
           <AdminLandingPage
@@ -3172,7 +3201,7 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
       } />
 
       <Route path="/admin/users" element={
-        !authState.user || !authState.isAdmin ? (
+        !authState.user || (!authState.isAdmin && !isAdminRef.current) ? (
           <Navigate to="/login/admin" replace />
         ) : (
           <UserManagement onBack={() => navigate('/admin/dashboard')} />
@@ -3180,7 +3209,7 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
       } />
 
       <Route path="/admin/submissions" element={
-        !authState.user || !authState.isAdmin ? (
+        !authState.user || (!authState.isAdmin && !isAdminRef.current) ? (
           <Navigate to="/login/admin" replace />
         ) : (
           <AdminSubmissionsView
@@ -3192,7 +3221,7 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
       } />
 
       <Route path="/admin/:sport" element={
-        !authState.user || !authState.isAdmin ? (
+        !authState.user || (!authState.isAdmin && !isAdminRef.current) ? (
           <Navigate to="/login/admin" replace />
         ) : (
           <AdminSportRoute
