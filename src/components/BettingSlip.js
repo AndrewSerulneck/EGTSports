@@ -5,6 +5,10 @@ import './BettingSlip.css';
  * BettingSlip Component - A persistent floating betting slip that follows the user
  * Supports both Single bets and Parlay bets with tab switching
  */
+
+// Mobile breakpoint constant
+const MOBILE_BREAKPOINT = 768;
+
 function BettingSlip({ 
   selectedPicks, 
   onRemovePick, 
@@ -25,11 +29,13 @@ function BettingSlip({
   // Default to expanded for SSR safety, then update on mount
   const [isExpanded, setIsExpanded] = useState(true);
   const [activeTab, setActiveTab] = useState(betType === 'straight' ? 'single' : 'parlay');
+  const [isMobile, setIsMobile] = useState(false);
 
   // Detect mobile on mount and set initial expanded state
   useEffect(() => {
-    const isMobile = typeof window !== 'undefined' && window.innerWidth <= 768;
-    setIsExpanded(!isMobile);
+    const checkMobile = typeof window !== 'undefined' && window.innerWidth <= MOBILE_BREAKPOINT;
+    setIsMobile(checkMobile);
+    setIsExpanded(!checkMobile);
   }, []);
 
   // Update expanded state on window resize
@@ -37,9 +43,10 @@ function BettingSlip({
     if (typeof window === 'undefined') return;
     
     const handleResize = () => {
-      const isMobile = window.innerWidth <= 768;
+      const checkMobile = window.innerWidth <= MOBILE_BREAKPOINT;
+      setIsMobile(checkMobile);
       // If transitioning from mobile to desktop, expand the slip
-      if (!isMobile && !isExpanded) {
+      if (!checkMobile && !isExpanded) {
         setIsExpanded(true);
       }
       // If on mobile and expanded, optionally collapse (maintain user choice)
@@ -317,7 +324,13 @@ function BettingSlip({
       <div className="betting-slip-header" onClick={() => setIsExpanded(!isExpanded)}>
         <div className="slip-title">
           <span className="slip-icon">🎟️</span>
-          <span>Betting Slip</span>
+          <span>
+            {isMobile 
+              ? (isExpanded 
+                  ? 'Betting Slip (Minimize to Continue Betting)' 
+                  : 'Betting Slip (Expand to Place Bet)')
+              : 'Betting Slip'}
+          </span>
           {pickCount > 0 && <span className="pick-count-badge">{pickCount}</span>}
         </div>
         <button className="expand-toggle">
