@@ -2820,7 +2820,10 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
         // Non-admin users: load sports data only if not already loaded
         if (!isAdmin && !sportsDataLoadedRef.current) {
           sportsDataLoadedRef.current = true;
-          loadAllSports('NFL', true);
+          loadAllSports('NFL', true).catch(() => {
+            // Reset flag on error to allow retry
+            sportsDataLoadedRef.current = false;
+          });
         }
 
       } else {
@@ -2863,9 +2866,17 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
   useEffect(() => {
     // Load initial data for non-admin users, but only once
     // This prevents duplicate calls with the onAuthStateChanged effect above
-    if (authState.user && !authState.loading && !authState.isAdmin && !sportsDataLoadedRef.current) {
+    const shouldLoadSportsData = authState.user && 
+                                 !authState.loading && 
+                                 !authState.isAdmin && 
+                                 !sportsDataLoadedRef.current;
+    
+    if (shouldLoadSportsData) {
       sportsDataLoadedRef.current = true;
-      loadAllSports('NFL', true);
+      loadAllSports('NFL', true).catch(() => {
+        // Reset flag on error to allow retry
+        sportsDataLoadedRef.current = false;
+      });
     }
   }, [authState.user, authState.loading, authState.isAdmin, loadAllSports]);
 
@@ -2931,18 +2942,21 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
       isNavigatingRef.current = true;
       
       // Login successful with correct role - navigate to appropriate dashboard
-      // Use setTimeout to ensure state update completes before navigation
-      setTimeout(() => {
-        if (isActuallyAdmin) {
-          navigate('/admin/dashboard', { replace: true });
-        } else {
-          navigate('/member/NFL', { replace: true });
-        }
-        // Reset navigation guard after navigation completes
-        setTimeout(() => {
-          isNavigatingRef.current = false;
-        }, 100);
-      }, 50);
+      // Use requestAnimationFrame to ensure state update completes before navigation
+      // This is more reliable than setTimeout and doesn't rely on hardcoded delays
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          if (isActuallyAdmin) {
+            navigate('/admin/dashboard', { replace: true });
+          } else {
+            navigate('/member/NFL', { replace: true });
+          }
+          // Reset navigation guard after a brief delay
+          requestAnimationFrame(() => {
+            isNavigatingRef.current = false;
+          });
+        });
+      });
       
     } catch (err) {
       setAuthState((a) => ({
