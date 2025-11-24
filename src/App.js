@@ -2318,6 +2318,11 @@ function App() {
   const [propBetsLoading, setPropBetsLoading] = useState(false);
   const [propBetsError, setPropBetsError] = useState(null);
   const propBetsCache = useRef({});
+  
+  // Track auth initialization to prevent navigation race conditions
+  const authInitialized = useRef(false);
+  const isNavigatingRef = useRef(false);
+  const sportsDataLoadedRef = useRef(false);
 
   const hasCompleteOddsData = (game) => {
     const hasSpread = game.awaySpread && game.homeSpread && 
@@ -2797,8 +2802,11 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, async (user) => {
       if (user) {
-        const tokenResult = await user.getIdTokenResult(true);
+        // Remove forced token refresh (true parameter) to reduce latency impact
+        // Only force refresh on explicit login, not on auth state changes
+        const tokenResult = await user.getIdTokenResult();
         const isAdmin = tokenResult.claims.admin === true;
+        
         setAuthState({
           loading: false,
           user,
@@ -2806,9 +2814,16 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
           error: "",
         });
         
-        // Non-admin users: load sports data
-        if (!isAdmin) {
-          loadAllSports('NFL', true);
+        // Mark auth as initialized after first successful auth check
+        authInitialized.current = true;
+        
+        // Non-admin users: load sports data only if not already loaded
+        if (!isAdmin && !sportsDataLoadedRef.current) {
+          sportsDataLoadedRef.current = true;
+          loadAllSports('NFL', true).catch(() => {
+            // Reset flag on error to allow retry
+            sportsDataLoadedRef.current = false;
+          });
         }
 
       } else {
@@ -2818,6 +2833,8 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
           isAdmin: false,
           error: "",
         });
+        authInitialized.current = true;
+        sportsDataLoadedRef.current = false;
       }
     });
     return unsub;
@@ -2847,9 +2864,19 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
   }, [loadAllSports, setupFirebaseListener]);
 
   useEffect(() => {
-    // Load initial data for non-admin users
-    if (authState.user && !authState.loading && !authState.isAdmin) {
-      loadAllSports('NFL', true);
+    // Load initial data for non-admin users, but only once
+    // This prevents duplicate calls with the onAuthStateChanged effect above
+    const shouldLoadSportsData = authState.user && 
+                                 !authState.loading && 
+                                 !authState.isAdmin && 
+                                 !sportsDataLoadedRef.current;
+    
+    if (shouldLoadSportsData) {
+      sportsDataLoadedRef.current = true;
+      loadAllSports('NFL', true).catch(() => {
+        // Reset flag on error to allow retry
+        sportsDataLoadedRef.current = false;
+      });
     }
   }, [authState.user, authState.loading, authState.isAdmin, loadAllSports]);
 
@@ -2860,6 +2887,12 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
 
   const handleLogin = async (e) => {
     e.preventDefault();
+    
+    // Prevent multiple concurrent login attempts
+    if (isNavigatingRef.current) {
+      return;
+    }
+    
     setAuthState((a) => ({ ...a, loading: true, error: "" }));
     try {
       // Sign in with Firebase Auth
@@ -2869,7 +2902,8 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
         loginForm.password
       );
       
-      // Get user's actual role from token claims
+      // Force token refresh only during explicit login (not on auth state changes)
+      // This ensures we get the latest claims without causing repeated refreshes
       const tokenResult = await userCredential.user.getIdTokenResult(true);
       const isActuallyAdmin = tokenResult?.claims?.admin === true;
       
@@ -2896,12 +2930,33 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
         return;
       }
       
+      // Update auth state with explicit admin status to prevent race conditions
+      setAuthState({
+        loading: false,
+        user: userCredential.user,
+        isAdmin: isActuallyAdmin,
+        error: "",
+      });
+      
+      // Set navigation guard to prevent duplicate navigation
+      isNavigatingRef.current = true;
+      
       // Login successful with correct role - navigate to appropriate dashboard
-      if (isActuallyAdmin) {
-        navigate('/admin/dashboard');
-      } else {
-        navigate('/member/NFL');
-      }
+      // Use requestAnimationFrame to ensure state update completes before navigation
+      // This is more reliable than setTimeout and doesn't rely on hardcoded delays
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          if (isActuallyAdmin) {
+            navigate('/admin/dashboard', { replace: true });
+          } else {
+            navigate('/member/NFL', { replace: true });
+          }
+          // Reset navigation guard after a brief delay
+          requestAnimationFrame(() => {
+            isNavigatingRef.current = false;
+          });
+        });
+      });
       
     } catch (err) {
       setAuthState((a) => ({
@@ -2909,6 +2964,7 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
         loading: false,
         error: "Login failed: " + err.message,
       }));
+      isNavigatingRef.current = false;
     }
   };
 
@@ -3008,9 +3064,13 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
         !userRole ? (
           <AuthLanding onSelectRole={(role) => {
             setUserRole(role);
+            // Prevent navigation during auth initialization
+            if (!authInitialized.current) {
+              return;
+            }
             navigate(role === 'admin' ? '/login/admin' : '/login/user');
           }} />
-        ) : authState.user ? (
+        ) : authState.user && authInitialized.current ? (
           <Navigate to={authState.isAdmin ? '/admin/dashboard' : '/member/NFL'} replace />
         ) : (
           <Navigate to={userRole === 'admin' ? '/login/admin' : '/login/user'} replace />
@@ -3019,7 +3079,7 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
 
       {/* Login routes */}
       <Route path="/login/user" element={
-        authState.user ? (
+        authState.user && authInitialized.current ? (
           <Navigate to="/member/NFL" replace />
         ) : (
           <div className="gradient-bg" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh' }}>
@@ -3059,7 +3119,7 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
       } />
 
       <Route path="/login/admin" element={
-        authState.user ? (
+        authState.user && authInitialized.current ? (
           <Navigate to="/admin/dashboard" replace />
         ) : (
           <div className="gradient-bg" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh' }}>
