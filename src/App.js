@@ -2075,18 +2075,20 @@ Email: ${contactInfo.email}`;
         <div className="card">
           <h3 className="mb-2">Important Rules</h3>
           <ul style={{marginLeft: '20px', lineHeight: '1.8'}}>
-            <li><strong>Minimum {minPicks} pick{minPicks > 1 ? 's' : ''} required</strong></li>
-            <li><strong>Minimum Bet = $5 (Straight) / $1 (Parlay)</strong></li>
-             <li><strong>Maximum Bet = $100</strong></li>
+            <li><strong>Minimum {minPicks} pick{minPicks > 3 ? 's' : ''} required for parlays</strong></li>
+            <li><strong>Minimum Bet = $5</strong></li>
+             <li><strong>Maximum Parlay Bet = $100</strong></li>
+             <li><strong>Maximum Single Bet = $250</strong></li>
             <li>Missing info = voided ticket</li>
             <li>Funds must be deposited into players pool prior to games starting or ticket is not valid</li>
              <li>A tie counts as a loss</li>
-            {betType === 'parlay' && <li><strong>✨ NEW: Cross-sports parlays are now allowed!</strong> Mix picks from different leagues</li>}
             {betType === 'straight' && <li><strong>Straight Bet Payouts:</strong> Based on moneyline odds shown for each game</li>}
-            <li>Winners paid following Tuesday</li>
+            <li>Winners paid the following Tuesday</li>
             <li>Cannot bet on games already completed</li>
              <li>If you have questions or issues, please contact support@EGTSports.ws</li>
             <li>Each time you participate, your club membership is renewed</li>
+            <li>Only bet what you can afford to lose</li>
+            <li>If you or someone you know has a gambling problem, The National Problem Gambling Helpline can be reached at 1-800-522-4700</li>
           </ul>
           <div style={{background: '#fff3cd', border: '2px solid #ffc107', borderRadius: '8px', padding: '16px', marginTop: '20px', fontSize: '14px', color: '#856404'}}>
             <strong>Legal Disclaimer:</strong> For entertainment only. 21+ only. Private pool among friends. Check local laws. By participating, you acknowledge responsibility for compliance with local laws.
