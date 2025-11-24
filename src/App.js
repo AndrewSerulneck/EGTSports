@@ -3095,6 +3095,7 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
             navigate(role === 'admin' ? '/login/admin' : '/login/user');
           }} />
         ) : authState.user && authInitialized.current && !isNavigatingRef.current ? (
+          // Use synchronous ref for routing decision to prevent race conditions
           <Navigate to={isAdminRef.current ? '/admin/dashboard' : '/member/NFL'} replace />
         ) : (
           <Navigate to={userRole === 'admin' ? '/login/admin' : '/login/user'} replace />
@@ -3103,6 +3104,8 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
 
       {/* Login routes */}
       <Route path="/login/user" element={
+        // Check synchronous ref as primary source of truth to prevent race conditions
+        // isAdminRef is updated before async authState, ensuring correct routing
         authState.user && authInitialized.current && !isAdminRef.current && !isNavigatingRef.current ? (
           <Navigate to="/member/NFL" replace />
         ) : (
@@ -3143,6 +3146,8 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
       } />
 
       <Route path="/login/admin" element={
+        // Check synchronous ref as primary source of truth to prevent race conditions
+        // isAdminRef is updated before async authState, ensuring correct routing
         authState.user && authInitialized.current && isAdminRef.current && !isNavigatingRef.current ? (
           <Navigate to="/admin/dashboard" replace />
         ) : (
