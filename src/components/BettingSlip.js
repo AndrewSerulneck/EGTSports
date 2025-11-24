@@ -324,7 +324,13 @@ function BettingSlip({
       <div className="betting-slip-header" onClick={() => setIsExpanded(!isExpanded)}>
         <div className="slip-title">
           <span className="slip-icon">🎟️</span>
-          <span>{isMobile ? 'Betting Slip (Expand to Place Bet)' : 'Betting Slip'}</span>
+          <span>
+            {isMobile 
+              ? (isExpanded 
+                  ? 'Betting Slip (Minimize to Continue Betting)' 
+                  : 'Betting Slip (Expand to Place Bet)')
+              : 'Betting Slip'}
+          </span>
           {pickCount > 0 && <span className="pick-count-badge">{pickCount}</span>}
         </div>
         <button className="expand-toggle">
