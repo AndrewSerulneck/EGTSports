@@ -2075,7 +2075,7 @@ Email: ${contactInfo.email}`;
         <div className="card">
           <h3 className="mb-2">Important Rules</h3>
           <ul style={{marginLeft: '20px', lineHeight: '1.8'}}>
-            <li><strong>Minimum {minPicks} pick{minPicks > 3 ? 's' : ''} required for parlays</strong></li>
+            <li><strong>Minimum {minPicks} picks{minPicks > 3 ? 's' : ''} required for parlays</strong></li>
             <li><strong>Minimum Bet = $5</strong></li>
              <li><strong>Maximum Parlay Bet = $100</strong></li>
              <li><strong>Maximum Single Bet = $250</strong></li>
@@ -2083,8 +2083,7 @@ Email: ${contactInfo.email}`;
             <li>Funds must be deposited into players pool prior to games starting or ticket is not valid</li>
              <li>A tie counts as a loss</li>
             {betType === 'straight' && <li><strong>Straight Bet Payouts:</strong> Based on moneyline odds shown for each game</li>}
-            <li>Winners paid the following Tuesday</li>
-            <li>Cannot bet on games already completed</li>
+            <li>Winners are paid the following Tuesday</li>
              <li>If you have questions or issues, please contact support@EGTSports.ws</li>
             <li>Each time you participate, your club membership is renewed</li>
             <li>Only bet what you can afford to lose</li>
