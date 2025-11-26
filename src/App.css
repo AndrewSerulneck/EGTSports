@@ -361,10 +361,12 @@ input[type="number"]:focus {
     
     .card {
         padding: 16px;
-        border-radius: 0;
-        margin-left: -10px;
-        margin-right: -10px;
-        width: calc(100% + 20px);
+        border-radius: 8px;
+        margin-left: 0;
+        margin-right: 0;
+        width: 100%;
+        max-width: 100%;
+        overflow-x: hidden;
     }
     .main-content > .card:first-of-type {
         border-top-left-radius: 12px;
