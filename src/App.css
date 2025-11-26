@@ -385,3 +385,390 @@ input[type="number"]:focus {
         grid-template-columns: repeat(2, 1fr);
     }
 }
+
+/* ==========================================
+   Mobile-First User Management Styles
+   ========================================== */
+
+/* Container */
+.user-management-container {
+    max-width: 100%;
+    padding: 10px;
+}
+
+/* Header */
+.user-management-header {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-bottom: 20px;
+}
+
+.user-management-header h1 {
+    font-size: 24px;
+    margin: 0;
+}
+
+/* Form Grid - Mobile First (stacked) */
+.user-form-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+}
+
+.form-field {
+    width: 100%;
+}
+
+.form-field label {
+    display: block;
+    margin-bottom: 8px;
+    font-weight: 600;
+    font-size: 14px;
+}
+
+.user-form-submit {
+    width: 100%;
+    margin-top: 16px;
+    min-height: 48px;
+    font-size: 16px;
+}
+
+/* User List - Mobile First (card layout) */
+.user-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.user-card {
+    background: #f8f9fa;
+    padding: 16px;
+    border-radius: 12px;
+    border: 1px solid #e0e0e0;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.user-info {
+    flex: 1;
+}
+
+.user-name-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 4px;
+}
+
+.user-name {
+    font-size: 18px;
+    font-weight: bold;
+}
+
+.user-email {
+    font-size: 14px;
+    color: #666;
+    margin-bottom: 8px;
+    word-break: break-all;
+}
+
+.user-details {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    font-size: 13px;
+}
+
+.user-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.user-action-btn {
+    flex: 1;
+    min-width: 100px;
+    min-height: 44px;
+    padding: 10px 12px;
+    font-size: 14px;
+    white-space: nowrap;
+}
+
+/* ==========================================
+   Mobile-First Submissions Viewer Styles
+   ========================================== */
+
+.submissions-container {
+    max-width: 100%;
+    padding: 10px;
+}
+
+.submissions-header {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.submissions-header h1 {
+    font-size: 24px;
+    margin: 0;
+}
+
+/* Status Filters - Mobile First */
+.status-filters {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.filter-btn {
+    flex: 1;
+    min-width: calc(50% - 8px);
+    padding: 12px 16px;
+    border: 2px solid #e0e0e0;
+    border-radius: 8px;
+    background: #f8f9fa;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    min-height: 44px;
+}
+
+.filter-btn:hover {
+    background: #e9ecef;
+}
+
+.filter-btn.active {
+    background: #007bff;
+    color: white;
+    border-color: #007bff;
+}
+
+/* Submissions List - Mobile First */
+.submissions-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.submission-card {
+    padding: 0;
+    overflow: hidden;
+}
+
+.submission-header {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    padding: 16px;
+    cursor: pointer;
+    background: #f8f9fa;
+    border-bottom: 1px solid #e0e0e0;
+}
+
+.submission-header-main {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+}
+
+.submission-id {
+    font-weight: bold;
+    font-size: 14px;
+    color: #28a745;
+    flex: 1;
+    word-break: break-all;
+}
+
+.status-badge {
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: bold;
+    text-transform: uppercase;
+}
+
+.submission-header-details {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    width: 100%;
+    font-size: 13px;
+    color: #666;
+}
+
+.submission-date {
+    font-weight: 500;
+}
+
+.submission-email {
+    word-break: break-all;
+}
+
+.expand-btn {
+    background: none;
+    border: none;
+    padding: 8px;
+    font-size: 16px;
+    cursor: pointer;
+    color: #666;
+}
+
+/* Submission Details - Hidden by default on mobile */
+.submission-details {
+    display: none;
+    padding: 16px;
+    background: white;
+}
+
+.submission-details.expanded {
+    display: block;
+}
+
+.submission-info-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 16px;
+}
+
+.info-item {
+    font-size: 14px;
+}
+
+.picks-section {
+    margin-top: 16px;
+}
+
+.picks-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-top: 8px;
+}
+
+.pick-item {
+    display: flex;
+    gap: 8px;
+    padding: 10px;
+    background: #f8f9fa;
+    border-radius: 6px;
+    font-size: 13px;
+}
+
+.pick-number {
+    font-weight: bold;
+    color: #007bff;
+    min-width: 20px;
+}
+
+.pick-text {
+    flex: 1;
+    word-break: break-word;
+}
+
+/* ==========================================
+   Tablet Styles (768px and up)
+   ========================================== */
+@media (min-width: 768px) {
+    .user-management-container,
+    .submissions-container {
+        max-width: 900px;
+        padding: 20px;
+    }
+
+    .user-management-header,
+    .submissions-header {
+        flex-direction: row;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .user-management-header h1,
+    .submissions-header h1 {
+        font-size: 28px;
+    }
+
+    /* Form Grid - 2 columns on tablet */
+    .user-form-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 16px;
+    }
+
+    /* User Card - Side by side layout */
+    .user-card {
+        flex-direction: row;
+        align-items: center;
+    }
+
+    .user-details {
+        flex-direction: row;
+        gap: 16px;
+    }
+
+    .user-actions {
+        flex-wrap: nowrap;
+    }
+
+    .user-action-btn {
+        flex: none;
+        min-width: auto;
+    }
+
+    /* Status Filters - All in one row */
+    .filter-btn {
+        flex: 1;
+        min-width: auto;
+    }
+
+    /* Submission Details - Always visible on tablet+ */
+    .submission-details {
+        display: block;
+    }
+
+    .expand-btn {
+        display: none;
+    }
+
+    .submission-header {
+        cursor: default;
+    }
+
+    .submission-info-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 12px;
+    }
+
+    .submission-header-details {
+        flex-direction: row;
+        gap: 16px;
+        width: auto;
+    }
+}
+
+/* ==========================================
+   Desktop Styles (1024px and up)
+   ========================================== */
+@media (min-width: 1024px) {
+    .user-management-container,
+    .submissions-container {
+        max-width: 1200px;
+    }
+
+    .submission-info-grid {
+        grid-template-columns: repeat(3, 1fr);
+    }
+
+    .pick-item {
+        padding: 12px 16px;
+        font-size: 14px;
+    }
+}
