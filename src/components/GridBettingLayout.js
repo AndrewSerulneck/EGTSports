@@ -33,6 +33,13 @@ function GridBettingLayout({
     return odds;
   };
 
+  // Helper to extract short team name with fallback
+  const getShortTeamName = (teamName) => {
+    if (!teamName) return '--';
+    const parts = teamName.split(' ');
+    return parts.length > 0 ? parts[parts.length - 1] : teamName;
+  };
+
   return (
     <div className="grid-betting-layout">
       {games && games.length > 0 ? (
@@ -78,7 +85,7 @@ function GridBettingLayout({
                     disabled={game.isFinal || !game.awayMoneyline}
                     aria-label={`${game.awayTeam} moneyline ${formatOdds(game.awayMoneyline)}`}
                   >
-                    <span className="btn-team">{game.awayTeam.split(' ').pop()}</span>
+                    <span className="btn-team">{getShortTeamName(game.awayTeam)}</span>
                     <span className="btn-odds">{formatOdds(game.awayMoneyline)}</span>
                   </button>
                   <button
@@ -87,7 +94,7 @@ function GridBettingLayout({
                     disabled={game.isFinal || !game.homeMoneyline}
                     aria-label={`${game.homeTeam} moneyline ${formatOdds(game.homeMoneyline)}`}
                   >
-                    <span className="btn-team">{game.homeTeam.split(' ').pop()}</span>
+                    <span className="btn-team">{getShortTeamName(game.homeTeam)}</span>
                     <span className="btn-odds">{formatOdds(game.homeMoneyline)}</span>
                   </button>
                 </div>
@@ -103,7 +110,7 @@ function GridBettingLayout({
                     disabled={game.isFinal || !game.awaySpread}
                     aria-label={`${game.awayTeam} spread ${formatOdds(game.awaySpread)}`}
                   >
-                    <span className="btn-team">{game.awayTeam.split(' ').pop()}</span>
+                    <span className="btn-team">{getShortTeamName(game.awayTeam)}</span>
                     <span className="btn-odds">{formatOdds(game.awaySpread)}</span>
                   </button>
                   <button
@@ -112,7 +119,7 @@ function GridBettingLayout({
                     disabled={game.isFinal || !game.homeSpread}
                     aria-label={`${game.homeTeam} spread ${formatOdds(game.homeSpread)}`}
                   >
-                    <span className="btn-team">{game.homeTeam.split(' ').pop()}</span>
+                    <span className="btn-team">{getShortTeamName(game.homeTeam)}</span>
                     <span className="btn-odds">{formatOdds(game.homeSpread)}</span>
                   </button>
                 </div>

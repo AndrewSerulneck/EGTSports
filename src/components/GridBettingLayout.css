@@ -1,5 +1,10 @@
 /* Grid Betting Layout - Mobile-First Design */
 
+/* CSS Variables for consistent sizing */
+:root {
+  --touch-target-min: 44px;
+}
+
 /* Base container - Mobile first */
 .grid-betting-layout {
   display: flex;
@@ -159,7 +164,7 @@
   cursor: pointer;
   transition: all 0.2s ease;
   font-family: inherit;
-  min-height: 44px; /* Touch-friendly minimum height */
+  min-height: var(--touch-target-min); /* Touch-friendly minimum height */
   -webkit-tap-highlight-color: transparent;
 }
 
