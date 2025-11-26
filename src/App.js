@@ -2079,7 +2079,7 @@ Email: ${contactInfo.email}`;
             <li><strong>Minimum Bet = $5</strong></li>
              <li><strong>Maximum Parlay Bet = $100</strong></li>
              <li><strong>Maximum Single Bet = $250</strong></li>
-            <li><Cross-league parlays are allowed! Feel free to make picks across different sports leagues</li>
+            <li>Cross-league parlays are allowed! Feel free to make picks across different sports leagues!</li>
             <li>Funds must be deposited into the private pool prior to games starting or ticket is not valid</li>
              <li>A tie counts as a loss</li>
             <li>Winners are paid the following Tuesday</li>
