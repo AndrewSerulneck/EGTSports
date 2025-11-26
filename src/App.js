@@ -2075,7 +2075,7 @@ Email: ${contactInfo.email}`;
         <div className="card">
           <h3 className="mb-2">Important Rules</h3>
           <ul style={{marginLeft: '20px', lineHeight: '1.8'}}>
-            <li><strong>Minimum 3 picks for parlays</li>
+            <li><strong>Minimum 3 picks for parlays</strong></li>
             <li><strong>Minimum Bet = $5</strong></li>
              <li><strong>Maximum Parlay Bet = $100</strong></li>
              <li><strong>Maximum Single Bet = $250</strong></li>
