@@ -3,6 +3,9 @@
 
 const admin = require('firebase-admin');
 
+// Track initialization state
+let initializationError = null;
+
 // Helper function to validate environment variables
 const validateEnvironment = () => {
   const errors = [];
@@ -37,8 +40,12 @@ const validateEnvironment = () => {
   return { errors, warnings, isValid: errors.length === 0 };
 };
 
-// Initialize Firebase Admin SDK
-if (!admin.apps.length) {
+// Initialize Firebase Admin SDK - store errors instead of throwing
+const initializeFirebaseAdmin = () => {
+  if (admin.apps.length) {
+    return true; // Already initialized
+  }
+
   try {
     const envValidation = validateEnvironment();
     
@@ -47,7 +54,8 @@ if (!admin.apps.length) {
       if (envValidation.warnings.length > 0) {
         console.warn('Firebase Admin SDK configuration warnings:', envValidation.warnings);
       }
-      throw new Error(`Missing or invalid Firebase Admin SDK environment variables: ${envValidation.errors.join(', ')}. Visit /api/checkEnv for detailed diagnostics.`);
+      initializationError = `Missing or invalid Firebase Admin SDK environment variables: ${envValidation.errors.join(', ')}. Visit /api/checkEnv for detailed diagnostics.`;
+      return false;
     }
 
     if (envValidation.warnings.length > 0) {
@@ -66,6 +74,7 @@ if (!admin.apps.length) {
       databaseURL: databaseURL
     });
     console.log('Firebase Admin SDK initialized successfully');
+    return true;
   } catch (error) {
     console.error('Firebase admin initialization error:', error.message);
     console.error('Troubleshooting tips:');
@@ -73,9 +82,13 @@ if (!admin.apps.length) {
     console.error('2. Check that FIREBASE_PRIVATE_KEY includes proper newline characters (\\n)');
     console.error('3. Verify the service account has the required permissions');
     console.error('4. Visit /api/checkEnv endpoint for detailed diagnostics');
-    throw error;
+    initializationError = error.message;
+    return false;
   }
-}
+};
+
+// Try to initialize on module load, but don't throw
+initializeFirebaseAdmin();
 
 module.exports = async (req, res) => {
   // Get allowed origin from environment or use the request origin for development
@@ -97,6 +110,19 @@ module.exports = async (req, res) => {
 
   if (req.method !== 'POST') {
     return res.status(405).json({ success: false, error: 'Method not allowed' });
+  }
+
+  // Check if Firebase Admin SDK initialization failed
+  if (initializationError || !admin.apps.length) {
+    // Try to initialize again in case environment changed
+    if (!initializeFirebaseAdmin()) {
+      return res.status(500).json({ 
+        success: false, 
+        error: 'Server configuration error: Firebase Admin SDK failed to initialize',
+        troubleshooting: initializationError || 'Unknown initialization error. Visit /api/checkEnv for detailed diagnostics.',
+        hint: 'Ensure all Firebase environment variables (FIREBASE_PROJECT_ID, FIREBASE_CLIENT_EMAIL, FIREBASE_PRIVATE_KEY, FIREBASE_DATABASE_URL) are properly configured in Vercel.'
+      });
+    }
   }
 
   try {

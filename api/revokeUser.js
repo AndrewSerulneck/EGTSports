@@ -3,16 +3,25 @@
 
 const admin = require('firebase-admin');
 
-// Initialize Firebase Admin SDK if not already initialized
-if (!admin.apps.length) {
+// Track initialization state
+let initializationError = null;
+
+// Initialize Firebase Admin SDK - store errors instead of throwing
+const initializeFirebaseAdmin = () => {
+  if (admin.apps.length) {
+    return true; // Already initialized
+  }
+
   try {
     if (!process.env.FIREBASE_PROJECT_ID || !process.env.FIREBASE_CLIENT_EMAIL || !process.env.FIREBASE_PRIVATE_KEY) {
-      throw new Error('Missing required Firebase Admin SDK environment variables. Visit /api/checkEnv for diagnostics.');
+      initializationError = 'Missing required Firebase Admin SDK environment variables. Visit /api/checkEnv for diagnostics.';
+      return false;
     }
 
     const databaseURL = process.env.FIREBASE_DATABASE_URL;
     if (!databaseURL) {
-      throw new Error('Missing required FIREBASE_DATABASE_URL environment variable.');
+      initializationError = 'Missing required FIREBASE_DATABASE_URL environment variable.';
+      return false;
     }
 
     admin.initializeApp({
@@ -23,11 +32,16 @@ if (!admin.apps.length) {
       }),
       databaseURL: databaseURL
     });
+    return true;
   } catch (error) {
     console.error('Firebase admin initialization error:', error);
-    throw error;
+    initializationError = error.message;
+    return false;
   }
-}
+};
+
+// Try to initialize on module load, but don't throw
+initializeFirebaseAdmin();
 
 module.exports = async (req, res) => {
   // Get allowed origin from environment or use the request origin for development
@@ -49,6 +63,19 @@ module.exports = async (req, res) => {
 
   if (req.method !== 'POST') {
     return res.status(405).json({ success: false, error: 'Method not allowed' });
+  }
+
+  // Check if Firebase Admin SDK initialization failed
+  if (initializationError || !admin.apps.length) {
+    // Try to initialize again in case environment changed
+    if (!initializeFirebaseAdmin()) {
+      return res.status(500).json({ 
+        success: false, 
+        error: 'Server configuration error: Firebase Admin SDK failed to initialize',
+        troubleshooting: initializationError || 'Unknown initialization error. Visit /api/checkEnv for detailed diagnostics.',
+        hint: 'Ensure all Firebase environment variables are properly configured in Vercel.'
+      });
+    }
   }
 
   try {
