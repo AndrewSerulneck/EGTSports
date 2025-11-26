@@ -2042,7 +2042,7 @@ Email: ${contactInfo.email}`;
           
           {betType === 'parlay' && (
             <div className="card">
-              <h2 className="text-center mb-2" style={{color: '#000'}}>Payout Odds</h2>
+              <h2 className="text-center mb-2" style={{color: '#000'}}>Parlay Payout Odds</h2>
               <div className="payout-grid">
                 {[
                   {picks: 3, payout: '8 to 1'}, 
