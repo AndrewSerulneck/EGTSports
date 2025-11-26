@@ -1592,7 +1592,6 @@ const saveSubmission = async (submission) => {
     if (obj.spread) pickCount++;
     if (obj.total) pickCount++;
   });
-  const minPicks = betType === 'straight' ? 1 : 3;
 
   if (hasSubmitted) {
     const getPickId = (gameId, pickType) => `${gameId}-${pickType}`;

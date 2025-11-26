@@ -2,9 +2,8 @@ import React from 'react';
 import './GridBettingLayout.css';
 
 /**
- * GridBettingLayout Component - Displays games in a grid with bet options
- * Columns: Winner (Moneyline), Points Handicap (Spread), Total Points (Over/Under)
- * Inspired by bet777.be design
+ * GridBettingLayout Component - Displays games vertically with horizontal bet options
+ * Mobile-first design with three bet types (Moneyline, Spread, O/U) displayed horizontally
  */
 function GridBettingLayout({ 
   games, 
@@ -52,80 +51,96 @@ function GridBettingLayout({
               )}
             </div>
 
-            {/* Teams Column */}
-            <div className="game-grid-body">
-              <div className="teams-column">
-                <div className="team-row-grid away-team">
-                  <span className="team-name-grid">{game.awayTeam}</span>
+            {/* Game Info - Teams */}
+            <div className="game-info">
+              <div className="teams-display">
+                <div className="team-row away-team">
+                  <span className="team-name">{game.awayTeam}</span>
                   {game.isFinal && <span className="score">{game.awayScore}</span>}
                 </div>
-                <div className="team-row-grid home-team">
-                  <span className="team-name-grid">{game.homeTeam}</span>
+                <div className="vs-divider">@</div>
+                <div className="team-row home-team">
+                  <span className="team-name">{game.homeTeam}</span>
                   {game.isFinal && <span className="score">{game.homeScore}</span>}
                 </div>
               </div>
+            </div>
 
-              {/* Moneyline Column */}
-              <div className="bet-column">
-                <div className="column-header">Moneyline</div>
-                <button
-                  className={`bet-button ${isSelected(game.id, 'winner', 'away') ? 'selected' : ''} ${game.isFinal ? 'disabled' : ''}`}
-                  onClick={() => !game.isFinal && onSelectPick(game.id, 'winner', 'away')}
-                  disabled={game.isFinal || !game.awayMoneyline}
-                >
-                  <span className="bet-label">Away</span>
-                  <span className="bet-odds">{formatOdds(game.awayMoneyline)}</span>
-                </button>
-                <button
-                  className={`bet-button ${isSelected(game.id, 'winner', 'home') ? 'selected' : ''} ${game.isFinal ? 'disabled' : ''}`}
-                  onClick={() => !game.isFinal && onSelectPick(game.id, 'winner', 'home')}
-                  disabled={game.isFinal || !game.homeMoneyline}
-                >
-                  <span className="bet-label">Home</span>
-                  <span className="bet-odds">{formatOdds(game.homeMoneyline)}</span>
-                </button>
+            {/* Horizontal Bet Buttons */}
+            <div className="bet-buttons-row">
+              {/* Moneyline */}
+              <div className="bet-type-group">
+                <div className="bet-type-label">Moneyline</div>
+                <div className="bet-options">
+                  <button
+                    className={`bet-btn ${isSelected(game.id, 'winner', 'away') ? 'selected' : ''} ${game.isFinal ? 'disabled' : ''}`}
+                    onClick={() => !game.isFinal && onSelectPick(game.id, 'winner', 'away')}
+                    disabled={game.isFinal || !game.awayMoneyline}
+                    aria-label={`${game.awayTeam} moneyline ${formatOdds(game.awayMoneyline)}`}
+                  >
+                    <span className="btn-team">{game.awayTeam.split(' ').pop()}</span>
+                    <span className="btn-odds">{formatOdds(game.awayMoneyline)}</span>
+                  </button>
+                  <button
+                    className={`bet-btn ${isSelected(game.id, 'winner', 'home') ? 'selected' : ''} ${game.isFinal ? 'disabled' : ''}`}
+                    onClick={() => !game.isFinal && onSelectPick(game.id, 'winner', 'home')}
+                    disabled={game.isFinal || !game.homeMoneyline}
+                    aria-label={`${game.homeTeam} moneyline ${formatOdds(game.homeMoneyline)}`}
+                  >
+                    <span className="btn-team">{game.homeTeam.split(' ').pop()}</span>
+                    <span className="btn-odds">{formatOdds(game.homeMoneyline)}</span>
+                  </button>
+                </div>
               </div>
 
-              {/* Points Handicap Column (Spread) */}
-              <div className="bet-column">
-                <div className="column-header">Points Handicap</div>
-                <button
-                  className={`bet-button ${isSelected(game.id, 'spread', 'away') ? 'selected' : ''} ${game.isFinal ? 'disabled' : ''}`}
-                  onClick={() => !game.isFinal && onSelectPick(game.id, 'spread', 'away')}
-                  disabled={game.isFinal || !game.awaySpread}
-                >
-                  <span className="bet-label">{game.awayTeam.split(' ').pop()}</span>
-                  <span className="bet-odds">{formatOdds(game.awaySpread)}</span>
-                </button>
-                <button
-                  className={`bet-button ${isSelected(game.id, 'spread', 'home') ? 'selected' : ''} ${game.isFinal ? 'disabled' : ''}`}
-                  onClick={() => !game.isFinal && onSelectPick(game.id, 'spread', 'home')}
-                  disabled={game.isFinal || !game.homeSpread}
-                >
-                  <span className="bet-label">{game.homeTeam.split(' ').pop()}</span>
-                  <span className="bet-odds">{formatOdds(game.homeSpread)}</span>
-                </button>
+              {/* Spread */}
+              <div className="bet-type-group">
+                <div className="bet-type-label">Spread</div>
+                <div className="bet-options">
+                  <button
+                    className={`bet-btn ${isSelected(game.id, 'spread', 'away') ? 'selected' : ''} ${game.isFinal ? 'disabled' : ''}`}
+                    onClick={() => !game.isFinal && onSelectPick(game.id, 'spread', 'away')}
+                    disabled={game.isFinal || !game.awaySpread}
+                    aria-label={`${game.awayTeam} spread ${formatOdds(game.awaySpread)}`}
+                  >
+                    <span className="btn-team">{game.awayTeam.split(' ').pop()}</span>
+                    <span className="btn-odds">{formatOdds(game.awaySpread)}</span>
+                  </button>
+                  <button
+                    className={`bet-btn ${isSelected(game.id, 'spread', 'home') ? 'selected' : ''} ${game.isFinal ? 'disabled' : ''}`}
+                    onClick={() => !game.isFinal && onSelectPick(game.id, 'spread', 'home')}
+                    disabled={game.isFinal || !game.homeSpread}
+                    aria-label={`${game.homeTeam} spread ${formatOdds(game.homeSpread)}`}
+                  >
+                    <span className="btn-team">{game.homeTeam.split(' ').pop()}</span>
+                    <span className="btn-odds">{formatOdds(game.homeSpread)}</span>
+                  </button>
+                </div>
               </div>
 
-              {/* Total Points Column (Over/Under) */}
-              <div className="bet-column">
-                <div className="column-header">Total Points</div>
-                <button
-                  className={`bet-button ${isSelected(game.id, 'total', 'over') ? 'selected' : ''} ${game.isFinal ? 'disabled' : ''}`}
-                  onClick={() => !game.isFinal && onSelectPick(game.id, 'total', 'over')}
-                  disabled={game.isFinal || !game.total}
-                >
-                  <span className="bet-label">Over</span>
-                  <span className="bet-odds">{formatOdds(game.total)}</span>
-                </button>
-                <button
-                  className={`bet-button ${isSelected(game.id, 'total', 'under') ? 'selected' : ''} ${game.isFinal ? 'disabled' : ''}`}
-                  onClick={() => !game.isFinal && onSelectPick(game.id, 'total', 'under')}
-                  disabled={game.isFinal || !game.total}
-                >
-                  <span className="bet-label">Under</span>
-                  <span className="bet-odds">{formatOdds(game.total)}</span>
-                </button>
+              {/* O/U (Over/Under) */}
+              <div className="bet-type-group">
+                <div className="bet-type-label">O/U</div>
+                <div className="bet-options">
+                  <button
+                    className={`bet-btn ${isSelected(game.id, 'total', 'over') ? 'selected' : ''} ${game.isFinal ? 'disabled' : ''}`}
+                    onClick={() => !game.isFinal && onSelectPick(game.id, 'total', 'over')}
+                    disabled={game.isFinal || !game.total}
+                    aria-label={`Over ${formatOdds(game.total)}`}
+                  >
+                    <span className="btn-team">Over</span>
+                    <span className="btn-odds">{formatOdds(game.total)}</span>
+                  </button>
+                  <button
+                    className={`bet-btn ${isSelected(game.id, 'total', 'under') ? 'selected' : ''} ${game.isFinal ? 'disabled' : ''}`}
+                    onClick={() => !game.isFinal && onSelectPick(game.id, 'total', 'under')}
+                    disabled={game.isFinal || !game.total}
+                    aria-label={`Under ${formatOdds(game.total)}`}
+                  >
+                    <span className="btn-team">Under</span>
+                    <span className="btn-odds">{formatOdds(game.total)}</span>
+                  </button>
+                </div>
               </div>
             </div>
           </div>
