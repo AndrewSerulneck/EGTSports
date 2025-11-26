@@ -2,6 +2,17 @@ import React, { useState, useEffect } from 'react';
 import { getDatabase, ref, onValue } from 'firebase/database';
 import '../App.css';
 
+// Helper function to get submission timestamp from various possible fields
+const getSubmissionTimestamp = (submission) => {
+  if (submission.timestamp) {
+    return new Date(submission.timestamp).getTime();
+  }
+  if (submission.createdAt) {
+    return new Date(submission.createdAt).getTime();
+  }
+  return 0;
+};
+
 function SubmissionsViewer({ onBack }) {
   const [submissions, setSubmissions] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -31,23 +42,17 @@ function SubmissionsViewer({ onBack }) {
               ...childSnapshot.val()
             };
             
-            // Filter by 14 days - check both timestamp and createdAt fields
-            const submissionTime = submission.timestamp 
-              ? new Date(submission.timestamp).getTime()
-              : submission.createdAt 
-                ? new Date(submission.createdAt).getTime()
-                : 0;
+            // Filter by 14 days using helper function
+            const submissionTime = getSubmissionTimestamp(submission);
             
             if (submissionTime >= fourteenDaysAgo) {
               submissionsData.push(submission);
             }
           });
           
-          // Sort by timestamp (newest first)
+          // Sort by timestamp (newest first) using helper function
           submissionsData.sort((a, b) => {
-            const timeA = a.timestamp ? new Date(a.timestamp).getTime() : 0;
-            const timeB = b.timestamp ? new Date(b.timestamp).getTime() : 0;
-            return timeB - timeA;
+            return getSubmissionTimestamp(b) - getSubmissionTimestamp(a);
           });
           
           setSubmissions(submissionsData);

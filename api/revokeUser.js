@@ -88,13 +88,24 @@ module.exports = async (req, res) => {
       });
     }
 
-    // Get user info before any changes
+    // Get user info before any changes and check if target is an admin
     let userEmail = 'Unknown';
+    let isTargetAdmin = false;
     try {
       const userRecord = await admin.auth().getUser(uid);
       userEmail = userRecord.email || 'Unknown';
+      // Check if the target user has admin privileges
+      isTargetAdmin = userRecord.customClaims?.admin === true;
     } catch (getUserError) {
       console.warn('Could not fetch user info:', getUserError.message);
+    }
+
+    // Prevent revoking another admin's access
+    if (isTargetAdmin) {
+      return res.status(403).json({ 
+        success: false, 
+        error: 'Cannot revoke access for another admin. Remove their admin privileges first.'
+      });
     }
 
     console.log(`Revoking access for user: ${uid} (${userEmail}) using method: ${method}`);

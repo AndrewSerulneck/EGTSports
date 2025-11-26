@@ -160,9 +160,12 @@ function UserManagement({ onBack }) {
     setSuccess('');
 
     try {
-      // Update user status in database
-      await set(ref(database, `users/${uid}/status`), 'active');
-      await set(ref(database, `users/${uid}/reactivatedAt`), new Date().toISOString());
+      // Update user status in database with atomic batch update
+      await set(ref(database, `users/${uid}`), {
+        ...users.find(u => u.uid === uid),
+        status: 'active',
+        reactivatedAt: new Date().toISOString()
+      });
       
       setSuccess(`Access reactivated for ${displayName}. User will need to log in again.`);
 
