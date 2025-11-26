@@ -210,7 +210,7 @@ function BettingSlip({
                   min={MIN_BET}
                   max={MAX_BET}
                   step="0.01"
-                  placeholder={`$${MIN_BET} - $${MAX_BET}`}
+                  placeholder={`$${5} - $${250}`}
                   value={individualBetAmounts?.[pickId] || ''}
                   onChange={(e) => setIndividualBetAmounts({
                     ...individualBetAmounts,
