@@ -2079,10 +2079,9 @@ Email: ${contactInfo.email}`;
             <li><strong>Minimum Bet = $5</strong></li>
              <li><strong>Maximum Parlay Bet = $100</strong></li>
              <li><strong>Maximum Single Bet = $250</strong></li>
-            <li>Missing info = voided ticket</li>
-            <li>Funds must be deposited into players pool prior to games starting or ticket is not valid</li>
+            <li><Cross-league parlays are allowed! Feel free to make picks across different sports leagues</li>
+            <li>Funds must be deposited into the private pool prior to games starting or ticket is not valid</li>
              <li>A tie counts as a loss</li>
-            {betType === 'straight' && <li><strong>Straight Bet Payouts:</strong> Based on moneyline odds shown for each game</li>}
             <li>Winners are paid the following Tuesday</li>
              <li>If you have questions or issues, please contact support@EGTSports.ws</li>
             <li>Each time you participate, your club membership is renewed</li>
