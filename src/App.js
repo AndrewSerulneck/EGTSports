@@ -12,6 +12,7 @@ import {
 } from "firebase/auth";
 import AuthLanding from './components/AuthLanding';
 import UserManagement from './components/UserManagement';
+import SubmissionsViewer from './components/SubmissionsViewer';
 import GridBettingLayout from './components/GridBettingLayout';
 import PropBetsView from './components/PropBetsView';
 import BettingSlip from './components/BettingSlip';
@@ -704,198 +705,6 @@ function AdminLandingPage({ onManageUsers, onViewSubmissions, onSignOut }) {
             ))}
           </div>
         </div>
-      </div>
-    </div>
-  );
-}
-
-function AdminSubmissionsView({ submissions, allSportsGames, onBack }) {
-  const calculateSubmissionResult = (submission) => {
-    if (!submission || !submission.picks || !Array.isArray(submission.picks)) {
-      return { wins: 0, losses: 0, pending: 0 };
-    }
-    
-    let wins = 0;
-    let losses = 0;
-    let pending = 0;
-
-    submission.picks.forEach(pick => {
-      let game = null;
-      
-      // Search across all sports for the game
-      for (const sport of Object.keys(allSportsGames)) {
-        game = allSportsGames[sport]?.find(g => g.espnId === pick.gameId);
-        if (game) break;
-      }
-
-      if (!game || !game.isFinal) {
-        pending++;
-        return;
-      }
-
-      if (pick.pickType === 'spread') {
-        const awayScore = Number(game.awayScore) || 0;
-        const homeScore = Number(game.homeScore) || 0;
-        const spread = parseFloat(pick.spread);
-        let won = false;
-
-        if (pick.pickedTeamType === 'away') {
-          const adjustedScore = awayScore + spread;
-          won = adjustedScore > homeScore;
-        } else {
-          const adjustedScore = homeScore + spread;
-          won = adjustedScore > awayScore;
-        }
-
-        if (won) wins++;
-        else losses++;
-      } else if (pick.pickType === 'total') {
-        const awayScore = Number(game.awayScore) || 0;
-        const homeScore = Number(game.homeScore) || 0;
-        const totalScore = awayScore + homeScore;
-        const total = parseFloat(pick.total);
-        let won = false;
-
-        if (pick.overUnder === 'over') {
-          won = totalScore > total;
-        } else {
-          won = totalScore < total;
-        }
-
-        if (won) wins++;
-        else losses++;
-      } else if (pick.pickType === 'winner') {
-        const awayScore = Number(game.awayScore) || 0;
-        const homeScore = Number(game.homeScore) || 0;
-        let won = false;
-
-        if (pick.pickedTeamType === 'away') {
-          won = awayScore > homeScore;
-        } else {
-          won = homeScore > awayScore;
-        }
-
-        if (won) wins++;
-        else losses++;
-      }
-    });
-
-    const allGamesComplete = pending === 0;
-    const parlayWon = allGamesComplete && losses === 0 && wins === submission.picks.length;
-
-    return { wins, losses, pending, allGamesComplete, parlayWon };
-  };
-
-  const getPayoutMultiplier = (pickCount) => {
-    const multipliers = {
-      3: 8,
-      4: 15,
-      5: 25,
-      6: 50,
-      7: 100,
-      8: 150,
-      9: 200,
-      10: 250
-    };
-    return multipliers[pickCount] || 0;
-  };
-
-  return (
-    <div className="gradient-bg">
-      <div className="container">
-        <div className="card">
-          <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px'}}>
-            <h1>📋 All Submissions ({submissions.length})</h1>
-            <button className="btn btn-secondary" onClick={onBack}>← Back to Dashboard</button>
-          </div>
-        </div>
-        
-        {submissions.length === 0 ? (
-          <div className="card text-center">
-            <p>No submissions yet</p>
-          </div>
-        ) : (
-          submissions.slice().reverse().map((sub, idx) => {
-            const result = calculateSubmissionResult(sub);
-            return (
-              <div key={idx} className="card">
-                <div style={{marginBottom: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'start'}}>
-                  <div>
-                    <strong style={{fontSize: '20px', color: '#28a745'}}>{sub.ticketNumber}</strong>
-                    {sub.freePlay > 0 && <span className="free-play-badge">${sub.freePlay}</span>}
-                    <div style={{color: '#666', fontSize: '14px'}}>{new Date(sub.timestamp).toLocaleString()}</div>
-                    <div style={{fontSize: '12px', color: '#999', marginTop: '4px'}}>
-                      Sport: {sub.sport} | Bet Type: {sub.betType === 'parlay' ? 'Parlay' : 'Straight Bets'}
-                    </div>
-                  </div>
-                  {result.allGamesComplete && (
-                    <div style={{display: 'flex', flexDirection: 'column', gap: '8px', alignItems: 'flex-end'}}>
-                      <div style={{
-                        padding: '8px 16px',
-                        borderRadius: '8px',
-                        fontWeight: 'bold',
-                        background: result.parlayWon ? '#28a745' : '#dc3545',
-                        color: 'white'
-                      }}>
-                        {result.parlayWon ? 'WON' : 'LOST'}
-                      </div>
-                      {result.parlayWon && (
-                        <div style={{fontSize: '14px', fontWeight: 'bold', color: '#28a745'}}>
-                          Payout: ${(sub.betAmount * getPayoutMultiplier(sub.picks.length)).toFixed(2)}
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-                
-                <div style={{marginBottom: '16px', padding: '16px', background: '#f8f9fa', borderRadius: '8px'}}>
-                  <div><strong>Name:</strong> {sub.contactInfo.name}</div>
-                  <div><strong>Email:</strong> {sub.contactInfo.email}</div>
-                  <div><strong>Bet Amount:</strong> ${sub.betAmount.toFixed(2)}</div>
-                  <div><strong>Potential Payout:</strong> ${sub.potentialPayout ? sub.potentialPayout.toFixed(2) : 'N/A'}</div>
-                </div>
-                
-                <div style={{marginBottom: '16px'}}>
-                  <strong>Record: {result.wins}-{result.losses}</strong>
-                  {result.pending > 0 && <span style={{color: '#666'}}> ({result.pending} pending)</span>}
-                  {result.allGamesComplete && (
-                    <div style={{
-                      marginTop: '8px',
-                      padding: '8px 12px',
-                      borderRadius: '6px',
-                      display: 'inline-block',
-                      fontWeight: 'bold',
-                      background: result.parlayWon ? '#d4edda' : '#f8d7da',
-                      color: result.parlayWon ? '#155724' : '#721c24',
-                      border: result.parlayWon ? '1px solid #c3e6cb' : '1px solid #f5c6cb'
-                    }}>
-                      {result.parlayWon ? '✅ ALL PICKS WON' : '❌ SOME PICKS LOST'}
-                    </div>
-                  )}
-                </div>
-                
-                <div>
-                  <strong style={{marginBottom: '8px', display: 'block'}}>Picks ({sub.picks.length}):</strong>
-                  <div style={{display: 'flex', flexDirection: 'column', gap: '4px'}}>
-                    {sub.picks.map((pick, pickIdx) => (
-                      <div key={pickIdx} style={{
-                        padding: '8px',
-                        background: '#fff',
-                        borderRadius: '4px',
-                        border: '1px solid #e0e0e0',
-                        fontSize: '14px'
-                      }}>
-                        {pick.gameName} - {pick.pickType === 'spread' ? `${pick.team} ${pick.spread}` : 
-                         pick.pickType === 'total' ? `${pick.overUnder} ${pick.total}` : 
-                         pick.pickType === 'winner' ? `${pick.team} ${pick.moneyline}` : 'Unknown'}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            );
-          })
-        )}
       </div>
     </div>
   );
@@ -3211,9 +3020,7 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
         !authState.user || (!authState.isAdmin && !isAdminRef.current) ? (
           <Navigate to="/login/admin" replace />
         ) : (
-          <AdminSubmissionsView
-            submissions={submissions}
-            allSportsGames={allSportsGames}
+          <SubmissionsViewer
             onBack={() => navigate('/admin/dashboard')}
           />
         )
