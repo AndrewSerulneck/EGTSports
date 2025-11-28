@@ -12,6 +12,7 @@ function UserManagement({ onBack }) {
     creditLimit: 100
   });
   const [loading, setLoading] = useState(false);
+  const [usersLoading, setUsersLoading] = useState(true);
   const [revokeLoading, setRevokeLoading] = useState({});
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -21,23 +22,43 @@ function UserManagement({ onBack }) {
 
   useEffect(() => {
     // Load users from Firebase
+    console.log('UserManagement: Setting up Firebase listener for users...');
+    setUsersLoading(true);
     const usersRef = ref(database, 'users');
+    
     const unsubscribe = onValue(usersRef, (snapshot) => {
+      console.log('UserManagement: Received data from Firebase');
+      console.log('UserManagement: Snapshot exists:', snapshot.exists());
+      
       if (snapshot.exists()) {
         const usersData = [];
         snapshot.forEach((childSnapshot) => {
+          console.log('UserManagement: Found user:', childSnapshot.key);
           usersData.push({
             uid: childSnapshot.key,
             ...childSnapshot.val()
           });
         });
+        console.log('UserManagement: Total users loaded:', usersData.length);
         setUsers(usersData);
       } else {
+        console.log('UserManagement: No users found in database');
         setUsers([]);
       }
+      setUsersLoading(false);
+    }, (error) => {
+      // Handle Firebase permission or connection errors
+      console.error('UserManagement: Firebase read error:', error);
+      console.error('UserManagement: Error code:', error.code);
+      console.error('UserManagement: Error message:', error.message);
+      setError(`Failed to load users: ${error.message}. Check Firebase security rules.`);
+      setUsersLoading(false);
     });
 
-    return () => unsubscribe();
+    return () => {
+      console.log('UserManagement: Cleaning up Firebase listener');
+      unsubscribe();
+    };
   }, [database]);
 
   const handleCreateUser = async (e) => {
@@ -312,8 +333,15 @@ function UserManagement({ onBack }) {
         {/* Users List */}
         <div className="card">
           <h2 className="mb-2">Registered Users ({users.length})</h2>
-          {users.length === 0 ? (
-            <p style={{ textAlign: 'center', color: '#666' }}>No users yet</p>
+          {usersLoading ? (
+            <p style={{ textAlign: 'center', color: '#666' }}>⏳ Loading users...</p>
+          ) : users.length === 0 ? (
+            <div style={{ textAlign: 'center', color: '#666', padding: '20px' }}>
+              <p>No users yet</p>
+              <p style={{ fontSize: '14px', marginTop: '10px' }}>
+                Create a new user using the form above. Users will appear here after creation.
+              </p>
+            </div>
           ) : (
             <div className="user-list">
               {users.map((user) => (
