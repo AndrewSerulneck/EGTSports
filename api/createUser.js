@@ -200,7 +200,7 @@ module.exports = async (req, res) => {
       email: email,
       displayName: displayName,
       creditLimit: parseFloat(creditLimit) || 100,
-      currentCredit: 0,
+      totalWagered: 0,
       role: 'member',
       status: 'active',
       createdAt: new Date().toISOString(),

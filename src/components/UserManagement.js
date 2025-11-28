@@ -203,20 +203,75 @@ function UserManagement({ onBack }) {
     await handleRevokeUser(uid, displayName, 'hard');
   };
 
-  const handleUpdateCredit = async (uid, displayName, currentCredit) => {
-    const newCredit = parseFloat(prompt(
-      `Update credit for ${displayName}\nCurrent credit: $${currentCredit}\nEnter new credit amount:`,
-      currentCredit
+  const handleUpdateCreditLimit = async (uid, displayName, currentLimit, totalWagered) => {
+    const newLimit = parseFloat(prompt(
+      `Update credit limit for ${displayName}\n\nCurrent Limit: $${currentLimit}\nTotal Wagered: $${totalWagered}\n\nEnter new credit limit:`,
+      currentLimit
     ));
 
-    if (isNaN(newCredit) || newCredit === null) return;
+    if (isNaN(newLimit) || newLimit === null) return;
+
+    if (newLimit < 0) {
+      setError('Credit limit cannot be negative');
+      return;
+    }
 
     try {
-      await set(ref(database, `users/${uid}/currentCredit`), newCredit);
-      setSuccess(`Credit updated for ${displayName}`);
+      await set(ref(database, `users/${uid}/creditLimit`), newLimit);
+      setSuccess(`Credit limit updated for ${displayName}: $${newLimit}`);
     } catch (err) {
-      console.error('Error updating credit:', err);
+      console.error('Error updating credit limit:', err);
       setError(err.message);
+    }
+  };
+
+  const handleResetWager = async (uid, displayName, currentWagered) => {
+    const newAmount = parseFloat(prompt(
+      `Reset wagered amount for ${displayName}\n\nCurrent Total Wagered: $${currentWagered}\n\nEnter new wagered amount (usually 0 to reset):`,
+      0
+    ));
+
+    if (isNaN(newAmount) || newAmount === null) return;
+
+    if (newAmount < 0) {
+      setError('Wagered amount cannot be negative');
+      return;
+    }
+
+    setRevokeLoading(prev => ({ ...prev, [uid]: true }));
+    setError('');
+    setSuccess('');
+
+    try {
+      const currentUser = auth.currentUser;
+      if (!currentUser) {
+        throw new Error('Not authenticated');
+      }
+      
+      const idToken = await currentUser.getIdToken();
+
+      const response = await fetch('/api/resetWager', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${idToken}`
+        },
+        body: JSON.stringify({ uid, resetAmount: newAmount })
+      });
+
+      const result = await response.json();
+
+      if (!response.ok || !result.success) {
+        throw new Error(result.error || 'Failed to reset wagered amount');
+      }
+
+      setSuccess(`Wagered amount reset for ${displayName}: $${newAmount}`);
+
+    } catch (err) {
+      console.error('Error resetting wager:', err);
+      setError(err.message);
+    } finally {
+      setRevokeLoading(prev => ({ ...prev, [uid]: false }));
     }
   };
 
@@ -354,7 +409,7 @@ function UserManagement({ onBack }) {
                     <div className="user-email">{user.email}</div>
                     <div className="user-details">
                       <span>
-                        <strong>Credit:</strong> ${user.currentCredit || 0} / ${user.creditLimit || 100}
+                        <strong>Wagered:</strong> ${user.totalWagered || user.currentCredit || 0} / ${user.creditLimit || 100}
                       </span>
                       <span>
                         <strong>Created:</strong> {new Date(user.createdAt).toLocaleDateString()}
@@ -369,9 +424,17 @@ function UserManagement({ onBack }) {
                   <div className="user-actions">
                     <button
                       className="btn btn-primary user-action-btn"
-                      onClick={() => handleUpdateCredit(user.uid, user.displayName, user.currentCredit || 0)}
+                      onClick={() => handleUpdateCreditLimit(user.uid, user.displayName, user.creditLimit || 100, user.totalWagered || user.currentCredit || 0)}
                     >
-                      💰 Credit
+                      💰 Limit
+                    </button>
+                    <button
+                      className="btn btn-info user-action-btn"
+                      onClick={() => handleResetWager(user.uid, user.displayName, user.totalWagered || user.currentCredit || 0)}
+                      disabled={revokeLoading[user.uid]}
+                      style={{ background: '#17a2b8', color: '#fff' }}
+                    >
+                      {revokeLoading[user.uid] ? '...' : '🔄 Reset'}
                     </button>
                     {user.status === 'revoked' ? (
                       <button
