@@ -1,24 +1,38 @@
 // Serverless function to revoke user access using Firebase Admin SDK
 // Supports both soft revocation (invalidate sessions) and hard revocation (delete user)
 
-const admin = require('firebase-admin');
-
-// Track initialization state
+let admin;
 let initializationError = null;
+
+// Safely require firebase-admin
+try {
+  admin = require('firebase-admin');
+} catch (error) {
+  initializationError = `Failed to load firebase-admin module: ${error.message}`;
+  console.error(initializationError);
+}
 
 // Initialize Firebase Admin SDK - store errors instead of throwing
 const initializeFirebaseAdmin = () => {
-  if (admin.apps.length) {
+  if (!admin) {
+    return false;
+  }
+  
+  if (admin.apps && admin.apps.length) {
     return true; // Already initialized
   }
 
   try {
-    if (!process.env.FIREBASE_PROJECT_ID || !process.env.FIREBASE_CLIENT_EMAIL || !process.env.FIREBASE_PRIVATE_KEY) {
+    const projectId = process.env.FIREBASE_PROJECT_ID || '';
+    const clientEmail = process.env.FIREBASE_CLIENT_EMAIL || '';
+    const privateKey = process.env.FIREBASE_PRIVATE_KEY || '';
+    const databaseURL = process.env.FIREBASE_DATABASE_URL || '';
+
+    if (!projectId || !clientEmail || !privateKey) {
       initializationError = 'Missing required Firebase Admin SDK environment variables. Visit /api/checkEnv for diagnostics.';
       return false;
     }
 
-    const databaseURL = process.env.FIREBASE_DATABASE_URL;
     if (!databaseURL) {
       initializationError = 'Missing required FIREBASE_DATABASE_URL environment variable.';
       return false;
@@ -26,9 +40,9 @@ const initializeFirebaseAdmin = () => {
 
     admin.initializeApp({
       credential: admin.credential.cert({
-        projectId: process.env.FIREBASE_PROJECT_ID,
-        clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-        privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
+        projectId: projectId,
+        clientEmail: clientEmail,
+        privateKey: privateKey.replace(/\\n/g, '\n'),
       }),
       databaseURL: databaseURL
     });
@@ -41,44 +55,55 @@ const initializeFirebaseAdmin = () => {
 };
 
 // Try to initialize on module load, but don't throw
-initializeFirebaseAdmin();
+if (admin) {
+  initializeFirebaseAdmin();
+}
 
 module.exports = async (req, res) => {
-  // Get allowed origin from environment or use the request origin for development
-  const allowedOrigin = process.env.ALLOWED_ORIGIN || req.headers.origin;
-  
-  // Set CORS headers with specific origin
-  res.setHeader('Access-Control-Allow-Credentials', true);
-  res.setHeader('Access-Control-Allow-Origin', allowedOrigin);
-  res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
-  res.setHeader(
-    'Access-Control-Allow-Headers',
-    'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version, Authorization'
-  );
+  try {
+    // Set CORS headers - be permissive to ensure we always respond
+    const allowedOrigin = process.env.ALLOWED_ORIGIN || req.headers.origin || '*';
+    
+    res.setHeader('Access-Control-Allow-Credentials', 'true');
+    res.setHeader('Access-Control-Allow-Origin', allowedOrigin);
+    res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
+    res.setHeader(
+      'Access-Control-Allow-Headers',
+      'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version, Authorization'
+    );
 
-  if (req.method === 'OPTIONS') {
-    res.status(200).end();
-    return;
-  }
+    if (req.method === 'OPTIONS') {
+      res.status(200).end();
+      return;
+    }
 
-  if (req.method !== 'POST') {
-    return res.status(405).json({ success: false, error: 'Method not allowed' });
-  }
+    if (req.method !== 'POST') {
+      return res.status(405).json({ success: false, error: 'Method not allowed' });
+    }
 
-  // Check if Firebase Admin SDK initialization failed
-  if (initializationError || !admin.apps.length) {
-    // Try to initialize again in case environment changed
-    if (!initializeFirebaseAdmin()) {
+    // Check if firebase-admin module loaded properly
+    if (!admin) {
       return res.status(500).json({ 
         success: false, 
-        error: 'Server configuration error: Firebase Admin SDK failed to initialize',
-        troubleshooting: initializationError || 'Unknown initialization error. Visit /api/checkEnv for detailed diagnostics.',
-        hint: 'Ensure all Firebase environment variables are properly configured in Vercel.'
+        error: 'Server configuration error: Firebase Admin module failed to load',
+        troubleshooting: initializationError || 'The firebase-admin package may not be installed correctly.',
+        hint: 'Check Vercel function logs for more details. Try redeploying.'
       });
     }
-  }
 
-  try {
+    // Check if Firebase Admin SDK initialization failed
+    if (initializationError || !admin.apps || !admin.apps.length) {
+      // Try to initialize again in case environment changed
+      if (!initializeFirebaseAdmin()) {
+        return res.status(500).json({ 
+          success: false, 
+          error: 'Server configuration error: Firebase Admin SDK failed to initialize',
+          troubleshooting: initializationError || 'Unknown initialization error. Visit /api/checkEnv for detailed diagnostics.',
+          hint: 'Ensure all Firebase environment variables are properly configured in Vercel.'
+        });
+      }
+    }
+
     // Verify the admin user making the request
     const authHeader = req.headers.authorization;
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
@@ -181,7 +206,7 @@ module.exports = async (req, res) => {
     }
 
   } catch (error) {
-    console.error('Error revoking user access:', error);
+    console.error('Error in revokeUser:', error);
     console.error('Error code:', error.code);
     console.error('Error message:', error.message);
     

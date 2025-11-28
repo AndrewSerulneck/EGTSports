@@ -1,39 +1,49 @@
 // Serverless function to create users using Firebase Admin SDK
 // This prevents the admin from being logged out when creating a new user
 
-const admin = require('firebase-admin');
-
-// Track initialization state
+let admin;
 let initializationError = null;
+
+// Safely require firebase-admin
+try {
+  admin = require('firebase-admin');
+} catch (error) {
+  initializationError = `Failed to load firebase-admin module: ${error.message}`;
+  console.error(initializationError);
+}
 
 // Helper function to validate environment variables
 const validateEnvironment = () => {
   const errors = [];
   const warnings = [];
 
-  if (!process.env.FIREBASE_PROJECT_ID) {
+  const projectId = process.env.FIREBASE_PROJECT_ID || '';
+  const clientEmail = process.env.FIREBASE_CLIENT_EMAIL || '';
+  const privateKey = process.env.FIREBASE_PRIVATE_KEY || '';
+  const databaseUrl = process.env.FIREBASE_DATABASE_URL || '';
+
+  if (!projectId) {
     errors.push('FIREBASE_PROJECT_ID is missing');
   }
 
-  if (!process.env.FIREBASE_CLIENT_EMAIL) {
+  if (!clientEmail) {
     errors.push('FIREBASE_CLIENT_EMAIL is missing');
-  } else if (!/^[a-zA-Z0-9-]+@[a-zA-Z0-9-]+\.iam\.gserviceaccount\.com$/.test(process.env.FIREBASE_CLIENT_EMAIL)) {
+  } else if (!/^[a-zA-Z0-9._-]+@[a-zA-Z0-9._-]+\.iam\.gserviceaccount\.com$/.test(clientEmail)) {
     warnings.push('FIREBASE_CLIENT_EMAIL format may be incorrect');
   }
 
-  if (!process.env.FIREBASE_PRIVATE_KEY) {
+  if (!privateKey) {
     errors.push('FIREBASE_PRIVATE_KEY is missing');
   } else {
-    const key = process.env.FIREBASE_PRIVATE_KEY;
-    if (!key.includes('-----BEGIN PRIVATE KEY-----') && !key.includes('-----BEGIN RSA PRIVATE KEY-----')) {
+    if (!privateKey.includes('-----BEGIN PRIVATE KEY-----') && !privateKey.includes('-----BEGIN RSA PRIVATE KEY-----')) {
       errors.push('FIREBASE_PRIVATE_KEY is missing BEGIN marker - key may be malformed');
     }
-    if (!key.includes('-----END PRIVATE KEY-----') && !key.includes('-----END RSA PRIVATE KEY-----')) {
+    if (!privateKey.includes('-----END PRIVATE KEY-----') && !privateKey.includes('-----END RSA PRIVATE KEY-----')) {
       errors.push('FIREBASE_PRIVATE_KEY is missing END marker - key may be malformed');
     }
   }
 
-  if (!process.env.FIREBASE_DATABASE_URL) {
+  if (!databaseUrl) {
     errors.push('FIREBASE_DATABASE_URL is missing');
   }
 
@@ -42,7 +52,11 @@ const validateEnvironment = () => {
 
 // Initialize Firebase Admin SDK - store errors instead of throwing
 const initializeFirebaseAdmin = () => {
-  if (admin.apps.length) {
+  if (!admin) {
+    return false;
+  }
+  
+  if (admin.apps && admin.apps.length) {
     return true; // Already initialized
   }
 
@@ -62,14 +76,15 @@ const initializeFirebaseAdmin = () => {
       console.warn('Firebase Admin SDK configuration warnings:', envValidation.warnings);
     }
 
-    const databaseURL = process.env.FIREBASE_DATABASE_URL;
+    const privateKey = process.env.FIREBASE_PRIVATE_KEY || '';
+    const databaseURL = process.env.FIREBASE_DATABASE_URL || '';
 
     console.log('Initializing Firebase Admin SDK...');
     admin.initializeApp({
       credential: admin.credential.cert({
         projectId: process.env.FIREBASE_PROJECT_ID,
         clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-        privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
+        privateKey: privateKey.replace(/\\n/g, '\n'),
       }),
       databaseURL: databaseURL
     });
@@ -88,39 +103,51 @@ const initializeFirebaseAdmin = () => {
 };
 
 // Try to initialize on module load, but don't throw
-initializeFirebaseAdmin();
+if (admin) {
+  initializeFirebaseAdmin();
+}
 
 module.exports = async (req, res) => {
-  // Get allowed origin from environment or use the request origin for development
-  const allowedOrigin = process.env.ALLOWED_ORIGIN || req.headers.origin;
-  
-  // Set CORS headers with specific origin
-  res.setHeader('Access-Control-Allow-Credentials', true);
-  res.setHeader('Access-Control-Allow-Origin', allowedOrigin);
-  res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
-  res.setHeader(
-    'Access-Control-Allow-Headers',
-    'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version, Authorization'
-  );
+  try {
+    // Set CORS headers - be permissive to ensure we always respond
+    const allowedOrigin = process.env.ALLOWED_ORIGIN || req.headers.origin || '*';
+    
+    res.setHeader('Access-Control-Allow-Credentials', 'true');
+    res.setHeader('Access-Control-Allow-Origin', allowedOrigin);
+    res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
+    res.setHeader(
+      'Access-Control-Allow-Headers',
+      'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version, Authorization'
+    );
 
-  if (req.method === 'OPTIONS') {
-    res.status(200).end();
-    return;
-  }
+    if (req.method === 'OPTIONS') {
+      res.status(200).end();
+      return;
+    }
 
-  if (req.method !== 'POST') {
-    return res.status(405).json({ success: false, error: 'Method not allowed' });
-  }
+    if (req.method !== 'POST') {
+      return res.status(405).json({ success: false, error: 'Method not allowed' });
+    }
 
-  // Check if Firebase Admin SDK initialization failed
-  if (initializationError || !admin.apps.length) {
-    // Try to initialize again in case environment changed
-    if (!initializeFirebaseAdmin()) {
+    // Check if firebase-admin module loaded properly
+    if (!admin) {
       return res.status(500).json({ 
         success: false, 
-        error: 'Server configuration error: Firebase Admin SDK failed to initialize',
-        troubleshooting: initializationError || 'Unknown initialization error. Visit /api/checkEnv for detailed diagnostics.',
-        hint: 'Ensure all Firebase environment variables (FIREBASE_PROJECT_ID, FIREBASE_CLIENT_EMAIL, FIREBASE_PRIVATE_KEY, FIREBASE_DATABASE_URL) are properly configured in Vercel.'
+        error: 'Server configuration error: Firebase Admin module failed to load',
+        troubleshooting: initializationError || 'The firebase-admin package may not be installed correctly.',
+        hint: 'Check Vercel function logs for more details. Try redeploying.'
+      });
+    }
+
+    // Check if Firebase Admin SDK initialization failed
+    if (initializationError || !admin.apps || !admin.apps.length) {
+      // Try to initialize again in case environment changed
+      if (!initializeFirebaseAdmin()) {
+        return res.status(500).json({ 
+          success: false, 
+          error: 'Server configuration error: Firebase Admin SDK failed to initialize',
+          troubleshooting: initializationError || 'Unknown initialization error. Visit /api/checkEnv for detailed diagnostics.',
+          hint: 'Ensure all Firebase environment variables (FIREBASE_PROJECT_ID, FIREBASE_CLIENT_EMAIL, FIREBASE_PRIVATE_KEY, FIREBASE_DATABASE_URL) are properly configured in Vercel.'
       });
     }
   }
@@ -238,6 +265,16 @@ module.exports = async (req, res) => {
       success: false, 
       error: error.message || 'Failed to create user',
       troubleshooting: 'An unexpected error occurred. Check the server logs for more details. Visit /api/checkEnv to verify environment configuration.'
+    });
+  }
+  } catch (outerError) {
+    // Catch any unexpected errors at the top level to prevent FUNCTION_INVOCATION_FAILED
+    console.error('Unexpected error in createUser:', outerError);
+    return res.status(500).json({
+      success: false,
+      error: 'An unexpected server error occurred',
+      message: outerError.message || 'Unknown error',
+      troubleshooting: 'This is an unexpected error. Check Vercel function logs for details. Visit /api/checkEnv to verify environment configuration.'
     });
   }
 };
