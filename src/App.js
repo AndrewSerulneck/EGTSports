@@ -9,6 +9,8 @@ import {
   signInWithEmailAndPassword,
   signOut,
   onAuthStateChanged,
+  browserSessionPersistence,
+  setPersistence,
 } from "firebase/auth";
 import AuthLanding from './components/AuthLanding';
 import UserManagement from './components/UserManagement';
@@ -87,6 +89,23 @@ function MobileSportsMenu({ currentSport, onSelectSport, allSportsGames }) {
                     Prop Bets
                 </button>
             )}
+        </div>
+    );
+}
+
+// Reusable Mobile Actions Container component for Sign Out and Refresh buttons
+function MobileActionsContainer({ onManualRefresh, isRefreshing, onSignOut }) {
+    return (
+        <div className="mobile-actions-container">
+            <h3 className="mb-2">Quick Actions</h3>
+            <div className="mobile-actions-buttons">
+                <button onClick={onManualRefresh} disabled={isRefreshing} className="btn btn-info mobile-action-btn">
+                    {isRefreshing ? '🔄 Refreshing...' : '🔄 Refresh Games'}
+                </button>
+                <button onClick={onSignOut} className="btn btn-secondary mobile-action-btn">
+                    🚪 Sign Out
+                </button>
+            </div>
         </div>
     );
 }
@@ -176,6 +195,12 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const database = getDatabase(app);
 const auth = getAuth(app);
+
+// Set session-only persistence for enforced re-authentication
+// This ensures users must re-login when browser is closed or tab is terminated
+setPersistence(auth, browserSessionPersistence).catch((error) => {
+  console.error('Error setting session persistence:', error);
+});
 
 const MIN_BET = parseInt(process.env.REACT_APP_MIN_BET) || 5;
 const MAX_BET = parseInt(process.env.REACT_APP_MAX_BET) || 100;
@@ -1317,6 +1342,13 @@ const saveSubmission = async (submission) => {
             onSelectPropBet={handleGridPickSelection}
             betType={betType}
           />
+          
+          {/* Mobile-only Action Buttons Container */}
+          <MobileActionsContainer 
+            onManualRefresh={onManualRefresh}
+            isRefreshing={isRefreshing}
+            onSignOut={onSignOut}
+          />
         </div>
         
         <BettingSlip
@@ -1365,6 +1397,13 @@ const saveSubmission = async (submission) => {
               There are currently no upcoming {displaySport} games. This could be due to the off-season or no scheduled games at this time.
             </p>
           </div>
+          
+          {/* Mobile-only Action Buttons Container */}
+          <MobileActionsContainer 
+            onManualRefresh={onManualRefresh}
+            isRefreshing={isRefreshing}
+            onSignOut={onSignOut}
+          />
         </div>
       </div>
     );
@@ -1390,6 +1429,13 @@ const saveSubmission = async (submission) => {
           <div className="card text-center">
             <h2>Loading {displaySport} games...</h2>
           </div>
+          
+          {/* Mobile-only Action Buttons Container */}
+          <MobileActionsContainer 
+            onManualRefresh={onManualRefresh}
+            isRefreshing={isRefreshing}
+            onSignOut={onSignOut}
+          />
         </div>
       </div>
     );
@@ -1900,6 +1946,13 @@ Email: ${contactInfo.email}`;
             <strong>Legal Disclaimer:</strong> For entertainment only. 21+ only. Private pool among friends. Check local laws. By participating, you acknowledge responsibility for compliance with local laws.
           </div>
         </div>
+        
+        {/* Mobile-only Action Buttons Container */}
+        <MobileActionsContainer 
+          onManualRefresh={onManualRefresh}
+          isRefreshing={isRefreshing}
+          onSignOut={onSignOut}
+        />
       </div>
       
       <BettingSlip

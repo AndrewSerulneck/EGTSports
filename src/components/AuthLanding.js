@@ -6,6 +6,10 @@ function AuthLanding({ onSelectRole }) {
     <div className="gradient-bg">
       <div className="container" style={{ maxWidth: '800px', paddingTop: '60px' }}>
         <div className="text-center text-white mb-4">
+          {/* Desktop-only Football Logo */}
+          <div className="desktop-logo">
+            <span style={{ fontSize: '80px' }}>🏈</span>
+          </div>
           <h1 style={{ fontSize: '48px', marginBottom: '16px' }}>Welcome to EGT Sports</h1>
           <p style={{ fontSize: '20px', marginBottom: '40px' }}>How would you like to continue?</p>
         </div>

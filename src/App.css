@@ -279,6 +279,31 @@ input[type="number"]:focus {
     display: none;
 }
 
+/* Mobile Actions Container - Hidden on Desktop, visible only on mobile */
+.mobile-actions-container {
+    display: none;
+}
+
+/* Desktop Logo */
+.desktop-logo {
+    display: block;
+    text-align: center;
+    margin-bottom: 20px;
+}
+
+.desktop-logo img {
+    width: 80px;
+    height: 80px;
+    object-fit: contain;
+}
+
+/* Hide desktop logo on mobile */
+@media (max-width: 960px) {
+    .desktop-logo {
+        display: none;
+    }
+}
+
 /* Responsive */
 @media (max-width: 960px) {
     /* --- MOBILE STYLES --- */
@@ -383,6 +408,37 @@ input[type="number"]:focus {
     }
     .payout-grid {
         grid-template-columns: repeat(2, 1fr);
+    }
+
+    /* Mobile Actions Container - Visible only on mobile */
+    .mobile-actions-container {
+        display: block;
+        background: white;
+        border-radius: 12px;
+        padding: 20px;
+        margin-bottom: 20px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+
+    .mobile-actions-container h3 {
+        text-align: center;
+        margin-bottom: 16px;
+        color: #333;
+    }
+
+    .mobile-actions-buttons {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+    }
+
+    .mobile-action-btn {
+        width: 100%;
+        padding: 16px;
+        font-size: 16px;
+        font-weight: 600;
+        border-radius: 8px;
+        margin: 0;
     }
 }
 
