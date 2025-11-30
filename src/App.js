@@ -93,6 +93,23 @@ function MobileSportsMenu({ currentSport, onSelectSport, allSportsGames }) {
     );
 }
 
+// Reusable Mobile Actions Container component for Sign Out and Refresh buttons
+function MobileActionsContainer({ onManualRefresh, isRefreshing, onSignOut }) {
+    return (
+        <div className="mobile-actions-container">
+            <h3 className="mb-2">Quick Actions</h3>
+            <div className="mobile-actions-buttons">
+                <button onClick={onManualRefresh} disabled={isRefreshing} className="btn btn-info mobile-action-btn">
+                    {isRefreshing ? '🔄 Refreshing...' : '🔄 Refresh Games'}
+                </button>
+                <button onClick={onSignOut} className="btn btn-secondary mobile-action-btn">
+                    🚪 Sign Out
+                </button>
+            </div>
+        </div>
+    );
+}
+
 // ESPN API Endpoints for all sports
 const ESPN_API_ENDPOINTS = {
   'NFL': 'https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard',
@@ -1327,17 +1344,11 @@ const saveSubmission = async (submission) => {
           />
           
           {/* Mobile-only Action Buttons Container */}
-          <div className="mobile-actions-container">
-            <h3 className="mb-2">Quick Actions</h3>
-            <div className="mobile-actions-buttons">
-              <button onClick={onManualRefresh} disabled={isRefreshing} className="btn btn-info mobile-action-btn">
-                {isRefreshing ? '🔄 Refreshing...' : '🔄 Refresh Games'}
-              </button>
-              <button onClick={onSignOut} className="btn btn-secondary mobile-action-btn">
-                🚪 Sign Out
-              </button>
-            </div>
-          </div>
+          <MobileActionsContainer 
+            onManualRefresh={onManualRefresh}
+            isRefreshing={isRefreshing}
+            onSignOut={onSignOut}
+          />
         </div>
         
         <BettingSlip
@@ -1388,17 +1399,11 @@ const saveSubmission = async (submission) => {
           </div>
           
           {/* Mobile-only Action Buttons Container */}
-          <div className="mobile-actions-container">
-            <h3 className="mb-2">Quick Actions</h3>
-            <div className="mobile-actions-buttons">
-              <button onClick={onManualRefresh} disabled={isRefreshing} className="btn btn-info mobile-action-btn">
-                {isRefreshing ? '🔄 Refreshing...' : '🔄 Refresh Games'}
-              </button>
-              <button onClick={onSignOut} className="btn btn-secondary mobile-action-btn">
-                🚪 Sign Out
-              </button>
-            </div>
-          </div>
+          <MobileActionsContainer 
+            onManualRefresh={onManualRefresh}
+            isRefreshing={isRefreshing}
+            onSignOut={onSignOut}
+          />
         </div>
       </div>
     );
@@ -1426,17 +1431,11 @@ const saveSubmission = async (submission) => {
           </div>
           
           {/* Mobile-only Action Buttons Container */}
-          <div className="mobile-actions-container">
-            <h3 className="mb-2">Quick Actions</h3>
-            <div className="mobile-actions-buttons">
-              <button onClick={onManualRefresh} disabled={isRefreshing} className="btn btn-info mobile-action-btn">
-                {isRefreshing ? '🔄 Refreshing...' : '🔄 Refresh Games'}
-              </button>
-              <button onClick={onSignOut} className="btn btn-secondary mobile-action-btn">
-                🚪 Sign Out
-              </button>
-            </div>
-          </div>
+          <MobileActionsContainer 
+            onManualRefresh={onManualRefresh}
+            isRefreshing={isRefreshing}
+            onSignOut={onSignOut}
+          />
         </div>
       </div>
     );
@@ -1949,17 +1948,11 @@ Email: ${contactInfo.email}`;
         </div>
         
         {/* Mobile-only Action Buttons Container */}
-        <div className="mobile-actions-container">
-          <h3 className="mb-2">Quick Actions</h3>
-          <div className="mobile-actions-buttons">
-            <button onClick={onManualRefresh} disabled={isRefreshing} className="btn btn-info mobile-action-btn">
-              {isRefreshing ? '🔄 Refreshing...' : '🔄 Refresh Games'}
-            </button>
-            <button onClick={onSignOut} className="btn btn-secondary mobile-action-btn">
-              🚪 Sign Out
-            </button>
-          </div>
-        </div>
+        <MobileActionsContainer 
+          onManualRefresh={onManualRefresh}
+          isRefreshing={isRefreshing}
+          onSignOut={onSignOut}
+        />
       </div>
       
       <BettingSlip
