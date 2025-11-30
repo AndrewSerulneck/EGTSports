@@ -3,41 +3,68 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="EGT Sports - Your sports betting companion" />
+    <meta name="theme-color" content="#1e3c72" />
     <title>EGT Sports</title>
+    
+    <!-- Preconnect to critical third-party domains for faster loading -->
+    <link rel="preconnect" href="https://www.gstatic.com" crossorigin />
+    <link rel="preconnect" href="https://marcs-parlays.firebaseapp.com" crossorigin />
+    <link rel="preconnect" href="https://site.api.espn.com" crossorigin />
+    <link rel="dns-prefetch" href="https://api.the-odds-api.com" />
+    
     <link rel="icon" href="%PUBLIC_URL%/favicon.ico" />
     <link rel="apple-touch-icon" href="%PUBLIC_URL%/logo192.png" />
     <link rel="manifest" href="%PUBLIC_URL%/manifest.json" />
-    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-    <script type="module">
-        import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
-        import { getDatabase, ref, set, onValue } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js';
-        
-        const firebaseConfig = {
-            apiKey: "AIzaSyA9FsWV7hA4ow2Xaq0Krx9kCCMfMibkVOQ",
-            authDomain: "marcs-parlays.firebaseapp.com",
-            databaseURL: "https://marcs-parlays-default-rtdb.firebaseio.com",
-            projectId: "marcs-parlays",
-            storageBucket: "marcs-parlays.firebasestorage.app",
-            messagingSenderId: "631281528889",
-            appId: "1:631281528889:web:e3befe34907902387c1de8"
-        };
-        
-        const app = initializeApp(firebaseConfig);
-        const database = getDatabase(app);
-        
-        window.firebase = {
-            db: database,
-            ref: ref,
-            set: set,
-            onValue: onValue
-        };
-    </script>
+    
+    <!-- Critical CSS for initial loading state -->
+    <style>
+      body {
+        margin: 0;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+        min-height: 100vh;
+      }
+      #root {
+        min-height: 100vh;
+      }
+      /* Loading spinner for initial load */
+      .app-loading {
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        min-height: 100vh;
+        color: white;
+        text-align: center;
+        padding: 20px;
+      }
+      .app-loading-spinner {
+        width: 50px;
+        height: 50px;
+        border: 4px solid rgba(255, 255, 255, 0.3);
+        border-radius: 50%;
+        border-top-color: white;
+        animation: spin 1s linear infinite;
+        margin-bottom: 20px;
+      }
+      @keyframes spin {
+        to { transform: rotate(360deg); }
+      }
+      .app-loading-text {
+        font-size: 18px;
+        opacity: 0.9;
+      }
+    </style>
   </head>
   <body>
     <noscript>You need to enable JavaScript to run this app.</noscript>
-    <div id="root"></div>
-    <!-- React will inject your app here -->
+    <div id="root">
+      <!-- Loading state shown until React app hydrates -->
+      <div class="app-loading">
+        <div class="app-loading-spinner"></div>
+        <div class="app-loading-text">Loading EGT Sports...</div>
+      </div>
+    </div>
   </body>
 </html>
