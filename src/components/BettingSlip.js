@@ -86,13 +86,32 @@ function BettingSlip({
     return game;
   };
 
-  // Calculate total bet amount for singles
+  // Calculate total bet amount for singles - only sum amounts for active picks
   const calculateTotalSingleBet = () => {
     let total = 0;
-    Object.values(individualBetAmounts || {}).forEach(amount => {
-      const parsed = parseFloat(amount);
-      if (!isNaN(parsed) && parsed > 0) {
-        total += parsed;
+    // Iterate over active picks only, not all bet amounts
+    // This ensures removed bets are never included in the total
+    Object.entries(selectedPicks).forEach(([gameId, pickObj]) => {
+      if (pickObj.winner) {
+        const pickId = getPickId(gameId, 'winner');
+        const amount = parseFloat(individualBetAmounts?.[pickId] || 0);
+        if (!isNaN(amount) && amount > 0) {
+          total += amount;
+        }
+      }
+      if (pickObj.spread) {
+        const pickId = getPickId(gameId, 'spread');
+        const amount = parseFloat(individualBetAmounts?.[pickId] || 0);
+        if (!isNaN(amount) && amount > 0) {
+          total += amount;
+        }
+      }
+      if (pickObj.total) {
+        const pickId = getPickId(gameId, 'total');
+        const amount = parseFloat(individualBetAmounts?.[pickId] || 0);
+        if (!isNaN(amount) && amount > 0) {
+          total += amount;
+        }
       }
     });
     return total;

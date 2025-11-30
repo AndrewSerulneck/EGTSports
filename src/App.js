@@ -1042,6 +1042,7 @@ const saveSubmission = async (submission) => {
   };
 
   const handleRemovePick = (gameId, pickType) => {
+    // Remove the pick from selectedPicks
     setSelectedPicks(prev => {
       const newPicks = { ...prev };
       if (newPicks[gameId]) {
@@ -1057,6 +1058,15 @@ const saveSubmission = async (submission) => {
         }
       }
       return newPicks;
+    });
+    
+    // Also remove the corresponding bet amount from individualBetAmounts
+    // This ensures totals are recalculated correctly from scratch
+    const pickId = `${gameId}-${pickType}`;
+    setIndividualBetAmounts(prev => {
+      const newAmounts = { ...prev };
+      delete newAmounts[pickId];
+      return newAmounts;
     });
   };
 
