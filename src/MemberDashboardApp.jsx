@@ -54,17 +54,59 @@ const firebaseConfig = typeof __firebase_config !== "undefined" ? __firebase_con
 const initialAuthToken = typeof __initial_auth_token !== "undefined" ? __initial_auth_token : null;
 
 // ============================================================================
+// Firebase Configuration Validation
+// ============================================================================
+const validateFirebaseConfig = (config) => {
+  const requiredKeys = ['apiKey', 'authDomain', 'projectId'];
+  const missingKeys = [];
+  
+  if (!config || typeof config !== 'object') {
+    return { isValid: false, error: 'Firebase configuration is missing or invalid.' };
+  }
+  
+  for (const key of requiredKeys) {
+    if (!config[key] || config[key].trim() === '') {
+      missingKeys.push(key);
+    }
+  }
+  
+  if (missingKeys.length > 0) {
+    return { 
+      isValid: false, 
+      error: `Firebase configuration is missing required keys: ${missingKeys.join(', ')}. Please check your environment variables.` 
+    };
+  }
+  
+  return { isValid: true, error: null };
+};
+
+// Validate config before initialization
+const configValidation = validateFirebaseConfig(firebaseConfig);
+
+// ============================================================================
 // Firebase Initialization
 // ============================================================================
-let app;
-if (!getApps().length) {
-  app = initializeApp(firebaseConfig);
-} else {
-  app = getApps()[0];
-}
+let app = null;
+let db = null;
+let auth = null;
+let firebaseInitError = null;
 
-const db = getFirestore(app);
-const auth = getAuth(app);
+if (configValidation.isValid) {
+  try {
+    if (!getApps().length) {
+      app = initializeApp(firebaseConfig);
+    } else {
+      app = getApps()[0];
+    }
+    db = getFirestore(app);
+    auth = getAuth(app);
+  } catch (error) {
+    console.error("Firebase initialization error:", error);
+    firebaseInitError = `Firebase initialization failed: ${error.message}`;
+  }
+} else {
+  firebaseInitError = configValidation.error;
+}
 
 // ============================================================================
 // Firestore Collection Paths
@@ -696,12 +738,45 @@ function Header({ userId, db }) {
 // ============================================================================
 // Loading Screen Component
 // ============================================================================
-function LoadingScreen() {
+function LoadingScreen({ message = "Loading and Authenticating..." }) {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-600 to-blue-800 flex items-center justify-center">
+    <div className="min-h-screen bg-gradient-to-br from-blue-600 to-blue-800 flex items-center justify-center p-4">
       <div className="text-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto mb-4"></div>
-        <p className="text-white text-lg">Loading...</p>
+        <div className="animate-spin rounded-full h-16 w-16 border-4 border-white border-t-transparent mx-auto mb-6"></div>
+        <p className="text-white text-xl font-medium">{message}</p>
+        <p className="text-blue-200 text-sm mt-2">Please wait...</p>
+      </div>
+    </div>
+  );
+}
+
+// ============================================================================
+// Fatal Error Screen Component
+// ============================================================================
+function FatalErrorScreen({ title, message, onRetry }) {
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-red-600 to-red-800 flex items-center justify-center p-4">
+      <div className="bg-white rounded-xl shadow-2xl p-8 max-w-md w-full text-center">
+        <div className="w-20 h-20 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-6">
+          <svg className="w-12 h-12 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+          </svg>
+        </div>
+        <h2 className="text-2xl font-bold text-gray-800 mb-3">
+          {title}
+        </h2>
+        <p className="text-gray-600 mb-6 leading-relaxed">{message}</p>
+        {onRetry && (
+          <button
+            onClick={onRetry}
+            className="px-6 py-3 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors shadow-md hover:shadow-lg"
+          >
+            Try Again
+          </button>
+        )}
+        <p className="text-gray-400 text-xs mt-6">
+          If this issue persists, please contact support.
+        </p>
       </div>
     </div>
   );
@@ -713,10 +788,31 @@ function LoadingScreen() {
 function MemberDashboardApp() {
   const [userId, setUserId] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [authError, setAuthError] = useState(null);
+  const [loadingError, setLoadingError] = useState(null);
+  const [isAuthReady, setIsAuthReady] = useState(false);
 
-  // Authentication effect
+  // Check for Firebase initialization errors on mount
   useEffect(() => {
+    // If Firebase failed to initialize, set error immediately
+    if (firebaseInitError) {
+      console.error("Firebase initialization error:", firebaseInitError);
+      setLoadingError(firebaseInitError);
+      setIsLoading(false);
+      setIsAuthReady(true);
+      return;
+    }
+
+    // If auth is not available, set error
+    if (!auth) {
+      setLoadingError("Firebase authentication is not available. Please check your configuration.");
+      setIsLoading(false);
+      setIsAuthReady(true);
+      return;
+    }
+
+    let unsubscribe = null;
+    let authTimeout = null;
+
     const handleAuth = async () => {
       try {
         if (initialAuthToken) {
@@ -728,53 +824,101 @@ function MemberDashboardApp() {
         }
       } catch (error) {
         console.error("Authentication error:", error);
-        setAuthError("Authentication failed. Please try again.");
+        const errorMessage = error.code === 'auth/network-request-failed'
+          ? "Network error. Please check your internet connection and try again."
+          : `Authentication failed: ${error.message}`;
+        setLoadingError(errorMessage);
         setIsLoading(false);
+        setIsAuthReady(true);
       }
     };
 
-    // Listen for auth state changes
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
-      if (user) {
-        setUserId(user.uid);
+    // Set a timeout to prevent infinite loading
+    authTimeout = setTimeout(() => {
+      if (!isAuthReady) {
+        console.error("Authentication timeout - took too long to resolve");
+        setLoadingError("Authentication is taking too long. Please check your network connection and try again.");
         setIsLoading(false);
-        setAuthError(null);
-      } else {
-        // No user, attempt authentication
-        handleAuth();
+        setIsAuthReady(true);
       }
-    });
+    }, 30000); // 30 second timeout
+
+    // Listen for auth state changes
+    try {
+      unsubscribe = onAuthStateChanged(auth, (user) => {
+        // Clear the timeout since auth state resolved
+        if (authTimeout) {
+          clearTimeout(authTimeout);
+          authTimeout = null;
+        }
+
+        if (user) {
+          setUserId(user.uid);
+          setLoadingError(null);
+          setIsLoading(false);
+          setIsAuthReady(true);
+        } else {
+          // No user, attempt authentication
+          handleAuth();
+        }
+      }, (error) => {
+        // Error callback for onAuthStateChanged
+        console.error("Auth state change error:", error);
+        setLoadingError(`Authentication error: ${error.message}`);
+        setIsLoading(false);
+        setIsAuthReady(true);
+        
+        if (authTimeout) {
+          clearTimeout(authTimeout);
+          authTimeout = null;
+        }
+      });
+    } catch (error) {
+      console.error("Failed to set up auth listener:", error);
+      setLoadingError(`Failed to initialize authentication: ${error.message}`);
+      setIsLoading(false);
+      setIsAuthReady(true);
+      
+      if (authTimeout) {
+        clearTimeout(authTimeout);
+        authTimeout = null;
+      }
+    }
 
     return () => {
+      if (authTimeout) {
+        clearTimeout(authTimeout);
+      }
       if (typeof unsubscribe === 'function') {
         unsubscribe();
       }
     };
-  }, []);
+  }, [isAuthReady]);
 
   // Show loading screen until authentication is complete
-  if (isLoading) {
-    return <LoadingScreen />;
+  if (isLoading && !loadingError) {
+    return <LoadingScreen message="Loading and Authenticating..." />;
   }
 
-  // Show error screen if authentication failed
-  if (authError) {
+  // Show fatal error screen if there's a loading/initialization error
+  if (loadingError) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-red-600 to-red-800 flex items-center justify-center p-4">
-        <div className="bg-white rounded-lg shadow-xl p-6 max-w-sm w-full text-center">
-          <div className="text-red-500 text-5xl mb-4">⚠️</div>
-          <h2 className="text-xl font-bold text-gray-800 mb-2">
-            Authentication Error
-          </h2>
-          <p className="text-gray-600 mb-4">{authError}</p>
-          <button
-            onClick={() => window.location.reload()}
-            className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
-          >
-            Retry
-          </button>
-        </div>
-      </div>
+      <FatalErrorScreen 
+        title="Initialization Error"
+        message={loadingError}
+        onRetry={() => window.location.reload()}
+      />
+    );
+  }
+
+  // If no user ID after auth is ready, show error
+  if (!userId) {
+    return (
+      <FatalErrorScreen 
+        title="Authentication Required"
+        message="Unable to authenticate. Please try again."
+        onRetry={() => window.location.reload()}
+      />
     );
   }
 
