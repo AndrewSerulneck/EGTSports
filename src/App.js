@@ -18,8 +18,9 @@ import SubmissionsViewer from './components/SubmissionsViewer';
 import GridBettingLayout from './components/GridBettingLayout';
 import PropBetsView from './components/PropBetsView';
 import BettingSlip from './components/BettingSlip';
+import MemberDashboardApp from './MemberDashboardApp';
 
-function SportsMenu({ currentSport, onSelectSport, allSportsGames, onSignOut, onManualRefresh, isRefreshing }) {
+function SportsMenu({ currentSport, onSelectSport, allSportsGames, onSignOut, onManualRefresh, isRefreshing, onNavigateToDashboard }) {
     const sportOrder = ['NFL', 'College Football', 'NBA', 'College Basketball', 'Major League Baseball', 'NHL'];
     
     const sortedSports = Object.keys(allSportsGames).filter(sport => sportOrder.includes(sport)).sort((a, b) => sportOrder.indexOf(a) - sportOrder.indexOf(b));
@@ -50,6 +51,14 @@ function SportsMenu({ currentSport, onSelectSport, allSportsGames, onSignOut, on
                             Prop Bets
                         </button>
                     )}
+                    <button
+                        key="member-dashboard"
+                        className={`menu-button ${currentSport === 'Member Dashboard' ? 'active' : ''}`}
+                        onClick={onNavigateToDashboard}
+                        style={{ marginTop: '8px', borderTop: '1px solid #e0e0e0', paddingTop: '8px' }}
+                    >
+                        📊 Member Dashboard
+                    </button>
                 </div>
                 <div className="sports-menu-actions">
                     <button onClick={onManualRefresh} disabled={isRefreshing} className="btn btn-info">
@@ -64,7 +73,7 @@ function SportsMenu({ currentSport, onSelectSport, allSportsGames, onSignOut, on
     );
 }
 
-function MobileSportsMenu({ currentSport, onSelectSport, allSportsGames }) {
+function MobileSportsMenu({ currentSport, onSelectSport, allSportsGames, onNavigateToDashboard }) {
     const sportOrder = ['NFL', 'College Football', 'NBA', 'College Basketball', 'Major League Baseball', 'NHL'];
     const sortedSports = Object.keys(allSportsGames).filter(sport => sportOrder.includes(sport)).sort((a, b) => sportOrder.indexOf(a) - sportOrder.indexOf(b));
     const showPropBets = sortedSports.some(sport => ['NFL', 'NBA', 'College Football', 'College Basketball', 'NHL'].includes(sport));
@@ -89,6 +98,13 @@ function MobileSportsMenu({ currentSport, onSelectSport, allSportsGames }) {
                     Prop Bets
                 </button>
             )}
+            <button
+                key="member-dashboard"
+                className={`mobile-menu-button ${currentSport === 'Member Dashboard' ? 'active' : ''}`}
+                onClick={onNavigateToDashboard}
+            >
+                📊 Dashboard
+            </button>
         </div>
     );
 }
@@ -735,7 +751,7 @@ function AdminLandingPage({ onManageUsers, onViewSubmissions, onSignOut }) {
   );
 }
 
-function LandingPage({ games, allSportsGames, currentViewSport, onChangeSport, loading, onBackToMenu, sport, betType, onBetTypeChange, apiError, onManualRefresh, lastRefreshTime, propBets, propBetsLoading, propBetsError, onSignOut, isRefreshing }) {
+function LandingPage({ games, allSportsGames, currentViewSport, onChangeSport, loading, onBackToMenu, sport, betType, onBetTypeChange, apiError, onManualRefresh, lastRefreshTime, propBets, propBetsLoading, propBetsError, onSignOut, isRefreshing, onNavigateToDashboard }) {
   const [selectedPicks, setSelectedPicks] = useState({});
   const [showConfirmation, setShowConfirmation] = useState(false);
   const [ticketNumber, setTicketNumber] = useState('');
@@ -1333,6 +1349,7 @@ const saveSubmission = async (submission) => {
             currentSport={currentViewSport}
             onSelectSport={onChangeSport}
             allSportsGames={allSportsGames}
+            onNavigateToDashboard={onNavigateToDashboard}
         />
         <SportsMenu
             currentSport={currentViewSport}
@@ -1341,6 +1358,7 @@ const saveSubmission = async (submission) => {
             onSignOut={onSignOut}
             onManualRefresh={onManualRefresh}
             isRefreshing={isRefreshing}
+            onNavigateToDashboard={onNavigateToDashboard}
         />
         
         <div className="main-content with-sidebar">
@@ -1390,6 +1408,7 @@ const saveSubmission = async (submission) => {
             currentSport={currentViewSport}
             onSelectSport={onChangeSport}
             allSportsGames={allSportsGames}
+            onNavigateToDashboard={onNavigateToDashboard}
         />
         <SportsMenu
             currentSport={currentViewSport}
@@ -1398,6 +1417,7 @@ const saveSubmission = async (submission) => {
             onSignOut={onSignOut}
             onManualRefresh={onManualRefresh}
             isRefreshing={isRefreshing}
+            onNavigateToDashboard={onNavigateToDashboard}
         />
         
         <div className={`container main-content ${allSportsGames && Object.keys(allSportsGames).length > 0 ? 'with-sidebar' : ''}`}>
@@ -1426,6 +1446,7 @@ const saveSubmission = async (submission) => {
             currentSport={currentViewSport}
             onSelectSport={onChangeSport}
             allSportsGames={allSportsGames}
+            onNavigateToDashboard={onNavigateToDashboard}
         />
         <SportsMenu
             currentSport={currentViewSport}
@@ -1434,6 +1455,7 @@ const saveSubmission = async (submission) => {
             onSignOut={onSignOut}
             onManualRefresh={onManualRefresh}
             isRefreshing={isRefreshing}
+            onNavigateToDashboard={onNavigateToDashboard}
         />
         <div className={`container main-content ${allSportsGames && Object.keys(allSportsGames).length > 0 ? 'with-sidebar' : ''}`}>
           <div className="card text-center">
@@ -1892,6 +1914,7 @@ Email: ${contactInfo.email}`;
             currentSport={currentViewSport}
             onSelectSport={onChangeSport}
             allSportsGames={allSportsGames}
+            onNavigateToDashboard={onNavigateToDashboard}
         />
         <SportsMenu
             currentSport={currentViewSport}
@@ -1900,6 +1923,7 @@ Email: ${contactInfo.email}`;
             onSignOut={onSignOut}
             onManualRefresh={onManualRefresh}
             isRefreshing={isRefreshing}
+            onNavigateToDashboard={onNavigateToDashboard}
         />
       
       <div className={`container main-content ${allSportsGames && Object.keys(allSportsGames).length > 0 ? 'with-sidebar' : ''}`}>
@@ -2154,6 +2178,7 @@ function MemberSportRoute({
       propBets={propBets}
       propBetsLoading={propBetsLoading}
       propBetsError={propBetsError}
+      onNavigateToDashboard={() => navigate('/member/dashboard')}
     />
   );
 }
@@ -3109,6 +3134,14 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
       } />
 
       {/* Member routes - require authentication */}
+      <Route path="/member/dashboard" element={
+        !authState.user || authState.isAdmin ? (
+          <Navigate to="/login/user" replace />
+        ) : (
+          <MemberDashboardApp />
+        )
+      } />
+
       <Route path="/member/:sport" element={
         !authState.user || authState.isAdmin ? (
           <Navigate to="/login/user" replace />

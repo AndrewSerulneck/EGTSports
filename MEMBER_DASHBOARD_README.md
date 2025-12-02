@@ -11,6 +11,13 @@ A complete, single-file React application (`MemberDashboardApp.jsx`) that implem
 - **Admin Simulation Tool**: "Simulate Next Result" button for testing wager settlements
 - **Mobile-First Design**: Responsive layout optimized for small screens using Tailwind CSS
 
+## Navigation
+
+The Member Dashboard is accessible from the main sports menu:
+- **Desktop**: Click "📊 Member Dashboard" in the left sidebar
+- **Mobile**: Click "📊 Dashboard" in the horizontal menu bar
+- **Direct URL**: Navigate to `/member/dashboard`
+
 ## Technology Stack
 
 - **Frontend**: React (JSX), functional components, and hooks
@@ -57,7 +64,9 @@ Path: `/artifacts/${appId}/users/${userId}/notifications`
 | `isRead` | boolean | Whether the notification has been read |
 | `timestamp` | Timestamp | When the notification was created |
 
-## Firestore Security Rules
+## Firebase Security Rules
+
+### Cloud Firestore Security Rules
 
 **IMPORTANT**: Add these security rules to your Firestore configuration to secure user data:
 
@@ -77,10 +86,75 @@ service cloud.firestore {
 }
 ```
 
+### Firebase Realtime Database Rules
+
+If you're using Firebase Realtime Database for other parts of your application, here are the **combined rules** that preserve your existing functionality while adding the Member Dashboard:
+
+```json
+{
+  "rules": {
+    "spreads": {
+      "$sport": {
+        ".read": true,
+        ".write": "auth != null && auth.token.admin === true",
+        "$gameId": {
+          ".validate": "newData.hasChildren(['awaySpread', 'homeSpread', 'total', 'timestamp'])",
+          "awaySpread": {
+            ".validate": "newData.isString()"
+          },
+          "homeSpread": {
+            ".validate": "newData.isString()"
+          },
+          "total": {
+            ".validate": "newData.isString()"
+          },
+          "timestamp": {
+            ".validate": "newData.isString()"
+          }
+        }
+      }
+    },
+    "admins": {
+      ".read": "auth != null",
+      ".write": false
+    },
+    "submissions": {
+      ".read": true,
+      "$ticketNumber": {
+        ".write": true
+      }
+    },
+    "analytics": {
+      ".read": "auth != null && auth.token.admin === true",
+      "$entry": {
+        ".write": true
+      }
+    },
+    "users": {
+      ".read": "auth != null",
+      ".write": "auth != null && auth.token.admin === true"
+    },
+    "artifacts": {
+      "$appId": {
+        "users": {
+          "$userId": {
+            ".read": "auth != null && auth.uid === $userId",
+            ".write": "auth != null && auth.uid === $userId"
+          }
+        }
+      }
+    }
+  }
+}
+```
+
+**Note**: The `artifacts` section at the bottom is the new addition for the Member Dashboard. This allows authenticated users to read and write only their own wager and notification data.
+
 These rules ensure that:
 - Only authenticated users can access their own data
 - Users cannot read or modify other users' data
 - The `userId` in the path must match the authenticated user's UID
+- All existing functionality (spreads, admins, submissions, analytics, users) is preserved
 
 ## Usage
 
