@@ -2,7 +2,7 @@
 import './App.css';
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { Routes, Route, useNavigate, useParams, Navigate } from 'react-router-dom';
-import { initializeApp } from "firebase/app";
+import { initializeApp, getApps } from "firebase/app";
 import { getDatabase, ref, set, onValue, push } from "firebase/database";
 import {
   getAuth,
@@ -208,7 +208,8 @@ const firebaseConfig = {
   appId: process.env.REACT_APP_FIREBASE_APP_ID || "1:631281528889:web:e3befe34907902387c1de8"
 };
 
-const app = initializeApp(firebaseConfig);
+// Use existing Firebase app if already initialized, otherwise create new one
+const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
 const database = getDatabase(app);
 const auth = getAuth(app);
 
