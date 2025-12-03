@@ -33,25 +33,46 @@ import {
    
    Technology Stack:
    - React (JSX), functional components, hooks
-   - Tailwind CSS (utility-first styling)
+   - Tailwind CSS (utility-first styling, MOBILE-FIRST)
    - Firebase Auth and Cloud Firestore
    
    ============================================================================= */
 
-// Global variables for Firebase configuration (provided by the host environment)
-// eslint-disable-next-line no-undef
-const appId = typeof __app_id !== "undefined" ? __app_id : "member-dashboard-dev";
-// eslint-disable-next-line no-undef
-const firebaseConfig = typeof __firebase_config !== "undefined" ? __firebase_config : {
-  apiKey: process.env.REACT_APP_FIREBASE_API_KEY || "AIzaSyA9FsWV7hA4ow2Xaq0Krx9kCCMfMibkVOQ",
-  authDomain: process.env.REACT_APP_FIREBASE_AUTH_DOMAIN || "marcs-parlays.firebaseapp.com",
-  projectId: process.env.REACT_APP_FIREBASE_PROJECT_ID || "marcs-parlays",
-  storageBucket: process.env.REACT_APP_FIREBASE_STORAGE_BUCKET || "marcs-parlays.firebasestorage.app",
-  messagingSenderId: process.env.REACT_APP_FIREBASE_MESSAGING_SENDER_ID || "631281528889",
-  appId: process.env.REACT_APP_FIREBASE_APP_ID || "1:631281528889:web:e3befe34907902387c1de8",
-};
-// eslint-disable-next-line no-undef
-const initialAuthToken = typeof __initial_auth_token !== "undefined" ? __initial_auth_token : null;
+// ============================================================================
+// Global Variables Access with Safe Fallbacks
+// ============================================================================
+let appId = "member-dashboard-dev";
+let firebaseConfig = null;
+let initialAuthToken = null;
+let globalAccessError = null;
+
+try {
+  // Safely access global variables
+  // eslint-disable-next-line no-undef
+  appId = typeof __app_id !== "undefined" && __app_id ? __app_id : "member-dashboard-dev";
+  
+  // eslint-disable-next-line no-undef
+  if (typeof __firebase_config !== "undefined" && __firebase_config) {
+    // eslint-disable-next-line no-undef
+    firebaseConfig = __firebase_config;
+  } else {
+    // Fallback to environment variables or hardcoded defaults
+    firebaseConfig = {
+      apiKey: process.env.REACT_APP_FIREBASE_API_KEY || "AIzaSyA9FsWV7hA4ow2Xaq0Krx9kCCMfMibkVOQ",
+      authDomain: process.env.REACT_APP_FIREBASE_AUTH_DOMAIN || "marcs-parlays.firebaseapp.com",
+      projectId: process.env.REACT_APP_FIREBASE_PROJECT_ID || "marcs-parlays",
+      storageBucket: process.env.REACT_APP_FIREBASE_STORAGE_BUCKET || "marcs-parlays.firebasestorage.app",
+      messagingSenderId: process.env.REACT_APP_FIREBASE_MESSAGING_SENDER_ID || "631281528889",
+      appId: process.env.REACT_APP_FIREBASE_APP_ID || "1:631281528889:web:e3befe34907902387c1de8",
+    };
+  }
+  
+  // eslint-disable-next-line no-undef
+  initialAuthToken = typeof __initial_auth_token !== "undefined" ? __initial_auth_token : null;
+} catch (error) {
+  console.error("Error accessing global variables:", error);
+  globalAccessError = `Failed to access configuration: ${error.message}`;
+}
 
 // ============================================================================
 // Firebase Configuration Validation
@@ -61,11 +82,12 @@ const validateFirebaseConfig = (config) => {
   const missingKeys = [];
   
   if (!config || typeof config !== 'object') {
-    return { isValid: false, error: 'Firebase configuration is missing or invalid.' };
+    return { isValid: false, error: 'Firebase configuration is missing or invalid. Check environment variables.' };
   }
   
   for (const key of requiredKeys) {
-    if (!config[key] || config[key].trim() === '') {
+    const value = config[key];
+    if (!value || (typeof value === 'string' && value.trim() === '')) {
       missingKeys.push(key);
     }
   }
@@ -81,10 +103,12 @@ const validateFirebaseConfig = (config) => {
 };
 
 // Validate config before initialization
-const configValidation = validateFirebaseConfig(firebaseConfig);
+const configValidation = globalAccessError 
+  ? { isValid: false, error: globalAccessError }
+  : validateFirebaseConfig(firebaseConfig);
 
 // ============================================================================
-// Firebase Initialization
+// Firebase Initialization (with robust error handling)
 // ============================================================================
 let app = null;
 let db = null;
@@ -93,13 +117,31 @@ let firebaseInitError = null;
 
 if (configValidation.isValid) {
   try {
-    if (!getApps().length) {
+    // Check if Firebase is already initialized
+    const existingApps = getApps();
+    if (existingApps.length === 0) {
       app = initializeApp(firebaseConfig);
     } else {
-      app = getApps()[0];
+      app = existingApps[0];
     }
-    db = getFirestore(app);
-    auth = getAuth(app);
+    
+    // Initialize Firestore with error handling
+    try {
+      db = getFirestore(app);
+    } catch (firestoreError) {
+      console.error("Firestore initialization error:", firestoreError);
+      firebaseInitError = `Firestore initialization failed: ${firestoreError.message}`;
+    }
+    
+    // Initialize Auth with error handling
+    if (!firebaseInitError) {
+      try {
+        auth = getAuth(app);
+      } catch (authError) {
+        console.error("Auth initialization error:", authError);
+        firebaseInitError = `Auth initialization failed: ${authError.message}`;
+      }
+    }
   } catch (error) {
     console.error("Firebase initialization error:", error);
     firebaseInitError = `Firebase initialization failed: ${error.message}`;
@@ -107,6 +149,15 @@ if (configValidation.isValid) {
 } else {
   firebaseInitError = configValidation.error;
 }
+
+// Log initialization status for debugging
+console.log("Firebase Init Status:", {
+  configValid: configValidation.isValid,
+  appInitialized: !!app,
+  dbInitialized: !!db,
+  authInitialized: !!auth,
+  error: firebaseInitError
+});
 
 // ============================================================================
 // Firestore Collection Paths
@@ -234,7 +285,7 @@ function WagerInput({ userId, db }) {
 }
 
 // ============================================================================
-// Current Wagers Component (Pending Wagers)
+// Current Wagers Component (Pending Wagers) - Mobile-First Design
 // ============================================================================
 function CurrentWagers({ userId, db }) {
   const [wagers, setWagers] = useState([]);
@@ -283,38 +334,43 @@ function CurrentWagers({ userId, db }) {
   return (
     <div className="bg-white rounded-lg shadow-md p-4 mb-4">
       <h2 className="text-lg font-bold text-gray-800 mb-3">
-        Current Wagers ({wagers.length})
+        Current Wagers <span className="text-blue-600">({wagers.length})</span>
       </h2>
       {wagers.length === 0 ? (
-        <p className="text-gray-500 text-sm text-center py-4">
-          No pending wagers
-        </p>
+        <div className="text-center py-6">
+          <p className="text-gray-400 text-sm">No pending wagers</p>
+          <p className="text-gray-300 text-xs mt-1">Place a wager above to get started</p>
+        </div>
       ) : (
-        <div className="space-y-2 max-h-64 overflow-y-auto">
+        <div className="space-y-3 max-h-72 overflow-y-auto">
           {wagers.map((wager) => (
             <div
               key={wager.id}
-              className="bg-yellow-50 border border-yellow-200 rounded-md p-3"
+              className="bg-gradient-to-r from-yellow-50 to-amber-50 border-l-4 border-yellow-400 rounded-r-lg p-3 shadow-sm"
             >
-              <div className="flex justify-between items-start">
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-gray-800 truncate">
-                    {wager.details}
-                  </p>
-                  <p className="text-xs text-gray-500 mt-1">
-                    {wager.datePlaced?.toDate
-                      ? wager.datePlaced.toDate().toLocaleString()
-                      : "Just now"}
-                  </p>
-                </div>
-                <div className="text-right ml-2">
-                  <p className="text-sm font-bold text-gray-800">
+              {/* Mobile-first: Stack vertically */}
+              <div className="flex flex-col space-y-2">
+                {/* Wager Details - Prominent */}
+                <p className="text-sm font-semibold text-gray-800 leading-tight">
+                  {wager.details}
+                </p>
+                
+                {/* Amount and Status Row */}
+                <div className="flex items-center justify-between">
+                  <span className="text-lg font-bold text-gray-900">
                     ${wager.amount?.toFixed(2)}
-                  </p>
-                  <span className="inline-block px-2 py-0.5 text-xs font-medium bg-yellow-200 text-yellow-800 rounded-full">
-                    Pending
+                  </span>
+                  <span className="inline-flex items-center px-2.5 py-1 text-xs font-bold bg-yellow-400 text-yellow-900 rounded-full shadow-sm">
+                    ⏳ PENDING
                   </span>
                 </div>
+                
+                {/* Date - Smaller */}
+                <p className="text-xs text-gray-500">
+                  {wager.datePlaced?.toDate
+                    ? wager.datePlaced.toDate().toLocaleString()
+                    : "Just now"}
+                </p>
               </div>
             </div>
           ))}
@@ -325,7 +381,7 @@ function CurrentWagers({ userId, db }) {
 }
 
 // ============================================================================
-// Past Wagers Component (Won/Lost Wagers)
+// Past Wagers Component (Won/Lost Wagers) - Mobile-First Design
 // ============================================================================
 function PastWagers({ userId, db }) {
   const [wagers, setWagers] = useState([]);
@@ -374,54 +430,60 @@ function PastWagers({ userId, db }) {
   return (
     <div className="bg-white rounded-lg shadow-md p-4 mb-4">
       <h2 className="text-lg font-bold text-gray-800 mb-3">
-        Past Wagers ({wagers.length})
+        Past Wagers <span className="text-gray-500">({wagers.length})</span>
       </h2>
       {wagers.length === 0 ? (
-        <p className="text-gray-500 text-sm text-center py-4">
-          No past wagers
-        </p>
+        <div className="text-center py-6">
+          <p className="text-gray-400 text-sm">No settled wagers yet</p>
+          <p className="text-gray-300 text-xs mt-1">Results will appear here</p>
+        </div>
       ) : (
-        <div className="space-y-2 max-h-64 overflow-y-auto">
+        <div className="space-y-3 max-h-72 overflow-y-auto">
           {wagers.map((wager) => (
             <div
               key={wager.id}
-              className={`rounded-md p-3 border ${
+              className={`rounded-r-lg p-3 shadow-sm border-l-4 ${
                 wager.status === "won"
-                  ? "bg-green-50 border-green-200"
-                  : "bg-red-50 border-red-200"
+                  ? "bg-gradient-to-r from-green-50 to-emerald-50 border-green-500"
+                  : "bg-gradient-to-r from-red-50 to-rose-50 border-red-500"
               }`}
             >
-              <div className="flex justify-between items-start">
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-gray-800 truncate">
-                    {wager.details}
-                  </p>
-                  <p className="text-xs text-gray-500 mt-1">
-                    Settled:{" "}
-                    {wager.dateSettled?.toDate
-                      ? wager.dateSettled.toDate().toLocaleString()
-                      : "Unknown"}
-                  </p>
-                </div>
-                <div className="text-right ml-2">
-                  <p className="text-sm font-bold text-gray-800">
+              {/* Mobile-first: Stack vertically */}
+              <div className="flex flex-col space-y-2">
+                {/* Wager Details - Prominent */}
+                <p className="text-sm font-semibold text-gray-800 leading-tight">
+                  {wager.details}
+                </p>
+                
+                {/* Amount, Status, and Payout Row */}
+                <div className="flex items-center justify-between flex-wrap gap-2">
+                  <span className="text-lg font-bold text-gray-900">
                     ${wager.amount?.toFixed(2)}
-                  </p>
-                  <span
-                    className={`inline-block px-2 py-0.5 text-xs font-bold rounded-full ${
-                      wager.status === "won"
-                        ? "bg-green-500 text-white"
-                        : "bg-red-500 text-white"
-                    }`}
-                  >
-                    {wager.status === "won" ? "WON" : "LOST"}
                   </span>
-                  {wager.status === "won" && wager.payout && (
-                    <p className="text-xs font-semibold text-green-600 mt-1">
-                      +${wager.payout.toFixed(2)}
-                    </p>
-                  )}
+                  <div className="flex items-center gap-2">
+                    <span
+                      className={`inline-flex items-center px-2.5 py-1 text-xs font-bold rounded-full shadow-sm ${
+                        wager.status === "won"
+                          ? "bg-green-500 text-white"
+                          : "bg-red-500 text-white"
+                      }`}
+                    >
+                      {wager.status === "won" ? "✓ WON" : "✗ LOST"}
+                    </span>
+                    {wager.status === "won" && wager.payout && (
+                      <span className="text-sm font-bold text-green-600 bg-green-100 px-2 py-0.5 rounded">
+                +${wager.payout.toFixed(2)}
+                      </span>
+                    )}
+                  </div>
                 </div>
+                
+                {/* Date - Smaller */}
+                <p className="text-xs text-gray-500">
+                  Settled: {wager.dateSettled?.toDate
+                    ? wager.dateSettled.toDate().toLocaleString()
+                    : "Unknown"}
+                </p>
               </div>
             </div>
           ))}
@@ -432,7 +494,7 @@ function PastWagers({ userId, db }) {
 }
 
 // ============================================================================
-// Notification Bell Component
+// Notification Bell Component - Enhanced for Mobile
 // ============================================================================
 function NotificationBell({ userId, db }) {
   const [notifications, setNotifications] = useState([]);
@@ -494,14 +556,15 @@ function NotificationBell({ userId, db }) {
 
   return (
     <div className="relative">
+      {/* Enhanced notification bell - larger touch target for mobile */}
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="relative p-2 rounded-full hover:bg-blue-700 transition-colors focus:outline-none focus:ring-2 focus:ring-white"
+        className="relative p-3 rounded-full bg-blue-500 hover:bg-blue-400 active:bg-blue-600 transition-colors focus:outline-none focus:ring-2 focus:ring-white shadow-lg"
         aria-label="Notifications"
       >
         <svg
           xmlns="http://www.w3.org/2000/svg"
-          className="h-6 w-6 text-white"
+          className="h-7 w-7 text-white"
           fill="none"
           viewBox="0 0 24 24"
           stroke="currentColor"
@@ -514,42 +577,45 @@ function NotificationBell({ userId, db }) {
           />
         </svg>
         {unreadCount > 0 && (
-          <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center">
+          <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs font-bold rounded-full h-6 w-6 flex items-center justify-center border-2 border-white animate-pulse">
             {unreadCount > 9 ? "9+" : unreadCount}
           </span>
         )}
       </button>
 
       {isOpen && (
-        <div className="absolute right-0 mt-2 w-72 sm:w-80 bg-white rounded-lg shadow-xl z-50 max-h-96 overflow-hidden">
-          <div className="p-3 bg-gray-100 border-b border-gray-200">
-            <h3 className="font-semibold text-gray-800">Notifications</h3>
+        <div className="absolute right-0 mt-2 w-80 sm:w-96 bg-white rounded-xl shadow-2xl z-50 max-h-96 overflow-hidden border border-gray-200">
+          <div className="p-4 bg-gradient-to-r from-blue-600 to-blue-700 border-b border-gray-200">
+            <h3 className="font-bold text-white text-lg">🔔 Notifications</h3>
           </div>
           <div className="max-h-80 overflow-y-auto">
             {notifications.length === 0 ? (
-              <p className="p-4 text-gray-500 text-sm text-center">
-                No notifications
-              </p>
+              <div className="p-6 text-center">
+                <p className="text-gray-400 text-sm">No notifications yet</p>
+                <p className="text-gray-300 text-xs mt-1">Updates will appear here</p>
+              </div>
             ) : (
               notifications.map((notification) => (
                 <button
                   key={notification.id}
                   onClick={() => handleNotificationClick(notification)}
-                  className={`w-full text-left p-3 border-b border-gray-100 hover:bg-gray-50 transition-colors ${
-                    !notification.isRead ? "bg-blue-50" : ""
+                  className={`w-full text-left p-4 border-b border-gray-100 hover:bg-gray-50 active:bg-gray-100 transition-colors ${
+                    !notification.isRead ? "bg-blue-50 border-l-4 border-l-blue-500" : ""
                   }`}
                 >
-                  <p className="text-sm text-gray-800">{notification.message}</p>
-                  <p className="text-xs text-gray-500 mt-1">
-                    {notification.timestamp?.toDate
-                      ? notification.timestamp.toDate().toLocaleString()
-                      : "Just now"}
-                  </p>
-                  {!notification.isRead && (
-                    <span className="inline-block mt-1 px-2 py-0.5 text-xs bg-blue-500 text-white rounded-full">
-                      New
-                    </span>
-                  )}
+                  <p className="text-sm text-gray-800 leading-relaxed">{notification.message}</p>
+                  <div className="flex items-center justify-between mt-2">
+                    <p className="text-xs text-gray-500">
+                      {notification.timestamp?.toDate
+                        ? notification.timestamp.toDate().toLocaleString()
+                        : "Just now"}
+                    </p>
+                    {!notification.isRead && (
+                      <span className="px-2 py-0.5 text-xs font-bold bg-blue-500 text-white rounded-full">
+                        NEW
+                      </span>
+                    )}
+                  </div>
                 </button>
               ))
             )}
@@ -655,7 +721,7 @@ function SimulateResultButton({ userId, db }) {
       console.error("Error simulating result:", error);
       setFeedback({
         type: "error",
-        message: "Failed to simulate result. Please try again.",
+        message: "Failed to settle wager. Please try again.",
       });
     } finally {
       setIsSimulating(false);
@@ -668,27 +734,27 @@ function SimulateResultButton({ userId, db }) {
   }, [userId, db, isSimulating]);
 
   return (
-    <div className="flex flex-col items-center gap-2">
+    <div className="flex flex-col items-center gap-1">
       <button
         onClick={simulateResult}
         disabled={isSimulating}
-        className={`px-4 py-2 rounded-md font-semibold text-sm transition-colors ${
+        className={`px-4 py-2 rounded-lg font-medium text-sm transition-all ${
           isSimulating
-            ? "bg-gray-400 cursor-not-allowed text-gray-200"
-            : "bg-orange-500 hover:bg-orange-600 active:bg-orange-700 text-white"
+            ? "bg-gray-300 cursor-not-allowed text-gray-500"
+            : "bg-gray-200 hover:bg-gray-300 active:bg-gray-400 text-gray-700 border border-gray-300"
         }`}
       >
-        {isSimulating ? "Simulating..." : "🎲 Simulate Next Result"}
+        {isSimulating ? "⏳ Processing..." : "⚙️ Admin: Settle Oldest Wager"}
       </button>
-      <span className="text-xs text-gray-500">Test Only</span>
+      <span className="text-xs text-gray-400 italic">Developer Tool</span>
       {feedback.message && (
         <span
-          className={`text-xs ${
+          className={`text-xs font-medium px-2 py-1 rounded ${
             feedback.type === "success"
-              ? "text-green-600"
+              ? "text-green-700 bg-green-100"
               : feedback.type === "error"
-              ? "text-red-600"
-              : "text-gray-600"
+              ? "text-red-700 bg-red-100"
+              : "text-gray-600 bg-gray-100"
           }`}
         >
           {feedback.message}
@@ -949,23 +1015,95 @@ export default MemberDashboardApp;
 
 /*
 =============================================================================
-FIRESTORE SECURITY RULES
+COMPLETE FIREBASE SECURITY RULES
 =============================================================================
-The following Firestore Security Rules must be added to secure the Wagers
-and Notifications collections. Merge this with your existing ruleset:
+
+These are the COMPLETE and FINALIZED security rules for BOTH Firebase services.
+Copy and paste these into their respective Firebase Console sections.
+
+=============================================================================
+1. FIREBASE REALTIME DATABASE RULES
+=============================================================================
+Go to: Firebase Console → Realtime Database → Rules
+
+{
+  "rules": {
+    "spreads": {
+      "$sport": {
+        ".read": true,
+        ".write": "auth != null && auth.token.admin === true",
+        "$gameId": {
+          ".validate": "newData.hasChildren(['awaySpread', 'homeSpread', 'total', 'timestamp'])",
+          "awaySpread": { ".validate": "newData.isString()" },
+          "homeSpread": { ".validate": "newData.isString()" },
+          "total": { ".validate": "newData.isString()" },
+          "timestamp": { ".validate": "newData.isString()" }
+        }
+      }
+    },
+    "admins": {
+      ".read": "auth != null",
+      ".write": false
+    },
+    "submissions": {
+      ".read": true,
+      "$ticketNumber": { ".write": true }
+    },
+    "analytics": {
+      ".read": "auth != null && auth.token.admin === true",
+      "$entry": { ".write": true }
+    },
+    "users": {
+      ".read": "auth != null",
+      ".write": "auth != null && auth.token.admin === true"
+    },
+    "artifacts": {
+      "$appId": {
+        "users": {
+          "$userId": {
+            ".read": "auth != null && auth.uid === $userId",
+            ".write": "auth != null && auth.uid === $userId"
+          }
+        }
+      }
+    }
+  }
+}
+
+=============================================================================
+2. CLOUD FIRESTORE SECURITY RULES
+=============================================================================
+Go to: Firebase Console → Firestore Database → Rules
 
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     
-    // Member Dashboard: Secure private user data
+    // Member Dashboard: Secure private user data (wagers and notifications)
+    // Allows authenticated users to read/write only their own data
     match /artifacts/{appId}/users/{userId}/{document=**} {
       allow read, write: if request.auth != null && request.auth.uid == userId;
     }
     
-    // Add your other existing rules below...
-    
   }
 }
+
+=============================================================================
+SECURITY SUMMARY
+=============================================================================
+
+✅ Realtime Database Rules:
+   - spreads: Public read, admin-only write
+   - admins: Authenticated read, no write
+   - submissions: Public read, anyone can write
+   - analytics: Admin-only read, anyone can write
+   - users: Authenticated read, admin-only write
+   - artifacts: User-specific read/write (NEW - Member Dashboard)
+
+✅ Cloud Firestore Rules:
+   - /artifacts/{appId}/users/{userId}/*: User-specific read/write
+   - Covers wagers and notifications collections
+   - Each user can ONLY access their own data
+
 =============================================================================
 */
