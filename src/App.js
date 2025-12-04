@@ -3,7 +3,7 @@ import './App.css';
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { Routes, Route, useNavigate, useParams, Navigate } from 'react-router-dom';
 import { initializeApp, getApps } from "firebase/app";
-import { getDatabase, ref, set, onValue, push } from "firebase/database";
+import { getDatabase, ref, set, onValue, push, get } from "firebase/database";
 import {
   getAuth,
   signInWithEmailAndPassword,
@@ -759,7 +759,7 @@ function AdminLandingPage({ onManageUsers, onViewSubmissions, onSignOut }) {
   );
 }
 
-function LandingPage({ games, allSportsGames, currentViewSport, onChangeSport, loading, onBackToMenu, sport, betType, onBetTypeChange, apiError, onManualRefresh, lastRefreshTime, propBets, propBetsLoading, propBetsError, onSignOut, isRefreshing, onNavigateToDashboard }) {
+function LandingPage({ games, allSportsGames, currentViewSport, onChangeSport, loading, onBackToMenu, sport, betType, onBetTypeChange, apiError, onManualRefresh, lastRefreshTime, propBets, propBetsLoading, propBetsError, onSignOut, isRefreshing, onNavigateToDashboard, userCredit, onRefreshCredit }) {
   const [selectedPicks, setSelectedPicks] = useState({});
   const [showConfirmation, setShowConfirmation] = useState(false);
   const [ticketNumber, setTicketNumber] = useState('');
@@ -768,6 +768,7 @@ function LandingPage({ games, allSportsGames, currentViewSport, onChangeSport, l
   const [individualBetAmounts, setIndividualBetAmounts] = useState({});
   const [submissions, setSubmissions] = useState([]);
   const [hasSubmitted, setHasSubmitted] = useState(false);
+  const [isSubmittingWager, setIsSubmittingWager] = useState(false);
   const processedTicketsRef = useRef(new Set());
 
   const calculateAmericanOddsPayout = (stake, odds) => {
@@ -1204,6 +1205,17 @@ const saveSubmission = async (submission) => {
       }
     }
 
+    // Check credit limit before submitting wager
+    if (userCredit) {
+      const remainingCredit = userCredit.creditLimit - userCredit.totalWagered;
+      if (totalStake > remainingCredit) {
+        alert(`⚠️ Wager exceeds your credit limit!\n\nYour wager: $${totalStake.toFixed(2)}\nRemaining credit: $${remainingCredit.toFixed(2)}\nCredit limit: $${userCredit.creditLimit.toFixed(2)}\n\nPlease reduce your wager amount or contact an administrator to increase your limit.`);
+        return;
+      }
+    }
+
+    setIsSubmittingWager(true);
+
     Object.entries(selectedPicks).forEach(([gameId, pickObj]) => {
       let game = games.find(g => g.id === gameId);
       if (!game) {
@@ -1291,6 +1303,55 @@ const saveSubmission = async (submission) => {
       sport: betType === 'parlay' ? 'Multi-Sport' : sport,
       betType: betType
     };
+
+    // Server-side credit limit enforcement via API
+    // This ensures atomic update of user's wagered amount
+    try {
+      const currentUser = auth.currentUser;
+      if (currentUser) {
+        const idToken = await currentUser.getIdToken();
+        const wagerResponse = await fetch('/api/submitWager', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${idToken}`
+          },
+          body: JSON.stringify({
+            wagerAmount: totalStake,
+            wagerData: {
+              ticketNumber,
+              picks: picksFormatted,
+              betType
+            }
+          })
+        });
+
+        const wagerResult = await wagerResponse.json();
+
+        if (!wagerResponse.ok || !wagerResult.success) {
+          // Credit limit exceeded or other error
+          setIsSubmittingWager(false);
+          if (wagerResult.error === 'Wager exceeds credit limit') {
+            alert(`⚠️ Credit Limit Exceeded!\n\n${wagerResult.hint}\n\nPlease reduce your wager or contact an administrator.`);
+          } else {
+            alert(`❌ Error: ${wagerResult.error}\n\n${wagerResult.hint || 'Please try again.'}`);
+          }
+          return;
+        }
+
+        // Refresh credit info after successful wager
+        if (onRefreshCredit) {
+          onRefreshCredit();
+        }
+      }
+    } catch (wagerError) {
+      console.error('❌ Wager submission error:', wagerError);
+      setIsSubmittingWager(false);
+      // Do not allow submission if credit limit enforcement fails
+      alert('❌ Unable to verify credit limit. Please try again or contact support.');
+      return;
+    }
+
     saveSubmission(submission);
     
     try {
@@ -1319,6 +1380,7 @@ const saveSubmission = async (submission) => {
       console.error('❌ Email error:', emailError);
     }
     
+    setIsSubmittingWager(false);
     setHasSubmitted(true);
   };
 
@@ -1394,6 +1456,7 @@ const saveSubmission = async (submission) => {
           onParlayBetAmountChange={(amount) => setContactInfo(c => ({...c, betAmount: amount}))}
           MIN_BET={MIN_BET}
           MAX_BET={MAX_BET}
+          userCredit={userCredit}
         />
         
         {/* Mobile Bottom Navigation - Always Visible */}
@@ -1907,8 +1970,13 @@ Email: ${contactInfo.email}`;
             <label>Email *</label>
             <input type="email" value={contactInfo.email} onChange={(e) => setContactInfo({...contactInfo, email: e.target.value})} />
 
-            <button className="btn btn-success" onClick={handleCheckoutSubmit} style={{width: '100%', fontSize: '18px', marginTop: '16px'}}>
-              Send Me My Confirmation Ticket
+            <button 
+              className="btn btn-success" 
+              onClick={handleCheckoutSubmit} 
+              disabled={isSubmittingWager}
+              style={{width: '100%', fontSize: '18px', marginTop: '16px'}}
+            >
+              {isSubmittingWager ? '⏳ Processing...' : 'Send Me My Confirmation Ticket'}
             </button>
           </div>
         </div>
@@ -2004,6 +2072,7 @@ Email: ${contactInfo.email}`;
         onParlayBetAmountChange={(amount) => setContactInfo(c => ({...c, betAmount: amount}))}
         MIN_BET={MIN_BET}
         MAX_BET={MAX_BET}
+        userCredit={userCredit}
       />
       
       {/* Mobile Bottom Navigation - Always Visible */}
@@ -2136,7 +2205,9 @@ function MemberSportRoute({
   setCurrentViewSport,
   currentViewSportRef,
   setGames,
-  loadAllPropBets
+  loadAllPropBets,
+  userCredit,
+  onRefreshCredit
 }) {
   const { sport } = useParams();
   const navigate = useNavigate();
@@ -2187,6 +2258,8 @@ function MemberSportRoute({
       propBetsLoading={propBetsLoading}
       propBetsError={propBetsError}
       onNavigateToDashboard={() => navigate('/member/dashboard')}
+      userCredit={userCredit}
+      onRefreshCredit={onRefreshCredit}
     />
   );
 }
@@ -2223,12 +2296,45 @@ function App() {
   const [propBetsError, setPropBetsError] = useState(null);
   const propBetsCache = useRef({});
   
+  // User credit limit tracking
+  const [userCredit, setUserCredit] = useState(null);
+  
   // Track auth initialization to prevent navigation race conditions
   const authInitialized = useRef(false);
   const isNavigatingRef = useRef(false);
   const sportsDataLoadedRef = useRef(false);
   // Synchronous admin status ref to prevent route guard race conditions
   const isAdminRef = useRef(false);
+
+  // Function to fetch user's credit info from Firebase
+  const fetchUserCredit = useCallback(async (uid) => {
+    try {
+      const userRef = ref(database, `users/${uid}`);
+      const snapshot = await get(userRef);
+      if (snapshot.exists()) {
+        const userData = snapshot.val();
+        setUserCredit({
+          creditLimit: parseFloat(userData.creditLimit) || 100,
+          totalWagered: parseFloat(userData.totalWagered) || 0,
+          displayName: userData.displayName || '',
+          email: userData.email || ''
+        });
+        return userData;
+      } else {
+        setUserCredit(null);
+        return null;
+      }
+    } catch (error) {
+      console.error('Error fetching user credit:', error);
+      return null;
+    }
+  }, []);
+
+  const refreshUserCredit = useCallback(() => {
+    if (authState.user && !authState.isAdmin) {
+      fetchUserCredit(authState.user.uid);
+    }
+  }, [authState.user, authState.isAdmin, fetchUserCredit]);
 
   const hasCompleteOddsData = (game) => {
     const hasSpread = game.awaySpread && game.homeSpread && 
@@ -2726,18 +2832,28 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
         // Mark auth as initialized after first successful auth check
         authInitialized.current = true;
         
-        // Non-admin users: load sports data only if not already loaded
-        if (!isAdmin && !sportsDataLoadedRef.current) {
-          sportsDataLoadedRef.current = true;
-          loadAllSports('NFL', true).catch(() => {
-            // Reset flag on error to allow retry
-            sportsDataLoadedRef.current = false;
+        // Non-admin users: load sports data and fetch credit info
+        if (!isAdmin) {
+          // Fetch user credit info for betting limit enforcement
+          fetchUserCredit(user.uid).catch(err => {
+            console.warn('Could not fetch user credit info:', err);
           });
+
+          if (!sportsDataLoadedRef.current) {
+            sportsDataLoadedRef.current = true;
+            loadAllSports('NFL', true).catch(() => {
+              // Reset flag on error to allow retry
+              sportsDataLoadedRef.current = false;
+            });
+          }
         }
 
       } else {
         // Clear admin status on logout
         isAdminRef.current = false;
+        
+        // Clear user credit on logout
+        setUserCredit(null);
         
         setAuthState({
           loading: false,
@@ -2750,7 +2866,7 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
       }
     });
     return unsub;
-  }, [loadAllSports]);
+  }, [loadAllSports, fetchUserCredit]);
 
   useEffect(() => {
     // Setup Firebase listeners for all sports after a short delay
@@ -3178,6 +3294,8 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
             currentViewSportRef={currentViewSportRef}
             setGames={setGames}
             loadAllPropBets={loadAllPropBets}
+            userCredit={userCredit}
+            onRefreshCredit={refreshUserCredit}
           />
         )
       } />

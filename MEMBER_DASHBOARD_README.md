@@ -8,6 +8,30 @@ A React component (`MemberDashboardApp.jsx`) that displays a member's wager hist
 - **Past Wagers**: View settled wagers with win/loss status and payouts
 - **Real-Time Notifications**: Notification bell with unread badge that updates in real-time
 - **Mobile-First Design**: Responsive layout optimized for small screens using Tailwind CSS
+- **Betting Limits Enforcement**: Admin-set credit limits are strictly enforced during wager placement
+
+## Betting Limits
+
+### How It Works
+
+1. **Admin Sets Limits**: Administrators set credit limits for each user in the Admin Dashboard (User Management)
+2. **Real-Time Display**: Users see their remaining credit in the Betting Slip before placing bets
+3. **Strict Enforcement**: The system prevents wagers that would exceed the user's remaining credit
+4. **Automatic Tracking**: Total wagered amount is automatically updated after each successful bet
+
+### Credit Limit Display
+
+In the Betting Slip, users will see:
+- 💰 **Credit Limit**: The maximum amount the user can wager (set by admin)
+- 📊 **Total Wagered**: The cumulative amount already wagered
+- ✅ **Remaining**: Available credit for new wagers
+
+### Admin Controls
+
+Administrators can:
+- Set initial credit limits when creating users
+- Update credit limits at any time via "💰 Limit" button
+- Reset wagered amounts via "🔄 Reset" button
 
 ## Navigation
 
@@ -149,7 +173,18 @@ service cloud.firestore {
     },
     "users": {
       ".read": "auth != null",
-      ".write": "auth != null && auth.token.admin === true"
+      ".write": "auth != null && auth.token.admin === true",
+      "$userId": {
+        "totalWagered": {
+          ".write": "auth != null && auth.uid === $userId"
+        }
+      }
+    },
+    "wagers": {
+      ".read": "auth != null && auth.token.admin === true",
+      "$wagerId": {
+        ".write": "auth != null"
+      }
     },
     "artifacts": {
       "$appId": {
@@ -175,6 +210,35 @@ These rules ensure that:
 - ✅ The `userId` in the path must match the authenticated user's UID
 - ✅ All existing functionality (spreads, admins, submissions, analytics, users) is preserved
 - ✅ The `artifacts` section provides isolated storage for wagers and notifications
+- ✅ Credit limits are enforced both client-side and server-side via `/api/submitWager`
+
+## Realtime Database User Data
+
+Path: `/users/{userId}`
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `email` | string | User's email address |
+| `displayName` | string | User's display name |
+| `creditLimit` | number | Maximum amount user can wager (set by admin) |
+| `totalWagered` | number | Cumulative amount wagered by user |
+| `role` | string | User role ('member') |
+| `status` | string | Account status ('active' or 'revoked') |
+| `createdAt` | string | ISO timestamp of account creation |
+
+## Wagers Collection (Realtime Database)
+
+Path: `/wagers/{wagerId}`
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `uid` | string | User's Firebase UID |
+| `email` | string | User's email |
+| `displayName` | string | User's display name |
+| `amount` | number | Wager amount in dollars |
+| `wagerData` | object | Contains ticketNumber, picks, and betType |
+| `createdAt` | string | ISO timestamp when wager was placed |
+| `status` | string | Wager status ('pending', 'won', 'lost') |
 
 ## Usage
 
