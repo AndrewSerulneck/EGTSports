@@ -1,19 +1,15 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect } from "react";
 import { initializeApp, getApps } from "firebase/app";
 import {
   getFirestore,
   collection,
   doc,
-  addDoc,
   updateDoc,
   query,
   where,
   orderBy,
   limit,
   onSnapshot,
-  serverTimestamp,
-  writeBatch,
-  getDocs,
 } from "firebase/firestore";
 import {
   getAuth,
@@ -23,13 +19,15 @@ import {
 } from "firebase/auth";
 
 /* =============================================================================
-   Member Dashboard and Wager Tracker - Single File React Application
+   My Bets - Member Dashboard for Wager Tracking
    
    This application provides:
-   - Simulated wager placement for authenticated users
-   - Real-time current and past wager views
+   - Real-time current pending wager views
+   - Real-time past settled wager views (won/lost)
    - Real-time notification system with unread badge
-   - Admin simulation tool for testing wager settlements
+   
+   Note: Wager placement happens on the main betting page, not here.
+   This dashboard only displays the member's wager history.
    
    Technology Stack:
    - React (JSX), functional components, hooks
@@ -167,122 +165,6 @@ const getWagersCollectionPath = (userId) =>
 
 const getNotificationsCollectionPath = (userId) =>
   `/artifacts/${appId}/users/${userId}/notifications`;
-
-// ============================================================================
-// Wager Input Component
-// ============================================================================
-function WagerInput({ userId, db }) {
-  const [amount, setAmount] = useState("");
-  const [details, setDetails] = useState("");
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [feedback, setFeedback] = useState({ type: "", message: "" });
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-
-    // Validation
-    if (!amount || parseFloat(amount) <= 0) {
-      setFeedback({ type: "error", message: "Please enter a valid amount." });
-      return;
-    }
-    if (!details.trim()) {
-      setFeedback({ type: "error", message: "Please enter wager details." });
-      return;
-    }
-
-    setIsSubmitting(true);
-    setFeedback({ type: "", message: "" });
-
-    try {
-      const wagersRef = collection(db, getWagersCollectionPath(userId));
-      await addDoc(wagersRef, {
-        userId,
-        amount: parseFloat(amount),
-        details: details.trim(),
-        status: "pending",
-        datePlaced: serverTimestamp(),
-        dateSettled: null,
-        payout: null,
-      });
-
-      setFeedback({ type: "success", message: "Wager placed successfully!" });
-      setAmount("");
-      setDetails("");
-    } catch (error) {
-      console.error("Error placing wager:", error);
-      setFeedback({
-        type: "error",
-        message: "Failed to place wager. Please try again.",
-      });
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  return (
-    <div className="bg-white rounded-lg shadow-md p-4 mb-4">
-      <h2 className="text-lg font-bold text-gray-800 mb-3">Place a Wager</h2>
-      <form onSubmit={handleSubmit} className="space-y-3">
-        <div>
-          <label
-            htmlFor="amount"
-            className="block text-sm font-medium text-gray-700 mb-1"
-          >
-            Amount ($)
-          </label>
-          <input
-            type="number"
-            id="amount"
-            value={amount}
-            onChange={(e) => setAmount(e.target.value)}
-            placeholder="Enter amount"
-            min="0.01"
-            step="0.01"
-            className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-base"
-          />
-        </div>
-        <div>
-          <label
-            htmlFor="details"
-            className="block text-sm font-medium text-gray-700 mb-1"
-          >
-            Wager Details
-          </label>
-          <input
-            type="text"
-            id="details"
-            value={details}
-            onChange={(e) => setDetails(e.target.value)}
-            placeholder="e.g., Team A to win"
-            className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-base"
-          />
-        </div>
-        <button
-          type="submit"
-          disabled={isSubmitting}
-          className={`w-full py-3 px-4 rounded-md font-semibold text-white transition-colors ${
-            isSubmitting
-              ? "bg-gray-400 cursor-not-allowed"
-              : "bg-blue-600 hover:bg-blue-700 active:bg-blue-800"
-          }`}
-        >
-          {isSubmitting ? "Placing Wager..." : "Place Wager"}
-        </button>
-      </form>
-      {feedback.message && (
-        <div
-          className={`mt-3 p-3 rounded-md text-sm ${
-            feedback.type === "success"
-              ? "bg-green-100 text-green-700 border border-green-200"
-              : "bg-red-100 text-red-700 border border-red-200"
-          }`}
-        >
-          {feedback.message}
-        </div>
-      )}
-    </div>
-  );
-}
 
 // ============================================================================
 // Current Wagers Component (Pending Wagers) - Mobile-First Design
@@ -635,136 +517,6 @@ function NotificationBell({ userId, db }) {
 }
 
 // ============================================================================
-// Simulate Result Button (Admin/Testing Tool)
-// ============================================================================
-function SimulateResultButton({ userId, db }) {
-  const [isSimulating, setIsSimulating] = useState(false);
-  const [feedback, setFeedback] = useState({ type: "", message: "" });
-
-  const simulateResult = useCallback(async () => {
-    if (isSimulating) return;
-
-    setIsSimulating(true);
-    setFeedback({ type: "", message: "" });
-
-    try {
-      // Fetch the oldest pending wager
-      const wagersRef = collection(db, getWagersCollectionPath(userId));
-      const q = query(
-        wagersRef,
-        where("status", "==", "pending"),
-        orderBy("datePlaced", "asc"),
-        limit(1)
-      );
-
-      const snapshot = await getDocs(q);
-
-      if (snapshot.empty) {
-        setFeedback({
-          type: "info",
-          message: "No pending wagers to settle.",
-        });
-        setIsSimulating(false);
-        return;
-      }
-
-      const wagerDoc = snapshot.docs[0];
-      const wagerData = wagerDoc.data();
-
-      // Randomly determine win (70%) or loss (30%)
-      const isWin = Math.random() < 0.7;
-      const status = isWin ? "won" : "lost";
-
-      // Calculate random payout if won (1.5x to 3x the bet)
-      const payout = isWin
-        ? wagerData.amount * (1.5 + Math.random() * 1.5)
-        : 0;
-
-      // Create batch for atomic operations
-      const batch = writeBatch(db);
-
-      // Update wager
-      const wagerRef = doc(db, getWagersCollectionPath(userId), wagerDoc.id);
-      batch.update(wagerRef, {
-        status,
-        dateSettled: serverTimestamp(),
-        payout: isWin ? payout : null,
-      });
-
-      // Create notification
-      const notificationsRef = collection(
-        db,
-        getNotificationsCollectionPath(userId)
-      );
-      const notificationRef = doc(notificationsRef);
-      const message = isWin
-        ? `🎉 Wager "${wagerData.details}" WON! Payout: $${payout.toFixed(2)}`
-        : `❌ Wager "${wagerData.details}" LOST.`;
-
-      batch.set(notificationRef, {
-        wagerId: wagerDoc.id,
-        message,
-        isRead: false,
-        timestamp: serverTimestamp(),
-      });
-
-      // Commit batch
-      await batch.commit();
-
-      setFeedback({
-        type: isWin ? "success" : "error",
-        message: isWin
-          ? `Wager won! Payout: $${payout.toFixed(2)}`
-          : "Wager lost.",
-      });
-    } catch (error) {
-      console.error("Error simulating result:", error);
-      setFeedback({
-        type: "error",
-        message: "Failed to settle wager. Please try again.",
-      });
-    } finally {
-      setIsSimulating(false);
-
-      // Clear feedback after 3 seconds
-      setTimeout(() => {
-        setFeedback({ type: "", message: "" });
-      }, 3000);
-    }
-  }, [userId, db, isSimulating]);
-
-  return (
-    <div className="flex flex-col items-center gap-1">
-      <button
-        onClick={simulateResult}
-        disabled={isSimulating}
-        className={`px-4 py-2 rounded-lg font-medium text-sm transition-all ${
-          isSimulating
-            ? "bg-gray-300 cursor-not-allowed text-gray-500"
-            : "bg-gray-200 hover:bg-gray-300 active:bg-gray-400 text-gray-700 border border-gray-300"
-        }`}
-      >
-        {isSimulating ? "⏳ Processing..." : "⚙️ Admin: Settle Oldest Wager"}
-      </button>
-      <span className="text-xs text-gray-400 italic">Developer Tool</span>
-      {feedback.message && (
-        <span
-          className={`text-xs font-medium px-2 py-1 rounded ${
-            feedback.type === "success"
-              ? "text-green-700 bg-green-100"
-              : feedback.type === "error"
-              ? "text-red-700 bg-red-100"
-              : "text-gray-600 bg-gray-100"
-          }`}
-        >
-          {feedback.message}
-        </span>
-      )}
-    </div>
-  );
-}
-
-// ============================================================================
 // Dashboard Component
 // ============================================================================
 function Dashboard({ userId, db }) {
@@ -785,14 +537,10 @@ function Header({ userId, db }) {
       <div className="max-w-3xl mx-auto px-4 py-3">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-xl font-bold text-white">Member Dashboard</h1>
-            <p className="text-xs text-blue-200">Wager Tracker</p>
+            <h1 className="text-xl font-bold text-white">🎯 My Bets</h1>
+            <p className="text-xs text-blue-200">View your wagers</p>
           </div>
           <div className="flex items-center gap-3">
-            {/* Desktop simulate button */}
-            <div className="hidden sm:block">
-              <SimulateResultButton userId={userId} db={db} />
-            </div>
             <NotificationBell userId={userId} db={db} />
           </div>
         </div>
@@ -963,7 +711,7 @@ function MemberDashboardApp() {
 
   // Show loading screen until authentication is complete
   if (isLoading && !loadingError) {
-    return <LoadingScreen message="Loading and Authenticating..." />;
+    return <LoadingScreen message="Loading your bets..." />;
   }
 
   // Show fatal error screen if there's a loading/initialization error
@@ -988,25 +736,15 @@ function MemberDashboardApp() {
     );
   }
 
-  // Render main application
+  // Render main application - My Bets view (wager history only)
   return (
     <div className="min-h-screen bg-gray-100">
       <Header userId={userId} db={db} />
 
-      <main className="max-w-3xl mx-auto px-4 py-4 pb-24 sm:pb-4">
-        {/* Wager Input */}
-        <WagerInput userId={userId} db={db} />
-
+      <main className="max-w-3xl mx-auto px-4 py-4">
         {/* Dashboard with Current and Past Wagers */}
         <Dashboard userId={userId} db={db} />
       </main>
-
-      {/* Mobile-only floating simulate button */}
-      <div className="fixed bottom-4 left-4 right-4 sm:hidden">
-        <div className="bg-white rounded-lg shadow-lg p-3 flex justify-center">
-          <SimulateResultButton userId={userId} db={db} />
-        </div>
-      </div>
     </div>
   );
 }

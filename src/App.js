@@ -52,12 +52,12 @@ function SportsMenu({ currentSport, onSelectSport, allSportsGames, onSignOut, on
                         </button>
                     )}
                     <button
-                        key="member-dashboard"
-                        className={`menu-button ${currentSport === 'Member Dashboard' ? 'active' : ''}`}
+                        key="my-bets"
+                        className={`menu-button ${currentSport === 'My Bets' ? 'active' : ''}`}
                         onClick={onNavigateToDashboard}
                         style={{ marginTop: '8px', borderTop: '1px solid #e0e0e0', paddingTop: '8px' }}
                     >
-                        📊 Member Dashboard
+                        🎯 My Bets
                     </button>
                 </div>
                 <div className="sports-menu-actions">
@@ -73,7 +73,8 @@ function SportsMenu({ currentSport, onSelectSport, allSportsGames, onSignOut, on
     );
 }
 
-function MobileSportsMenu({ currentSport, onSelectSport, allSportsGames, onNavigateToDashboard }) {
+// Mobile Sports Scroll Bar - Only shows sports (My Bets moved to bottom nav)
+function MobileSportsMenu({ currentSport, onSelectSport, allSportsGames }) {
     const sportOrder = ['NFL', 'College Football', 'NBA', 'College Basketball', 'Major League Baseball', 'NHL'];
     const sortedSports = Object.keys(allSportsGames).filter(sport => sportOrder.includes(sport)).sort((a, b) => sportOrder.indexOf(a) - sportOrder.indexOf(b));
     const showPropBets = sortedSports.some(sport => ['NFL', 'NBA', 'College Football', 'College Basketball', 'NHL'].includes(sport));
@@ -98,30 +99,36 @@ function MobileSportsMenu({ currentSport, onSelectSport, allSportsGames, onNavig
                     Prop Bets
                 </button>
             )}
-            <button
-                key="member-dashboard"
-                className={`mobile-menu-button ${currentSport === 'Member Dashboard' ? 'active' : ''}`}
-                onClick={onNavigateToDashboard}
-            >
-                📊 Dashboard
-            </button>
         </div>
     );
 }
 
-// Reusable Mobile Actions Container component for Sign Out and Refresh buttons
-function MobileActionsContainer({ onManualRefresh, isRefreshing, onSignOut }) {
+// Mobile Bottom Navigation Bar - Always visible with Refresh, My Bets, Sign Out
+function MobileBottomNav({ onManualRefresh, isRefreshing, onSignOut, onNavigateToDashboard }) {
     return (
-        <div className="mobile-actions-container">
-            <h3 className="mb-2">Quick Actions</h3>
-            <div className="mobile-actions-buttons">
-                <button onClick={onManualRefresh} disabled={isRefreshing} className="btn btn-info mobile-action-btn">
-                    {isRefreshing ? '🔄 Refreshing...' : '🔄 Refresh Games'}
-                </button>
-                <button onClick={onSignOut} className="btn btn-secondary mobile-action-btn">
-                    🚪 Sign Out
-                </button>
-            </div>
+        <div className="mobile-bottom-nav">
+            <button 
+                onClick={onManualRefresh} 
+                disabled={isRefreshing} 
+                className="mobile-nav-btn"
+            >
+                <span className="mobile-nav-icon">{isRefreshing ? '⏳' : '🔄'}</span>
+                <span className="mobile-nav-label">{isRefreshing ? 'Refreshing' : 'Refresh'}</span>
+            </button>
+            <button 
+                onClick={onNavigateToDashboard}
+                className="mobile-nav-btn mobile-nav-btn-primary"
+            >
+                <span className="mobile-nav-icon">🎯</span>
+                <span className="mobile-nav-label">My Bets</span>
+            </button>
+            <button 
+                onClick={onSignOut} 
+                className="mobile-nav-btn"
+            >
+                <span className="mobile-nav-icon">🚪</span>
+                <span className="mobile-nav-label">Sign Out</span>
+            </button>
         </div>
     );
 }
@@ -1345,12 +1352,11 @@ const saveSubmission = async (submission) => {
   const displaySport = currentViewSport || sport;
   if (displaySport === 'Prop Bets') {
     return (
-      <div className="gradient-bg main-layout-wrapper">
+      <div className="gradient-bg main-layout-wrapper mobile-with-bottom-nav">
         <MobileSportsMenu
             currentSport={currentViewSport}
             onSelectSport={onChangeSport}
             allSportsGames={allSportsGames}
-            onNavigateToDashboard={onNavigateToDashboard}
         />
         <SportsMenu
             currentSport={currentViewSport}
@@ -1371,13 +1377,6 @@ const saveSubmission = async (submission) => {
             onSelectPropBet={handleGridPickSelection}
             betType={betType}
           />
-          
-          {/* Mobile-only Action Buttons Container */}
-          <MobileActionsContainer 
-            onManualRefresh={onManualRefresh}
-            isRefreshing={isRefreshing}
-            onSignOut={onSignOut}
-          />
         </div>
         
         <BettingSlip
@@ -1396,6 +1395,14 @@ const saveSubmission = async (submission) => {
           MIN_BET={MIN_BET}
           MAX_BET={MAX_BET}
         />
+        
+        {/* Mobile Bottom Navigation - Always Visible */}
+        <MobileBottomNav
+          onManualRefresh={onManualRefresh}
+          isRefreshing={isRefreshing}
+          onSignOut={onSignOut}
+          onNavigateToDashboard={onNavigateToDashboard}
+        />
       </div>
     );
   }
@@ -1404,12 +1411,11 @@ const saveSubmission = async (submission) => {
   
   if (games.length === 0 && !hasGamesInAllSports) {
     return (
-      <div className="gradient-bg main-layout-wrapper">
+      <div className="gradient-bg main-layout-wrapper mobile-with-bottom-nav">
         <MobileSportsMenu
             currentSport={currentViewSport}
             onSelectSport={onChangeSport}
             allSportsGames={allSportsGames}
-            onNavigateToDashboard={onNavigateToDashboard}
         />
         <SportsMenu
             currentSport={currentViewSport}
@@ -1428,26 +1434,26 @@ const saveSubmission = async (submission) => {
               There are currently no upcoming {displaySport} games. This could be due to the off-season or no scheduled games at this time.
             </p>
           </div>
-          
-          {/* Mobile-only Action Buttons Container */}
-          <MobileActionsContainer 
-            onManualRefresh={onManualRefresh}
-            isRefreshing={isRefreshing}
-            onSignOut={onSignOut}
-          />
         </div>
+        
+        {/* Mobile Bottom Navigation - Always Visible */}
+        <MobileBottomNav
+          onManualRefresh={onManualRefresh}
+          isRefreshing={isRefreshing}
+          onSignOut={onSignOut}
+          onNavigateToDashboard={onNavigateToDashboard}
+        />
       </div>
     );
   }
   
   if (games.length === 0 && hasGamesInAllSports) {
     return (
-      <div className="gradient-bg main-layout-wrapper">
+      <div className="gradient-bg main-layout-wrapper mobile-with-bottom-nav">
         <MobileSportsMenu
             currentSport={currentViewSport}
             onSelectSport={onChangeSport}
             allSportsGames={allSportsGames}
-            onNavigateToDashboard={onNavigateToDashboard}
         />
         <SportsMenu
             currentSport={currentViewSport}
@@ -1462,14 +1468,15 @@ const saveSubmission = async (submission) => {
           <div className="card text-center">
             <h2>Loading {displaySport} games...</h2>
           </div>
-          
-          {/* Mobile-only Action Buttons Container */}
-          <MobileActionsContainer 
-            onManualRefresh={onManualRefresh}
-            isRefreshing={isRefreshing}
-            onSignOut={onSignOut}
-          />
         </div>
+        
+        {/* Mobile Bottom Navigation - Always Visible */}
+        <MobileBottomNav
+          onManualRefresh={onManualRefresh}
+          isRefreshing={isRefreshing}
+          onSignOut={onSignOut}
+          onNavigateToDashboard={onNavigateToDashboard}
+        />
       </div>
     );
   }
@@ -1910,12 +1917,11 @@ Email: ${contactInfo.email}`;
   }
 
   return (
-    <div className="gradient-bg main-layout-wrapper">
+    <div className="gradient-bg main-layout-wrapper mobile-with-bottom-nav">
         <MobileSportsMenu
             currentSport={currentViewSport}
             onSelectSport={onChangeSport}
             allSportsGames={allSportsGames}
-            onNavigateToDashboard={onNavigateToDashboard}
         />
         <SportsMenu
             currentSport={currentViewSport}
@@ -1981,13 +1987,6 @@ Email: ${contactInfo.email}`;
             <strong>Legal Disclaimer:</strong> For entertainment only. 21+ only. Private pool among friends. Check local laws. By participating, you acknowledge responsibility for compliance with local laws.
           </div>
         </div>
-        
-        {/* Mobile-only Action Buttons Container */}
-        <MobileActionsContainer 
-          onManualRefresh={onManualRefresh}
-          isRefreshing={isRefreshing}
-          onSignOut={onSignOut}
-        />
       </div>
       
       <BettingSlip
@@ -2005,6 +2004,14 @@ Email: ${contactInfo.email}`;
         onParlayBetAmountChange={(amount) => setContactInfo(c => ({...c, betAmount: amount}))}
         MIN_BET={MIN_BET}
         MAX_BET={MAX_BET}
+      />
+      
+      {/* Mobile Bottom Navigation - Always Visible */}
+      <MobileBottomNav
+        onManualRefresh={onManualRefresh}
+        isRefreshing={isRefreshing}
+        onSignOut={onSignOut}
+        onNavigateToDashboard={onNavigateToDashboard}
       />
       
       <div className={`modal ${showConfirmation ? 'active' : ''}`}>

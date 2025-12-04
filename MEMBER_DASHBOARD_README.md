@@ -1,22 +1,29 @@
-# Member Dashboard and Wager Tracker
+# My Bets - Member Wager Tracker
 
-A complete, single-file React application (`MemberDashboardApp.jsx`) that implements a Member Dashboard for placing simulated wagers, viewing wager history, and receiving real-time notifications.
+A React component (`MemberDashboardApp.jsx`) that displays a member's wager history in real-time, including pending and settled wagers with notifications.
 
 ## Features
 
-- **Wager Input**: Simple form to place simulated wagers with amount and details
 - **Current Wagers**: Real-time display of pending wagers sorted by date placed
 - **Past Wagers**: View settled wagers with win/loss status and payouts
 - **Real-Time Notifications**: Notification bell with unread badge that updates in real-time
-- **Admin Simulation Tool**: "Simulate Next Result" button for testing wager settlements
 - **Mobile-First Design**: Responsive layout optimized for small screens using Tailwind CSS
 
 ## Navigation
 
-The Member Dashboard is accessible from the main sports menu:
-- **Desktop**: Click "📊 Member Dashboard" in the left sidebar
-- **Mobile**: Click "📊 Dashboard" in the horizontal menu bar
+The "My Bets" page is accessible from the main sports menu:
+- **Desktop**: Click "🎯 My Bets" in the left sidebar
+- **Mobile**: Tap "🎯 My Bets" on the bottom navigation bar (always visible)
 - **Direct URL**: Navigate to `/member/dashboard`
+
+## Mobile-First Design
+
+The layout is designed for mobile devices first:
+- **Bottom Navigation Bar**: Always visible on mobile with Refresh, My Bets, and Sign Out buttons
+- **Sports Scroll Bar**: Horizontal scrolling for sports selection at the top
+- Single-column layout on small screens
+- Touch-friendly input sizes
+- Responsive notification dropdown
 
 ## Technology Stack
 
@@ -64,31 +71,41 @@ Path: `/artifacts/${appId}/users/${userId}/notifications`
 | `isRead` | boolean | Whether the notification has been read |
 | `timestamp` | Timestamp | When the notification was created |
 
-## Firebase Security Rules
+---
 
-### Cloud Firestore Security Rules
+## Complete Firebase Security Rules
 
-**IMPORTANT**: Add these security rules to your Firestore configuration to secure user data:
+### IMPORTANT: You need BOTH sets of rules
+
+1. **Firebase Realtime Database Rules** - for existing app functionality (spreads, users, submissions, etc.)
+2. **Cloud Firestore Security Rules** - for the My Bets wager tracking functionality
+
+---
+
+### 1. Cloud Firestore Security Rules
+
+**Copy and paste this into Firebase Console → Firestore Database → Rules:**
 
 ```javascript
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     
-    // Member Dashboard: Secure private user data
+    // Member Dashboard: Secure private user data (wagers and notifications)
+    // Users can only read/write their own data
     match /artifacts/{appId}/users/{userId}/{document=**} {
       allow read, write: if request.auth != null && request.auth.uid == userId;
     }
-    
-    // Add your other existing rules here...
     
   }
 }
 ```
 
-### Firebase Realtime Database Rules
+---
 
-If you're using Firebase Realtime Database for other parts of your application, here are the **combined rules** that preserve your existing functionality while adding the Member Dashboard:
+### 2. Firebase Realtime Database Rules
+
+**Copy and paste this into Firebase Console → Realtime Database → Rules:**
 
 ```json
 {
@@ -148,13 +165,16 @@ If you're using Firebase Realtime Database for other parts of your application, 
 }
 ```
 
-**Note**: The `artifacts` section at the bottom is the new addition for the Member Dashboard. This allows authenticated users to read and write only their own wager and notification data.
+---
+
+## Security Summary
 
 These rules ensure that:
-- Only authenticated users can access their own data
-- Users cannot read or modify other users' data
-- The `userId` in the path must match the authenticated user's UID
-- All existing functionality (spreads, admins, submissions, analytics, users) is preserved
+- ✅ Only authenticated users can access their own data
+- ✅ Users cannot read or modify other users' data
+- ✅ The `userId` in the path must match the authenticated user's UID
+- ✅ All existing functionality (spreads, admins, submissions, analytics, users) is preserved
+- ✅ The `artifacts` section provides isolated storage for wagers and notifications
 
 ## Usage
 
@@ -178,37 +198,16 @@ The app handles authentication automatically:
 - If `__initial_auth_token` is provided, it signs in with the custom token
 - Otherwise, it signs in anonymously
 
-### Simulate Wager Settlement (Testing)
-
-Click the "🎲 Simulate Next Result" button to:
-1. Fetch the oldest pending wager
-2. Randomly determine win (70% chance) or loss (30% chance)
-3. Calculate payout if won
-4. Create a notification about the result
-
-This is useful for testing the real-time update functionality.
-
 ## Component Structure
 
 ```
 MemberDashboardApp
 ├── Header
-│   ├── NotificationBell
-│   └── SimulateResultButton (desktop)
-├── WagerInput
-├── Dashboard
-│   ├── CurrentWagers
-│   └── PastWagers
-└── SimulateResultButton (mobile floating)
+│   └── NotificationBell
+└── Dashboard
+    ├── CurrentWagers
+    └── PastWagers
 ```
-
-## Mobile-First Design
-
-The layout is designed for mobile devices first:
-- Single-column layout on small screens
-- Floating action button for simulation on mobile
-- Touch-friendly input sizes
-- Responsive notification dropdown
 
 ## File Location
 
