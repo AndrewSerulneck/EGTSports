@@ -55,9 +55,11 @@ try {
     firebaseConfig = __firebase_config;
   } else {
     // Fallback to environment variables or hardcoded defaults
+    // NOTE: databaseURL must match App.js config to avoid duplicate-app error
     firebaseConfig = {
       apiKey: process.env.REACT_APP_FIREBASE_API_KEY || "AIzaSyA9FsWV7hA4ow2Xaq0Krx9kCCMfMibkVOQ",
       authDomain: process.env.REACT_APP_FIREBASE_AUTH_DOMAIN || "marcs-parlays.firebaseapp.com",
+      databaseURL: process.env.REACT_APP_FIREBASE_DATABASE_URL || "https://marcs-parlays-default-rtdb.firebaseio.com",
       projectId: process.env.REACT_APP_FIREBASE_PROJECT_ID || "marcs-parlays",
       storageBucket: process.env.REACT_APP_FIREBASE_STORAGE_BUCKET || "marcs-parlays.firebasestorage.app",
       messagingSenderId: process.env.REACT_APP_FIREBASE_MESSAGING_SENDER_ID || "631281528889",
@@ -113,39 +115,44 @@ let db = null;
 let auth = null;
 let firebaseInitError = null;
 
-if (configValidation.isValid) {
-  try {
-    // Check if Firebase is already initialized
-    const existingApps = getApps();
-    if (existingApps.length === 0) {
-      app = initializeApp(firebaseConfig);
-    } else {
-      app = existingApps[0];
-    }
-    
-    // Initialize Firestore with error handling
+try {
+  // ALWAYS check for existing apps first to avoid duplicate-app error
+  const existingApps = getApps();
+  
+  if (existingApps.length > 0) {
+    // Use the existing Firebase app (already initialized by App.js)
+    app = existingApps[0];
+    console.log("MemberDashboard: Using existing Firebase app");
+  } else if (configValidation.isValid) {
+    // Only initialize if no app exists and config is valid
+    app = initializeApp(firebaseConfig);
+    console.log("MemberDashboard: Initialized new Firebase app");
+  } else {
+    firebaseInitError = configValidation.error;
+  }
+  
+  // Initialize Firestore if app is available
+  if (app && !firebaseInitError) {
     try {
       db = getFirestore(app);
     } catch (firestoreError) {
       console.error("Firestore initialization error:", firestoreError);
       firebaseInitError = `Firestore initialization failed: ${firestoreError.message}`;
     }
-    
-    // Initialize Auth with error handling
-    if (!firebaseInitError) {
-      try {
-        auth = getAuth(app);
-      } catch (authError) {
-        console.error("Auth initialization error:", authError);
-        firebaseInitError = `Auth initialization failed: ${authError.message}`;
-      }
-    }
-  } catch (error) {
-    console.error("Firebase initialization error:", error);
-    firebaseInitError = `Firebase initialization failed: ${error.message}`;
   }
-} else {
-  firebaseInitError = configValidation.error;
+  
+  // Initialize Auth if app is available and Firestore succeeded
+  if (app && !firebaseInitError) {
+    try {
+      auth = getAuth(app);
+    } catch (authError) {
+      console.error("Auth initialization error:", authError);
+      firebaseInitError = `Auth initialization failed: ${authError.message}`;
+    }
+  }
+} catch (error) {
+  console.error("Firebase initialization error:", error);
+  firebaseInitError = `Firebase initialization failed: ${error.message}`;
 }
 
 // Log initialization status for debugging
