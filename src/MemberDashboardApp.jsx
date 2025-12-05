@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from "react";
 import { initializeApp, getApps } from "firebase/app";
+import { getDatabase, ref, onValue } from "firebase/database";
 import {
   getFirestore,
   collection,
   doc,
   updateDoc,
   query,
-  where,
   orderBy,
   limit,
   onSnapshot,
@@ -112,6 +112,7 @@ const configValidation = globalAccessError
 // ============================================================================
 let app = null;
 let db = null;
+let rtdb = null;  // Realtime Database for wagers
 let auth = null;
 let firebaseInitError = null;
 
@@ -131,7 +132,7 @@ try {
     firebaseInitError = configValidation.error;
   }
   
-  // Initialize Firestore if app is available
+  // Initialize Firestore if app is available (for notifications)
   if (app && !firebaseInitError) {
     try {
       db = getFirestore(app);
@@ -141,7 +142,18 @@ try {
     }
   }
   
-  // Initialize Auth if app is available and Firestore succeeded
+  // Initialize Realtime Database if app is available (for wagers)
+  if (app && !firebaseInitError) {
+    try {
+      rtdb = getDatabase(app);
+      console.log("MemberDashboard: Realtime Database initialized");
+    } catch (rtdbError) {
+      console.error("Realtime Database initialization error:", rtdbError);
+      firebaseInitError = `Realtime Database initialization failed: ${rtdbError.message}`;
+    }
+  }
+  
+  // Initialize Auth if app is available
   if (app && !firebaseInitError) {
     try {
       auth = getAuth(app);
@@ -160,59 +172,163 @@ console.log("Firebase Init Status:", {
   configValid: configValidation.isValid,
   appInitialized: !!app,
   dbInitialized: !!db,
+  rtdbInitialized: !!rtdb,
   authInitialized: !!auth,
   error: firebaseInitError
 });
 
 // ============================================================================
-// Firestore Collection Paths
+// Firestore Collection Paths (for notifications only)
 // ============================================================================
-const getWagersCollectionPath = (userId) =>
-  `/artifacts/${appId}/users/${userId}/wagers`;
-
 const getNotificationsCollectionPath = (userId) =>
   `/artifacts/${appId}/users/${userId}/notifications`;
 
 // ============================================================================
-// Current Wagers Component (Pending Wagers) - Mobile-First Design
+// Credit Status Component - Mobile-First Design
 // ============================================================================
-function CurrentWagers({ userId, db }) {
-  const [wagers, setWagers] = useState([]);
+function CreditStatus({ userId, rtdb }) {
+  const [creditData, setCreditData] = useState({
+    creditLimit: 0,
+    totalWagered: 0,
+    remainingCredit: 0
+  });
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!userId) return;
+    if (!userId || !rtdb) return;
 
-    const wagersRef = collection(db, getWagersCollectionPath(userId));
-    const q = query(
-      wagersRef,
-      where("status", "==", "pending"),
-      orderBy("datePlaced", "desc")
-    );
-
-    const unsubscribe = onSnapshot(
-      q,
-      (snapshot) => {
-        const wagersData = snapshot.docs.map((doc) => ({
-          id: doc.id,
-          ...doc.data(),
-        }));
-        setWagers(wagersData);
-        setLoading(false);
-      },
-      (error) => {
-        console.error("Error fetching current wagers:", error);
-        setLoading(false);
+    const userRef = ref(rtdb, `users/${userId}`);
+    const unsubscribe = onValue(userRef, (snapshot) => {
+      if (snapshot.exists()) {
+        const userData = snapshot.val();
+        const creditLimit = parseFloat(userData.creditLimit) || 100;
+        const totalWagered = parseFloat(userData.totalWagered) || 0;
+        setCreditData({
+          creditLimit,
+          totalWagered,
+          remainingCredit: creditLimit - totalWagered
+        });
       }
-    );
+      setLoading(false);
+    }, (error) => {
+      console.error("Error fetching credit data:", error);
+      setLoading(false);
+    });
 
     return () => unsubscribe();
-  }, [userId, db]);
+  }, [userId, rtdb]);
 
   if (loading) {
     return (
       <div className="bg-white rounded-lg shadow-md p-4 mb-4">
-        <h2 className="text-lg font-bold text-gray-800 mb-3">Current Wagers</h2>
+        <div className="flex justify-center items-center h-16">
+          <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+        </div>
+      </div>
+    );
+  }
+
+  const creditPercentage = creditData.creditLimit > 0 
+    ? (creditData.remainingCredit / creditData.creditLimit) * 100 
+    : 0;
+  const isLow = creditPercentage < 25;
+  const isMedium = creditPercentage >= 25 && creditPercentage < 50;
+
+  return (
+    <div className="bg-white rounded-lg shadow-md p-4 mb-4">
+      <h2 className="text-lg font-bold text-gray-800 mb-3">💰 Credit Status</h2>
+      <div className="space-y-3">
+        {/* Credit Progress Bar */}
+        <div className="relative h-4 bg-gray-200 rounded-full overflow-hidden">
+          <div 
+            className={`h-full transition-all duration-500 ${
+              isLow ? 'bg-red-500' : isMedium ? 'bg-yellow-500' : 'bg-green-500'
+            }`}
+            style={{ width: `${Math.max(0, Math.min(100, creditPercentage))}%` }}
+          />
+        </div>
+        
+        {/* Credit Details Grid - Mobile-friendly */}
+        <div className="grid grid-cols-3 gap-2 text-center">
+          <div className="bg-blue-50 rounded-lg p-2">
+            <p className="text-xs text-gray-500">Credit Limit</p>
+            <p className="text-sm font-bold text-blue-600">${creditData.creditLimit.toFixed(2)}</p>
+          </div>
+          <div className="bg-orange-50 rounded-lg p-2">
+            <p className="text-xs text-gray-500">Total Wagered</p>
+            <p className="text-sm font-bold text-orange-600">${creditData.totalWagered.toFixed(2)}</p>
+          </div>
+          <div className={`rounded-lg p-2 ${
+            isLow ? 'bg-red-50' : isMedium ? 'bg-yellow-50' : 'bg-green-50'
+          }`}>
+            <p className="text-xs text-gray-500">Remaining</p>
+            <p className={`text-sm font-bold ${
+              isLow ? 'text-red-600' : isMedium ? 'text-yellow-600' : 'text-green-600'
+            }`}>${creditData.remainingCredit.toFixed(2)}</p>
+          </div>
+        </div>
+        
+        {/* Low Credit Warning */}
+        {isLow && creditData.remainingCredit > 0 && (
+          <div className="bg-red-50 border-l-4 border-red-500 p-2 rounded-r">
+            <p className="text-xs text-red-700">⚠️ Low credit remaining</p>
+          </div>
+        )}
+        {creditData.remainingCredit <= 0 && (
+          <div className="bg-red-100 border-l-4 border-red-600 p-2 rounded-r">
+            <p className="text-xs text-red-800 font-bold">🚫 No credit remaining - Contact admin</p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ============================================================================
+// Current Wagers Component (Pending Wagers) - Mobile-First Design
+// Reads from Firebase Realtime Database /wagers collection
+// ============================================================================
+function CurrentWagers({ userId, rtdb }) {
+  const [wagers, setWagers] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!userId || !rtdb) return;
+
+    // Query wagers collection in Realtime Database, filtered by uid
+    const wagersRef = ref(rtdb, 'wagers');
+    const unsubscribe = onValue(wagersRef, (snapshot) => {
+      const wagersData = [];
+      if (snapshot.exists()) {
+        snapshot.forEach((childSnapshot) => {
+          const wager = childSnapshot.val();
+          // Filter by user ID and pending status
+          if (wager.uid === userId && wager.status === 'pending') {
+            wagersData.push({
+              id: childSnapshot.key,
+              ...wager,
+              // Format pick details for display
+              details: formatWagerDetails(wager.wagerData)
+            });
+          }
+        });
+      }
+      // Sort by createdAt descending
+      wagersData.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+      setWagers(wagersData);
+      setLoading(false);
+    }, (error) => {
+      console.error("Error fetching current wagers:", error);
+      setLoading(false);
+    });
+
+    return () => unsubscribe();
+  }, [userId, rtdb]);
+
+  if (loading) {
+    return (
+      <div className="bg-white rounded-lg shadow-md p-4 mb-4">
+        <h2 className="text-lg font-bold text-gray-800 mb-3">⏳ Current Wagers</h2>
         <div className="flex justify-center items-center h-20">
           <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
         </div>
@@ -223,15 +339,15 @@ function CurrentWagers({ userId, db }) {
   return (
     <div className="bg-white rounded-lg shadow-md p-4 mb-4">
       <h2 className="text-lg font-bold text-gray-800 mb-3">
-        Current Wagers <span className="text-blue-600">({wagers.length})</span>
+        ⏳ Current Wagers <span className="text-blue-600">({wagers.length})</span>
       </h2>
       {wagers.length === 0 ? (
         <div className="text-center py-6">
           <p className="text-gray-400 text-sm">No pending wagers</p>
-          <p className="text-gray-300 text-xs mt-1">Place a wager above to get started</p>
+          <p className="text-gray-300 text-xs mt-1">Your active bets will appear here</p>
         </div>
       ) : (
-        <div className="space-y-3 max-h-72 overflow-y-auto">
+        <div className="space-y-3 max-h-96 overflow-y-auto">
           {wagers.map((wager) => (
             <div
               key={wager.id}
@@ -241,13 +357,20 @@ function CurrentWagers({ userId, db }) {
               <div className="flex flex-col space-y-2">
                 {/* Wager Details - Prominent */}
                 <p className="text-sm font-semibold text-gray-800 leading-tight">
-                  {wager.details}
+                  {wager.details || `Ticket #${wager.wagerData?.ticketNumber || 'Unknown'}`}
                 </p>
+                
+                {/* Bet Type Badge */}
+                {wager.wagerData?.betType && (
+                  <span className="inline-block w-fit px-2 py-0.5 text-xs font-medium bg-blue-100 text-blue-700 rounded">
+                    {wager.wagerData.betType === 'parlay' ? '🎯 Parlay' : '📊 Straight'}
+                  </span>
+                )}
                 
                 {/* Amount and Status Row */}
                 <div className="flex items-center justify-between">
                   <span className="text-lg font-bold text-gray-900">
-                    ${wager.amount?.toFixed(2)}
+                    ${wager.amount?.toFixed(2) || '0.00'}
                   </span>
                   <span className="inline-flex items-center px-2.5 py-1 text-xs font-bold bg-yellow-400 text-yellow-900 rounded-full shadow-sm">
                     ⏳ PENDING
@@ -256,8 +379,8 @@ function CurrentWagers({ userId, db }) {
                 
                 {/* Date - Smaller */}
                 <p className="text-xs text-gray-500">
-                  {wager.datePlaced?.toDate
-                    ? wager.datePlaced.toDate().toLocaleString()
+                  {wager.createdAt
+                    ? new Date(wager.createdAt).toLocaleString()
                     : "Just now"}
                 </p>
               </div>
@@ -269,46 +392,71 @@ function CurrentWagers({ userId, db }) {
   );
 }
 
+// Helper function to format wager details for display
+function formatWagerDetails(wagerData) {
+  if (!wagerData) return 'Wager details unavailable';
+  
+  if (wagerData.picks && Array.isArray(wagerData.picks)) {
+    const pickCount = wagerData.picks.length;
+    if (pickCount === 1) {
+      const pick = wagerData.picks[0];
+      return `${pick.team || pick.pickedTeam || 'Selection'} ${pick.spread || pick.odds || ''}`.trim();
+    } else {
+      return `${pickCount}-leg ${wagerData.betType || 'parlay'}`;
+    }
+  }
+  
+  return wagerData.ticketNumber ? `Ticket #${wagerData.ticketNumber}` : 'Wager';
+}
+
 // ============================================================================
 // Past Wagers Component (Won/Lost Wagers) - Mobile-First Design
+// Reads from Firebase Realtime Database /wagers collection
 // ============================================================================
-function PastWagers({ userId, db }) {
+function PastWagers({ userId, rtdb }) {
   const [wagers, setWagers] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!userId) return;
+    if (!userId || !rtdb) return;
 
-    const wagersRef = collection(db, getWagersCollectionPath(userId));
-    const q = query(
-      wagersRef,
-      where("status", "in", ["won", "lost"]),
-      orderBy("dateSettled", "desc")
-    );
-
-    const unsubscribe = onSnapshot(
-      q,
-      (snapshot) => {
-        const wagersData = snapshot.docs.map((doc) => ({
-          id: doc.id,
-          ...doc.data(),
-        }));
-        setWagers(wagersData);
-        setLoading(false);
-      },
-      (error) => {
-        console.error("Error fetching past wagers:", error);
-        setLoading(false);
+    // Query wagers collection in Realtime Database, filtered by uid
+    const wagersRef = ref(rtdb, 'wagers');
+    const unsubscribe = onValue(wagersRef, (snapshot) => {
+      const wagersData = [];
+      if (snapshot.exists()) {
+        snapshot.forEach((childSnapshot) => {
+          const wager = childSnapshot.val();
+          // Filter by user ID and settled status (won/lost)
+          if (wager.uid === userId && (wager.status === 'won' || wager.status === 'lost')) {
+            wagersData.push({
+              id: childSnapshot.key,
+              ...wager,
+              details: formatWagerDetails(wager.wagerData)
+            });
+          }
+        });
       }
-    );
+      // Sort by settledAt or createdAt descending
+      wagersData.sort((a, b) => {
+        const dateA = new Date(a.settledAt || a.createdAt);
+        const dateB = new Date(b.settledAt || b.createdAt);
+        return dateB - dateA;
+      });
+      setWagers(wagersData);
+      setLoading(false);
+    }, (error) => {
+      console.error("Error fetching past wagers:", error);
+      setLoading(false);
+    });
 
     return () => unsubscribe();
-  }, [userId, db]);
+  }, [userId, rtdb]);
 
   if (loading) {
     return (
       <div className="bg-white rounded-lg shadow-md p-4 mb-4">
-        <h2 className="text-lg font-bold text-gray-800 mb-3">Past Wagers</h2>
+        <h2 className="text-lg font-bold text-gray-800 mb-3">📜 Past Wagers</h2>
         <div className="flex justify-center items-center h-20">
           <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
         </div>
@@ -319,15 +467,15 @@ function PastWagers({ userId, db }) {
   return (
     <div className="bg-white rounded-lg shadow-md p-4 mb-4">
       <h2 className="text-lg font-bold text-gray-800 mb-3">
-        Past Wagers <span className="text-gray-500">({wagers.length})</span>
+        📜 Past Wagers <span className="text-gray-500">({wagers.length})</span>
       </h2>
       {wagers.length === 0 ? (
         <div className="text-center py-6">
           <p className="text-gray-400 text-sm">No settled wagers yet</p>
-          <p className="text-gray-300 text-xs mt-1">Results will appear here</p>
+          <p className="text-gray-300 text-xs mt-1">Results will appear here once bets are settled</p>
         </div>
       ) : (
-        <div className="space-y-3 max-h-72 overflow-y-auto">
+        <div className="space-y-3 max-h-96 overflow-y-auto">
           {wagers.map((wager) => (
             <div
               key={wager.id}
@@ -341,13 +489,20 @@ function PastWagers({ userId, db }) {
               <div className="flex flex-col space-y-2">
                 {/* Wager Details - Prominent */}
                 <p className="text-sm font-semibold text-gray-800 leading-tight">
-                  {wager.details}
+                  {wager.details || `Ticket #${wager.wagerData?.ticketNumber || 'Unknown'}`}
                 </p>
+                
+                {/* Bet Type Badge */}
+                {wager.wagerData?.betType && (
+                  <span className="inline-block w-fit px-2 py-0.5 text-xs font-medium bg-blue-100 text-blue-700 rounded">
+                    {wager.wagerData.betType === 'parlay' ? '🎯 Parlay' : '📊 Straight'}
+                  </span>
+                )}
                 
                 {/* Amount, Status, and Payout Row */}
                 <div className="flex items-center justify-between flex-wrap gap-2">
                   <span className="text-lg font-bold text-gray-900">
-                    ${wager.amount?.toFixed(2)}
+                    ${wager.amount?.toFixed(2) || '0.00'}
                   </span>
                   <div className="flex items-center gap-2">
                     <span
@@ -361,7 +516,7 @@ function PastWagers({ userId, db }) {
                     </span>
                     {wager.status === "won" && wager.payout && (
                       <span className="text-sm font-bold text-green-600 bg-green-100 px-2 py-0.5 rounded">
-                +${wager.payout.toFixed(2)}
+                        +${wager.payout.toFixed(2)}
                       </span>
                     )}
                   </div>
@@ -369,9 +524,11 @@ function PastWagers({ userId, db }) {
                 
                 {/* Date - Smaller */}
                 <p className="text-xs text-gray-500">
-                  Settled: {wager.dateSettled?.toDate
-                    ? wager.dateSettled.toDate().toLocaleString()
-                    : "Unknown"}
+                  {wager.settledAt
+                    ? `Settled: ${new Date(wager.settledAt).toLocaleString()}`
+                    : wager.createdAt
+                    ? `Placed: ${new Date(wager.createdAt).toLocaleString()}`
+                    : "Unknown date"}
                 </p>
               </div>
             </div>
@@ -524,13 +681,14 @@ function NotificationBell({ userId, db }) {
 }
 
 // ============================================================================
-// Dashboard Component
+// Dashboard Component - Updated to use both Firestore and Realtime Database
 // ============================================================================
-function Dashboard({ userId, db }) {
+function Dashboard({ userId, db, rtdb }) {
   return (
     <div className="space-y-4">
-      <CurrentWagers userId={userId} db={db} />
-      <PastWagers userId={userId} db={db} />
+      <CreditStatus userId={userId} rtdb={rtdb} />
+      <CurrentWagers userId={userId} rtdb={rtdb} />
+      <PastWagers userId={userId} rtdb={rtdb} />
     </div>
   );
 }
@@ -545,7 +703,7 @@ function Header({ userId, db }) {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-xl font-bold text-white">🎯 My Bets</h1>
-            <p className="text-xs text-blue-200">View your wagers</p>
+            <p className="text-xs text-blue-200">View your wagers & credit</p>
           </div>
           <div className="flex items-center gap-3">
             <NotificationBell userId={userId} db={db} />
@@ -749,8 +907,8 @@ function MemberDashboardApp() {
       <Header userId={userId} db={db} />
 
       <main className="max-w-3xl mx-auto px-4 py-4">
-        {/* Dashboard with Current and Past Wagers */}
-        <Dashboard userId={userId} db={db} />
+        {/* Dashboard with Credit Status, Current and Past Wagers */}
+        <Dashboard userId={userId} db={db} rtdb={rtdb} />
       </main>
     </div>
   );
