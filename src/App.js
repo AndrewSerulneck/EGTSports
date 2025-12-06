@@ -2,8 +2,8 @@
 import './App.css';
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { Routes, Route, useNavigate, useParams, Navigate } from 'react-router-dom';
-import { initializeApp } from "firebase/app";
-import { getDatabase, ref, set, onValue, push } from "firebase/database";
+import { initializeApp, getApps } from "firebase/app";
+import { getDatabase, ref, set, onValue, push, get } from "firebase/database";
 import {
   getAuth,
   signInWithEmailAndPassword,
@@ -18,8 +18,9 @@ import SubmissionsViewer from './components/SubmissionsViewer';
 import GridBettingLayout from './components/GridBettingLayout';
 import PropBetsView from './components/PropBetsView';
 import BettingSlip from './components/BettingSlip';
+import MemberDashboardApp from './MemberDashboardApp';
 
-function SportsMenu({ currentSport, onSelectSport, allSportsGames, onSignOut, onManualRefresh, isRefreshing }) {
+function SportsMenu({ currentSport, onSelectSport, allSportsGames, onSignOut, onManualRefresh, isRefreshing, onNavigateToDashboard }) {
     const sportOrder = ['NFL', 'College Football', 'NBA', 'College Basketball', 'Major League Baseball', 'NHL'];
     
     const sortedSports = Object.keys(allSportsGames).filter(sport => sportOrder.includes(sport)).sort((a, b) => sportOrder.indexOf(a) - sportOrder.indexOf(b));
@@ -50,6 +51,14 @@ function SportsMenu({ currentSport, onSelectSport, allSportsGames, onSignOut, on
                             Prop Bets
                         </button>
                     )}
+                    <button
+                        key="my-bets"
+                        className={`menu-button ${currentSport === 'My Bets' ? 'active' : ''}`}
+                        onClick={onNavigateToDashboard}
+                        style={{ marginTop: '8px', borderTop: '1px solid #e0e0e0', paddingTop: '8px' }}
+                    >
+                        🎯 My Bets
+                    </button>
                 </div>
                 <div className="sports-menu-actions">
                     <button onClick={onManualRefresh} disabled={isRefreshing} className="btn btn-info">
@@ -64,6 +73,7 @@ function SportsMenu({ currentSport, onSelectSport, allSportsGames, onSignOut, on
     );
 }
 
+// Mobile Sports Scroll Bar - Only shows sports (My Bets moved to bottom nav)
 function MobileSportsMenu({ currentSport, onSelectSport, allSportsGames }) {
     const sportOrder = ['NFL', 'College Football', 'NBA', 'College Basketball', 'Major League Baseball', 'NHL'];
     const sortedSports = Object.keys(allSportsGames).filter(sport => sportOrder.includes(sport)).sort((a, b) => sportOrder.indexOf(a) - sportOrder.indexOf(b));
@@ -93,19 +103,32 @@ function MobileSportsMenu({ currentSport, onSelectSport, allSportsGames }) {
     );
 }
 
-// Reusable Mobile Actions Container component for Sign Out and Refresh buttons
-function MobileActionsContainer({ onManualRefresh, isRefreshing, onSignOut }) {
+// Mobile Bottom Navigation Bar - Always visible with Refresh, My Bets, Sign Out
+function MobileBottomNav({ onManualRefresh, isRefreshing, onSignOut, onNavigateToDashboard }) {
     return (
-        <div className="mobile-actions-container">
-            <h3 className="mb-2">Quick Actions</h3>
-            <div className="mobile-actions-buttons">
-                <button onClick={onManualRefresh} disabled={isRefreshing} className="btn btn-info mobile-action-btn">
-                    {isRefreshing ? '🔄 Refreshing...' : '🔄 Refresh Games'}
-                </button>
-                <button onClick={onSignOut} className="btn btn-secondary mobile-action-btn">
-                    🚪 Sign Out
-                </button>
-            </div>
+        <div className="mobile-bottom-nav">
+            <button 
+                onClick={onManualRefresh} 
+                disabled={isRefreshing} 
+                className="mobile-nav-btn"
+            >
+                <span className="mobile-nav-icon">{isRefreshing ? '⏳' : '🔄'}</span>
+                <span className="mobile-nav-label">{isRefreshing ? 'Refreshing' : 'Refresh'}</span>
+            </button>
+            <button 
+                onClick={onNavigateToDashboard}
+                className="mobile-nav-btn mobile-nav-btn-primary"
+            >
+                <span className="mobile-nav-icon">🎯</span>
+                <span className="mobile-nav-label">My Bets</span>
+            </button>
+            <button 
+                onClick={onSignOut} 
+                className="mobile-nav-btn"
+            >
+                <span className="mobile-nav-icon">🚪</span>
+                <span className="mobile-nav-label">Sign Out</span>
+            </button>
         </div>
     );
 }
@@ -192,7 +215,8 @@ const firebaseConfig = {
   appId: process.env.REACT_APP_FIREBASE_APP_ID || "1:631281528889:web:e3befe34907902387c1de8"
 };
 
-const app = initializeApp(firebaseConfig);
+// Use existing Firebase app if already initialized, otherwise create new one
+const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
 const database = getDatabase(app);
 const auth = getAuth(app);
 
@@ -735,7 +759,7 @@ function AdminLandingPage({ onManageUsers, onViewSubmissions, onSignOut }) {
   );
 }
 
-function LandingPage({ games, allSportsGames, currentViewSport, onChangeSport, loading, onBackToMenu, sport, betType, onBetTypeChange, apiError, onManualRefresh, lastRefreshTime, propBets, propBetsLoading, propBetsError, onSignOut, isRefreshing }) {
+function LandingPage({ games, allSportsGames, currentViewSport, onChangeSport, loading, onBackToMenu, sport, betType, onBetTypeChange, apiError, onManualRefresh, lastRefreshTime, propBets, propBetsLoading, propBetsError, onSignOut, isRefreshing, onNavigateToDashboard, userCredit, onRefreshCredit }) {
   const [selectedPicks, setSelectedPicks] = useState({});
   const [showConfirmation, setShowConfirmation] = useState(false);
   const [ticketNumber, setTicketNumber] = useState('');
@@ -744,6 +768,7 @@ function LandingPage({ games, allSportsGames, currentViewSport, onChangeSport, l
   const [individualBetAmounts, setIndividualBetAmounts] = useState({});
   const [submissions, setSubmissions] = useState([]);
   const [hasSubmitted, setHasSubmitted] = useState(false);
+  const [isSubmittingWager, setIsSubmittingWager] = useState(false);
   const processedTicketsRef = useRef(new Set());
 
   const calculateAmericanOddsPayout = (stake, odds) => {
@@ -1180,6 +1205,17 @@ const saveSubmission = async (submission) => {
       }
     }
 
+    // Check credit limit before submitting wager
+    if (userCredit) {
+      const remainingCredit = userCredit.creditLimit - userCredit.totalWagered;
+      if (totalStake > remainingCredit) {
+        alert(`⚠️ Wager exceeds your credit limit!\n\nYour wager: $${totalStake.toFixed(2)}\nRemaining credit: $${remainingCredit.toFixed(2)}\nCredit limit: $${userCredit.creditLimit.toFixed(2)}\n\nPlease reduce your wager amount or contact an administrator to increase your limit.`);
+        return;
+      }
+    }
+
+    setIsSubmittingWager(true);
+
     Object.entries(selectedPicks).forEach(([gameId, pickObj]) => {
       let game = games.find(g => g.id === gameId);
       if (!game) {
@@ -1267,6 +1303,55 @@ const saveSubmission = async (submission) => {
       sport: betType === 'parlay' ? 'Multi-Sport' : sport,
       betType: betType
     };
+
+    // Server-side credit limit enforcement via API
+    // This ensures atomic update of user's wagered amount
+    try {
+      const currentUser = auth.currentUser;
+      if (currentUser) {
+        const idToken = await currentUser.getIdToken();
+        const wagerResponse = await fetch('/api/submitWager', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${idToken}`
+          },
+          body: JSON.stringify({
+            wagerAmount: totalStake,
+            wagerData: {
+              ticketNumber,
+              picks: picksFormatted,
+              betType
+            }
+          })
+        });
+
+        const wagerResult = await wagerResponse.json();
+
+        if (!wagerResponse.ok || !wagerResult.success) {
+          // Credit limit exceeded or other error
+          setIsSubmittingWager(false);
+          if (wagerResult.error === 'Wager exceeds credit limit') {
+            alert(`⚠️ Credit Limit Exceeded!\n\n${wagerResult.hint}\n\nPlease reduce your wager or contact an administrator.`);
+          } else {
+            alert(`❌ Error: ${wagerResult.error}\n\n${wagerResult.hint || 'Please try again.'}`);
+          }
+          return;
+        }
+
+        // Refresh credit info after successful wager
+        if (onRefreshCredit) {
+          onRefreshCredit();
+        }
+      }
+    } catch (wagerError) {
+      console.error('❌ Wager submission error:', wagerError);
+      setIsSubmittingWager(false);
+      // Do not allow submission if credit limit enforcement fails
+      alert('❌ Unable to verify credit limit. Please try again or contact support.');
+      return;
+    }
+
     saveSubmission(submission);
     
     try {
@@ -1295,6 +1380,7 @@ const saveSubmission = async (submission) => {
       console.error('❌ Email error:', emailError);
     }
     
+    setIsSubmittingWager(false);
     setHasSubmitted(true);
   };
 
@@ -1328,7 +1414,7 @@ const saveSubmission = async (submission) => {
   const displaySport = currentViewSport || sport;
   if (displaySport === 'Prop Bets') {
     return (
-      <div className="gradient-bg main-layout-wrapper">
+      <div className="gradient-bg main-layout-wrapper mobile-with-bottom-nav">
         <MobileSportsMenu
             currentSport={currentViewSport}
             onSelectSport={onChangeSport}
@@ -1341,6 +1427,7 @@ const saveSubmission = async (submission) => {
             onSignOut={onSignOut}
             onManualRefresh={onManualRefresh}
             isRefreshing={isRefreshing}
+            onNavigateToDashboard={onNavigateToDashboard}
         />
         
         <div className="main-content with-sidebar">
@@ -1351,13 +1438,6 @@ const saveSubmission = async (submission) => {
             selectedPicks={selectedPicks}
             onSelectPropBet={handleGridPickSelection}
             betType={betType}
-          />
-          
-          {/* Mobile-only Action Buttons Container */}
-          <MobileActionsContainer 
-            onManualRefresh={onManualRefresh}
-            isRefreshing={isRefreshing}
-            onSignOut={onSignOut}
           />
         </div>
         
@@ -1376,6 +1456,15 @@ const saveSubmission = async (submission) => {
           onParlayBetAmountChange={(amount) => setContactInfo(c => ({...c, betAmount: amount}))}
           MIN_BET={MIN_BET}
           MAX_BET={MAX_BET}
+          userCredit={userCredit}
+        />
+        
+        {/* Mobile Bottom Navigation - Always Visible */}
+        <MobileBottomNav
+          onManualRefresh={onManualRefresh}
+          isRefreshing={isRefreshing}
+          onSignOut={onSignOut}
+          onNavigateToDashboard={onNavigateToDashboard}
         />
       </div>
     );
@@ -1385,7 +1474,7 @@ const saveSubmission = async (submission) => {
   
   if (games.length === 0 && !hasGamesInAllSports) {
     return (
-      <div className="gradient-bg main-layout-wrapper">
+      <div className="gradient-bg main-layout-wrapper mobile-with-bottom-nav">
         <MobileSportsMenu
             currentSport={currentViewSport}
             onSelectSport={onChangeSport}
@@ -1398,6 +1487,7 @@ const saveSubmission = async (submission) => {
             onSignOut={onSignOut}
             onManualRefresh={onManualRefresh}
             isRefreshing={isRefreshing}
+            onNavigateToDashboard={onNavigateToDashboard}
         />
         
         <div className={`container main-content ${allSportsGames && Object.keys(allSportsGames).length > 0 ? 'with-sidebar' : ''}`}>
@@ -1407,21 +1497,22 @@ const saveSubmission = async (submission) => {
               There are currently no upcoming {displaySport} games. This could be due to the off-season or no scheduled games at this time.
             </p>
           </div>
-          
-          {/* Mobile-only Action Buttons Container */}
-          <MobileActionsContainer 
-            onManualRefresh={onManualRefresh}
-            isRefreshing={isRefreshing}
-            onSignOut={onSignOut}
-          />
         </div>
+        
+        {/* Mobile Bottom Navigation - Always Visible */}
+        <MobileBottomNav
+          onManualRefresh={onManualRefresh}
+          isRefreshing={isRefreshing}
+          onSignOut={onSignOut}
+          onNavigateToDashboard={onNavigateToDashboard}
+        />
       </div>
     );
   }
   
   if (games.length === 0 && hasGamesInAllSports) {
     return (
-      <div className="gradient-bg main-layout-wrapper">
+      <div className="gradient-bg main-layout-wrapper mobile-with-bottom-nav">
         <MobileSportsMenu
             currentSport={currentViewSport}
             onSelectSport={onChangeSport}
@@ -1434,19 +1525,21 @@ const saveSubmission = async (submission) => {
             onSignOut={onSignOut}
             onManualRefresh={onManualRefresh}
             isRefreshing={isRefreshing}
+            onNavigateToDashboard={onNavigateToDashboard}
         />
         <div className={`container main-content ${allSportsGames && Object.keys(allSportsGames).length > 0 ? 'with-sidebar' : ''}`}>
           <div className="card text-center">
             <h2>Loading {displaySport} games...</h2>
           </div>
-          
-          {/* Mobile-only Action Buttons Container */}
-          <MobileActionsContainer 
-            onManualRefresh={onManualRefresh}
-            isRefreshing={isRefreshing}
-            onSignOut={onSignOut}
-          />
         </div>
+        
+        {/* Mobile Bottom Navigation - Always Visible */}
+        <MobileBottomNav
+          onManualRefresh={onManualRefresh}
+          isRefreshing={isRefreshing}
+          onSignOut={onSignOut}
+          onNavigateToDashboard={onNavigateToDashboard}
+        />
       </div>
     );
   }
@@ -1877,8 +1970,13 @@ Email: ${contactInfo.email}`;
             <label>Email *</label>
             <input type="email" value={contactInfo.email} onChange={(e) => setContactInfo({...contactInfo, email: e.target.value})} />
 
-            <button className="btn btn-success" onClick={handleCheckoutSubmit} style={{width: '100%', fontSize: '18px', marginTop: '16px'}}>
-              Send Me My Confirmation Ticket
+            <button 
+              className="btn btn-success" 
+              onClick={handleCheckoutSubmit} 
+              disabled={isSubmittingWager}
+              style={{width: '100%', fontSize: '18px', marginTop: '16px'}}
+            >
+              {isSubmittingWager ? '⏳ Processing...' : 'Send Me My Confirmation Ticket'}
             </button>
           </div>
         </div>
@@ -1887,7 +1985,7 @@ Email: ${contactInfo.email}`;
   }
 
   return (
-    <div className="gradient-bg main-layout-wrapper">
+    <div className="gradient-bg main-layout-wrapper mobile-with-bottom-nav">
         <MobileSportsMenu
             currentSport={currentViewSport}
             onSelectSport={onChangeSport}
@@ -1900,6 +1998,7 @@ Email: ${contactInfo.email}`;
             onSignOut={onSignOut}
             onManualRefresh={onManualRefresh}
             isRefreshing={isRefreshing}
+            onNavigateToDashboard={onNavigateToDashboard}
         />
       
       <div className={`container main-content ${allSportsGames && Object.keys(allSportsGames).length > 0 ? 'with-sidebar' : ''}`}>
@@ -1956,13 +2055,6 @@ Email: ${contactInfo.email}`;
             <strong>Legal Disclaimer:</strong> For entertainment only. 21+ only. Private pool among friends. Check local laws. By participating, you acknowledge responsibility for compliance with local laws.
           </div>
         </div>
-        
-        {/* Mobile-only Action Buttons Container */}
-        <MobileActionsContainer 
-          onManualRefresh={onManualRefresh}
-          isRefreshing={isRefreshing}
-          onSignOut={onSignOut}
-        />
       </div>
       
       <BettingSlip
@@ -1980,6 +2072,15 @@ Email: ${contactInfo.email}`;
         onParlayBetAmountChange={(amount) => setContactInfo(c => ({...c, betAmount: amount}))}
         MIN_BET={MIN_BET}
         MAX_BET={MAX_BET}
+        userCredit={userCredit}
+      />
+      
+      {/* Mobile Bottom Navigation - Always Visible */}
+      <MobileBottomNav
+        onManualRefresh={onManualRefresh}
+        isRefreshing={isRefreshing}
+        onSignOut={onSignOut}
+        onNavigateToDashboard={onNavigateToDashboard}
       />
       
       <div className={`modal ${showConfirmation ? 'active' : ''}`}>
@@ -2104,7 +2205,9 @@ function MemberSportRoute({
   setCurrentViewSport,
   currentViewSportRef,
   setGames,
-  loadAllPropBets
+  loadAllPropBets,
+  userCredit,
+  onRefreshCredit
 }) {
   const { sport } = useParams();
   const navigate = useNavigate();
@@ -2154,6 +2257,9 @@ function MemberSportRoute({
       propBets={propBets}
       propBetsLoading={propBetsLoading}
       propBetsError={propBetsError}
+      onNavigateToDashboard={() => navigate('/member/dashboard')}
+      userCredit={userCredit}
+      onRefreshCredit={onRefreshCredit}
     />
   );
 }
@@ -2190,12 +2296,45 @@ function App() {
   const [propBetsError, setPropBetsError] = useState(null);
   const propBetsCache = useRef({});
   
+  // User credit limit tracking
+  const [userCredit, setUserCredit] = useState(null);
+  
   // Track auth initialization to prevent navigation race conditions
   const authInitialized = useRef(false);
   const isNavigatingRef = useRef(false);
   const sportsDataLoadedRef = useRef(false);
   // Synchronous admin status ref to prevent route guard race conditions
   const isAdminRef = useRef(false);
+
+  // Function to fetch user's credit info from Firebase
+  const fetchUserCredit = useCallback(async (uid) => {
+    try {
+      const userRef = ref(database, `users/${uid}`);
+      const snapshot = await get(userRef);
+      if (snapshot.exists()) {
+        const userData = snapshot.val();
+        setUserCredit({
+          creditLimit: parseFloat(userData.creditLimit) || 100,
+          totalWagered: parseFloat(userData.totalWagered) || 0,
+          displayName: userData.displayName || '',
+          email: userData.email || ''
+        });
+        return userData;
+      } else {
+        setUserCredit(null);
+        return null;
+      }
+    } catch (error) {
+      console.error('Error fetching user credit:', error);
+      return null;
+    }
+  }, []);
+
+  const refreshUserCredit = useCallback(() => {
+    if (authState.user && !authState.isAdmin) {
+      fetchUserCredit(authState.user.uid);
+    }
+  }, [authState.user, authState.isAdmin, fetchUserCredit]);
 
   const hasCompleteOddsData = (game) => {
     const hasSpread = game.awaySpread && game.homeSpread && 
@@ -2693,18 +2832,28 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
         // Mark auth as initialized after first successful auth check
         authInitialized.current = true;
         
-        // Non-admin users: load sports data only if not already loaded
-        if (!isAdmin && !sportsDataLoadedRef.current) {
-          sportsDataLoadedRef.current = true;
-          loadAllSports('NFL', true).catch(() => {
-            // Reset flag on error to allow retry
-            sportsDataLoadedRef.current = false;
+        // Non-admin users: load sports data and fetch credit info
+        if (!isAdmin) {
+          // Fetch user credit info for betting limit enforcement
+          fetchUserCredit(user.uid).catch(err => {
+            console.warn('Could not fetch user credit info:', err);
           });
+
+          if (!sportsDataLoadedRef.current) {
+            sportsDataLoadedRef.current = true;
+            loadAllSports('NFL', true).catch(() => {
+              // Reset flag on error to allow retry
+              sportsDataLoadedRef.current = false;
+            });
+          }
         }
 
       } else {
         // Clear admin status on logout
         isAdminRef.current = false;
+        
+        // Clear user credit on logout
+        setUserCredit(null);
         
         setAuthState({
           loading: false,
@@ -2717,7 +2866,7 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
       }
     });
     return unsub;
-  }, [loadAllSports]);
+  }, [loadAllSports, fetchUserCredit]);
 
   useEffect(() => {
     // Setup Firebase listeners for all sports after a short delay
@@ -3109,6 +3258,14 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
       } />
 
       {/* Member routes - require authentication */}
+      <Route path="/member/dashboard" element={
+        !authState.user || authState.isAdmin ? (
+          <Navigate to="/login/user" replace />
+        ) : (
+          <MemberDashboardApp />
+        )
+      } />
+
       <Route path="/member/:sport" element={
         !authState.user || authState.isAdmin ? (
           <Navigate to="/login/user" replace />
@@ -3137,6 +3294,8 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
             currentViewSportRef={currentViewSportRef}
             setGames={setGames}
             loadAllPropBets={loadAllPropBets}
+            userCredit={userCredit}
+            onRefreshCredit={refreshUserCredit}
           />
         )
       } />
