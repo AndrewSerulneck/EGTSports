@@ -23,7 +23,8 @@ function BettingSlip({
   parlayBetAmount,
   onParlayBetAmountChange,
   MIN_BET,
-  MAX_BET
+  MAX_BET,
+  userCredit
 }) {
   // On mobile, start collapsed; on desktop, start expanded
   // Default to expanded for SSR safety, then update on mount
@@ -398,6 +399,34 @@ function BettingSlip({
           {/* Summary */}
           {pickCount > 0 && (
             <div className="betting-slip-summary">
+              {/* Credit Limit Display */}
+              {userCredit && (
+                <div className="credit-limit-display" style={{
+                  marginBottom: '12px',
+                  padding: '10px',
+                  background: '#e7f3ff',
+                  borderRadius: '6px',
+                  border: '1px solid #b8daff'
+                }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', marginBottom: '4px' }}>
+                    <span style={{ color: '#004085' }}>💰 Credit Limit:</span>
+                    <span style={{ fontWeight: 'bold', color: '#004085' }}>${userCredit.creditLimit.toFixed(2)}</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', marginBottom: '4px' }}>
+                    <span style={{ color: '#856404' }}>📊 Total Wagered:</span>
+                    <span style={{ fontWeight: 'bold', color: '#856404' }}>${userCredit.totalWagered.toFixed(2)}</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14px', fontWeight: 'bold' }}>
+                    <span style={{ color: (userCredit.creditLimit - userCredit.totalWagered) > 0 ? '#155724' : '#721c24' }}>
+                      ✅ Remaining:
+                    </span>
+                    <span style={{ color: (userCredit.creditLimit - userCredit.totalWagered) > 0 ? '#155724' : '#721c24' }}>
+                      ${(userCredit.creditLimit - userCredit.totalWagered).toFixed(2)}
+                    </span>
+                  </div>
+                </div>
+              )}
+
               {activeTab === 'single' ? (
                 <>
                   <div className="summary-row">
@@ -412,6 +441,21 @@ function BettingSlip({
                     <span>Potential Profit:</span>
                     <span className="summary-value profit">${(singlePayout - totalSingleBet).toFixed(2)}</span>
                   </div>
+                  {/* Warning if exceeding credit limit */}
+                  {userCredit && totalSingleBet > (userCredit.creditLimit - userCredit.totalWagered) && (
+                    <div style={{
+                      marginTop: '10px',
+                      padding: '8px',
+                      background: '#f8d7da',
+                      borderRadius: '6px',
+                      border: '1px solid #f5c6cb',
+                      color: '#721c24',
+                      fontSize: '12px',
+                      textAlign: 'center'
+                    }}>
+                      ⚠️ Wager exceeds remaining credit by ${(totalSingleBet - (userCredit.creditLimit - userCredit.totalWagered)).toFixed(2)}
+                    </div>
+                  )}
                 </>
               ) : (
                 <>
@@ -453,6 +497,21 @@ function BettingSlip({
                               ${((parseFloat(parlayBetAmount) * getParlayMultiplier(pickCount)) - parseFloat(parlayBetAmount)).toFixed(2)}
                             </span>
                           </div>
+                          {/* Warning if parlay exceeds credit limit */}
+                          {userCredit && parseFloat(parlayBetAmount) > (userCredit.creditLimit - userCredit.totalWagered) && (
+                            <div style={{
+                              marginTop: '10px',
+                              padding: '8px',
+                              background: '#f8d7da',
+                              borderRadius: '6px',
+                              border: '1px solid #f5c6cb',
+                              color: '#721c24',
+                              fontSize: '12px',
+                              textAlign: 'center'
+                            }}>
+                              ⚠️ Wager exceeds remaining credit by ${(parseFloat(parlayBetAmount) - (userCredit.creditLimit - userCredit.totalWagered)).toFixed(2)}
+                            </div>
+                          )}
                         </>
                       )}
                     </>

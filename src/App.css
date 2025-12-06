@@ -360,14 +360,16 @@ input[type="number"]:focus {
     .main-content.with-sidebar, .main-content:not(.with-sidebar) {
         margin: 0;
         width: 100%;
-        padding: 10px 10px 250px 10px; /* Padding at bottom for betting slip */
+        /* Padding at bottom: betting slip collapsed (60px) + bottom nav (60px) + buffer (10px) + safe area */
+        padding: 10px 10px calc(60px + 60px + 10px + env(safe-area-inset-bottom, 0px)) 10px;
         flex-grow: 1;
     }
 
-    /* Betting slip becomes bottom sheet on mobile */
+    /* Betting slip becomes bottom sheet on mobile - positioned above nav bar */
     .betting-slip {
         position: fixed !important;
-        bottom: 0 !important;
+        /* Position above mobile bottom nav (60px height + safe area) */
+        bottom: calc(60px + env(safe-area-inset-bottom, 0px)) !important;
         left: 0 !important;
         right: 0 !important;
         top: auto !important;
@@ -376,7 +378,8 @@ input[type="number"]:focus {
         border-radius: 20px 20px 0 0 !important;
         overflow-y: auto !important;
         box-shadow: 0 -6px 20px rgba(0,0,0,0.25) !important;
-        z-index: 998 !important;
+        /* z-index below mobile bottom nav (1000) but above content */
+        z-index: 999 !important;
     }
 
     .container {
@@ -826,5 +829,102 @@ input[type="number"]:focus {
     .pick-item {
         padding: 12px 16px;
         font-size: 14px;
+    }
+}
+
+/* ==========================================
+   Mobile Bottom Navigation Bar - Always Visible
+   ========================================== */
+.mobile-bottom-nav {
+    display: none; /* Hidden on desktop by default */
+}
+
+@media (max-width: 960px) {
+    .mobile-bottom-nav {
+        display: flex;
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        background: white;
+        padding: 8px 16px;
+        padding-bottom: max(8px, env(safe-area-inset-bottom)); /* iOS safe area */
+        box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.15);
+        z-index: 1000;
+        justify-content: space-around;
+        align-items: center;
+        border-top: 1px solid #e0e0e0;
+    }
+
+    .mobile-nav-btn {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 8px 16px;
+        background: transparent;
+        border: none;
+        border-radius: 12px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        min-width: 70px;
+    }
+
+    .mobile-nav-btn:hover {
+        background: #f0f0f0;
+    }
+
+    .mobile-nav-btn:active {
+        background: #e0e0e0;
+        transform: scale(0.95);
+    }
+
+    .mobile-nav-btn:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+
+    .mobile-nav-btn-primary {
+        background: linear-gradient(135deg, #3b82f6, #2563eb);
+        color: white;
+        padding: 10px 20px;
+        border-radius: 16px;
+        box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+    }
+
+    .mobile-nav-btn-primary:hover {
+        background: linear-gradient(135deg, #2563eb, #1d4ed8);
+    }
+
+    .mobile-nav-btn-primary:active {
+        background: linear-gradient(135deg, #1d4ed8, #1e40af);
+    }
+
+    .mobile-nav-btn-primary .mobile-nav-icon,
+    .mobile-nav-btn-primary .mobile-nav-label {
+        color: white;
+    }
+
+    .mobile-nav-icon {
+        font-size: 20px;
+        margin-bottom: 2px;
+    }
+
+    .mobile-nav-label {
+        font-size: 11px;
+        font-weight: 600;
+        color: #666;
+    }
+
+    /* Add bottom padding to main content to prevent overlap with fixed nav and betting slip */
+    .mobile-with-bottom-nav .main-content,
+    .mobile-with-bottom-nav .container {
+        /* Padding: betting slip collapsed (60px) + bottom nav (60px) + buffer (20px) + safe area */
+        padding-bottom: calc(60px + 60px + 20px + env(safe-area-inset-bottom, 0px)) !important;
+    }
+
+    /* Hide the old MobileActionsContainer when MobileBottomNav is present */
+    .mobile-with-bottom-nav .mobile-actions-container {
+        display: none;
     }
 }

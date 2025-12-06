@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { getDatabase, ref, onValue } from 'firebase/database';
+import { getAuth } from 'firebase/auth';
 import '../App.css';
 
 // Helper function to get submission timestamp from various possible fields
@@ -19,8 +20,11 @@ function SubmissionsViewer({ onBack }) {
   const [error, setError] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [expandedSubmissions, setExpandedSubmissions] = useState({});
+  const [cancelingId, setCancelingId] = useState(null);
+  const [cancelMessage, setCancelMessage] = useState({ type: '', text: '' });
 
   const database = getDatabase();
+  const auth = getAuth();
 
   useEffect(() => {
     setLoading(true);
@@ -81,12 +85,79 @@ function SubmissionsViewer({ onBack }) {
     }));
   };
 
+  // Cancel wager and return credit to user
+  const handleCancelWager = async (submission) => {
+    const submissionId = submission.submissionId;
+    const status = submission.status?.toLowerCase();
+    
+    // Only allow canceling for pending/new/in-progress wagers
+    if (status === 'won' || status === 'lost' || status === 'canceled' || status === 'closed') {
+      setCancelMessage({ type: 'error', text: 'Cannot cancel settled or already canceled bets' });
+      setTimeout(() => setCancelMessage({ type: '', text: '' }), 3000);
+      return;
+    }
+
+    if (!window.confirm(`Are you sure you want to cancel this bet and return $${(submission.betAmount || submission.amount || 0).toFixed(2)} to the member's credit?`)) {
+      return;
+    }
+
+    setCancelingId(submissionId);
+    setCancelMessage({ type: '', text: '' });
+
+    try {
+      const user = auth.currentUser;
+      if (!user) {
+        throw new Error('Not authenticated');
+      }
+
+      const idToken = await user.getIdToken();
+
+      const response = await fetch('/api/cancelWager', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${idToken}`
+        },
+        body: JSON.stringify({ submissionId })
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to cancel wager');
+      }
+
+      setCancelMessage({ 
+        type: 'success', 
+        text: `Bet canceled! $${(data.details?.creditReturned || 0).toFixed(2)} returned to member's credit.`
+      });
+      
+      // Clear message after 5 seconds
+      setTimeout(() => setCancelMessage({ type: '', text: '' }), 5000);
+
+    } catch (err) {
+      console.error('Error canceling wager:', err);
+      setCancelMessage({ type: 'error', text: err.message || 'Failed to cancel wager' });
+      setTimeout(() => setCancelMessage({ type: '', text: '' }), 5000);
+    } finally {
+      setCancelingId(null);
+    }
+  };
+
+  // Check if a wager can be canceled
+  const canCancelWager = (status) => {
+    const normalizedStatus = status?.toLowerCase() || 'new';
+    return !['won', 'lost', 'canceled', 'closed'].includes(normalizedStatus);
+  };
+
   const getStatusStyle = (status) => {
     switch (status?.toLowerCase()) {
       case 'new':
         return { background: '#17a2b8', color: 'white' };
       case 'in-progress':
         return { background: '#ffc107', color: '#000' };
+      case 'canceled':
+        return { background: '#6c757d', color: 'white' };
       case 'closed':
       case 'won':
         return { background: '#28a745', color: 'white' };
@@ -140,6 +211,17 @@ function SubmissionsViewer({ onBack }) {
           </p>
         </div>
 
+        {/* Cancel Message */}
+        {cancelMessage.text && (
+          <div className="card" style={{ 
+            background: cancelMessage.type === 'success' ? '#d4edda' : '#f8d7da', 
+            border: `1px solid ${cancelMessage.type === 'success' ? '#c3e6cb' : '#f5c6cb'}`, 
+            color: cancelMessage.type === 'success' ? '#155724' : '#721c24' 
+          }}>
+            {cancelMessage.type === 'success' ? '✅' : '❌'} {cancelMessage.text}
+          </div>
+        )}
+
         {/* Error Message */}
         {error && (
           <div className="card" style={{ background: '#f8d7da', border: '1px solid #f5c6cb', color: '#721c24' }}>
@@ -179,6 +261,12 @@ function SubmissionsViewer({ onBack }) {
               onClick={() => setStatusFilter('lost')}
             >
               Lost
+            </button>
+            <button 
+              className={`filter-btn ${statusFilter === 'canceled' ? 'active' : ''}`}
+              onClick={() => setStatusFilter('canceled')}
+            >
+              Canceled
             </button>
           </div>
         </div>
@@ -265,6 +353,46 @@ function SubmissionsViewer({ onBack }) {
                           </div>
                         ))}
                       </div>
+                    </div>
+                  )}
+
+                  {/* Cancel Bet Button - Only show for pending/new/in-progress bets */}
+                  {canCancelWager(submission.status) && (
+                    <div style={{ marginTop: '16px', paddingTop: '12px', borderTop: '1px solid #eee' }}>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleCancelWager(submission);
+                        }}
+                        disabled={cancelingId === submission.submissionId}
+                        style={{
+                          background: cancelingId === submission.submissionId ? '#ccc' : '#dc3545',
+                          color: 'white',
+                          border: 'none',
+                          padding: '8px 16px',
+                          borderRadius: '6px',
+                          cursor: cancelingId === submission.submissionId ? 'not-allowed' : 'pointer',
+                          fontSize: '14px',
+                          fontWeight: '500',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '6px'
+                        }}
+                      >
+                        {cancelingId === submission.submissionId ? (
+                          <>⏳ Canceling...</>
+                        ) : (
+                          <>🚫 Cancel Bet & Return Credit</>
+                        )}
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Show canceled info if bet was canceled */}
+                  {submission.status?.toLowerCase() === 'canceled' && submission.canceledAt && (
+                    <div style={{ marginTop: '12px', padding: '8px', background: '#f8f9fa', borderRadius: '6px', fontSize: '13px', color: '#6c757d' }}>
+                      <strong>Canceled:</strong> {formatDate(submission.canceledAt)}
+                      {submission.previousStatus && <span> (was: {submission.previousStatus})</span>}
                     </div>
                   )}
                 </div>
