@@ -339,15 +339,15 @@
     width: 100%;
     border-radius: 16px 16px 0 0;
     box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.2);
-    /* z-index lower than mobile bottom nav (z-index: 1000) but above content */
-    z-index: 90 !important;
+    /* z-index below mobile bottom nav (z-index: 1000) but above content */
+    z-index: 999 !important;
   }
 
   /* 80vh height when expanded on mobile - adjusted for bottom nav */
   .betting-slip.expanded {
     position: fixed;
     width: 100vw;
-    /* Reduce height to account for bottom nav */
+    /* Reduce height to account for bottom nav (60px + safe area) */
     height: calc(80vh - 60px - env(safe-area-inset-bottom, 0px)) !important;
     max-height: calc(80vh - 60px - env(safe-area-inset-bottom, 0px)) !important;
     top: auto;
@@ -355,7 +355,7 @@
     left: 0;
     right: 0;
     border-radius: 16px 16px 0 0;
-    z-index: 90 !important;
+    z-index: 999 !important;
   }
 
   .betting-slip.collapsed {
