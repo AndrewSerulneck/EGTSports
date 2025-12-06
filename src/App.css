@@ -360,16 +360,16 @@ input[type="number"]:focus {
     .main-content.with-sidebar, .main-content:not(.with-sidebar) {
         margin: 0;
         width: 100%;
-        /* Padding at bottom: betting slip collapsed (60px) + bottom nav (60px) + buffer (10px) + safe area */
-        padding: 10px 10px calc(60px + 60px + 10px + env(safe-area-inset-bottom, 0px)) 10px;
+        /* Padding at bottom: betting slip collapsed (60px) + bottom nav (55px) + buffer (10px) + safe area */
+        padding: 10px 10px calc(60px + 55px + 10px + env(safe-area-inset-bottom, 0px)) 10px;
         flex-grow: 1;
     }
 
     /* Betting slip becomes bottom sheet on mobile - positioned above nav bar */
     .betting-slip {
         position: fixed !important;
-        /* Position above mobile bottom nav (60px height + safe area) */
-        bottom: calc(60px + env(safe-area-inset-bottom, 0px)) !important;
+        /* Position above mobile bottom nav (55px height + 2px buffer + safe area) */
+        bottom: calc(57px + env(safe-area-inset-bottom, 0px)) !important;
         left: 0 !important;
         right: 0 !important;
         top: auto !important;
@@ -847,8 +847,9 @@ input[type="number"]:focus {
         left: 0;
         right: 0;
         background: white;
-        padding: 8px 16px;
-        padding-bottom: max(8px, env(safe-area-inset-bottom)); /* iOS safe area */
+        height: 55px;
+        padding: 6px 16px;
+        padding-bottom: max(6px, env(safe-area-inset-bottom)); /* iOS safe area */
         box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.15);
         z-index: 1000;
         justify-content: space-around;
@@ -919,8 +920,8 @@ input[type="number"]:focus {
     /* Add bottom padding to main content to prevent overlap with fixed nav and betting slip */
     .mobile-with-bottom-nav .main-content,
     .mobile-with-bottom-nav .container {
-        /* Padding: betting slip collapsed (60px) + bottom nav (60px) + buffer (20px) + safe area */
-        padding-bottom: calc(60px + 60px + 20px + env(safe-area-inset-bottom, 0px)) !important;
+        /* Padding: betting slip collapsed (60px) + bottom nav (55px) + buffer (20px) + safe area */
+        padding-bottom: calc(60px + 55px + 20px + env(safe-area-inset-bottom, 0px)) !important;
     }
 
     /* Hide the old MobileActionsContainer when MobileBottomNav is present */
