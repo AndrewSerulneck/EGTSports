@@ -199,23 +199,49 @@ module.exports = async (req, res) => {
         });
       }
 
-      const userData = userSnapshot.val();
-      const currentTotalWagered = parseFloat(userData.totalWagered) || 0;
+      // Use a Firebase Transaction for atomic credit return
+      // This ensures both the wager status update and credit return happen together
+      // and handles concurrent updates properly
+      const userRef = db.ref(`users/${userId}/totalWagered`);
       
-      // Calculate new totalWagered (subtract the wager amount)
-      const newTotalWagered = Math.max(0, currentTotalWagered - wagerAmount);
+      let transactionResult;
+      let newTotalWagered;
+      
+      try {
+        transactionResult = await userRef.transaction((currentValue) => {
+          // Calculate new totalWagered (subtract the wager amount)
+          const current = parseFloat(currentValue) || 0;
+          newTotalWagered = Math.max(0, current - wagerAmount);
+          return newTotalWagered;
+        });
+        
+        if (!transactionResult.committed) {
+          throw new Error('Transaction failed - could not update user credit');
+        }
+        
+        console.log(`Transaction committed: User ${userId} credit updated from ${transactionResult.snapshot.val() + wagerAmount} to ${transactionResult.snapshot.val()}`);
+      } catch (transactionError) {
+        console.error('Transaction error:', transactionError);
+        throw new Error(`Failed to update user credit atomically: ${transactionError.message}`);
+      }
+      
+      // Now update the wager status (this happens after credit is successfully returned)
+      // Using a separate update to ensure we have proper error handling
+      const wagerUpdates = {
+        status: 'CANCELED',
+        canceledAt: new Date().toISOString(),
+        canceledBy: decodedToken.uid,
+        previousStatus: wagerData.status || 'pending',
+        creditReturned: wagerAmount,
+        creditReturnedAt: new Date().toISOString()
+      };
+      
+      await db.ref(wagerPath).update(wagerUpdates);
 
-      // Perform atomic updates
-      const updates = {};
-      updates[`${wagerPath}/status`] = 'CANCELED';
-      updates[`${wagerPath}/canceledAt`] = new Date().toISOString();
-      updates[`${wagerPath}/canceledBy`] = decodedToken.uid;
-      updates[`${wagerPath}/previousStatus`] = wagerData.status || 'pending';
-      updates[`users/${userId}/totalWagered`] = newTotalWagered;
+      // Get the final newTotalWagered from the transaction result
+      const finalTotalWagered = transactionResult.snapshot.val();
 
-      await db.ref().update(updates);
-
-      console.log(`Wager canceled: ${targetId} from ${wagerSource}. User ${userId} credit returned: $${wagerAmount}. New totalWagered: $${newTotalWagered}`);
+      console.log(`Wager canceled: ${targetId} from ${wagerSource}. User ${userId} credit returned: $${wagerAmount}. New totalWagered: $${finalTotalWagered}`);
 
       return res.status(200).json({
         success: true,
@@ -225,8 +251,7 @@ module.exports = async (req, res) => {
           source: wagerSource,
           userId: userId,
           wagerAmount: wagerAmount,
-          previousTotalWagered: currentTotalWagered,
-          newTotalWagered: newTotalWagered,
+          newTotalWagered: finalTotalWagered,
           creditReturned: wagerAmount
         }
       });

@@ -302,8 +302,9 @@ function CurrentWagers({ userId, rtdb }) {
       if (snapshot.exists()) {
         snapshot.forEach((childSnapshot) => {
           const wager = childSnapshot.val();
-          // Filter by user ID and pending status
-          if (wager.uid === userId && wager.status === 'pending') {
+          // Filter by user ID and pending status (case-insensitive)
+          const status = wager.status?.toLowerCase();
+          if (wager.uid === userId && status === 'pending') {
             wagersData.push({
               id: childSnapshot.key,
               ...wager,
@@ -410,7 +411,7 @@ function formatWagerDetails(wagerData) {
 }
 
 // ============================================================================
-// Past Wagers Component (Won/Lost Wagers) - Mobile-First Design
+// Past Wagers Component (Won/Lost/Canceled Wagers) - Mobile-First Design
 // Reads from Firebase Realtime Database /wagers collection
 // ============================================================================
 function PastWagers({ userId, rtdb }) {
@@ -427,8 +428,9 @@ function PastWagers({ userId, rtdb }) {
       if (snapshot.exists()) {
         snapshot.forEach((childSnapshot) => {
           const wager = childSnapshot.val();
-          // Filter by user ID and settled status (won/lost)
-          if (wager.uid === userId && (wager.status === 'won' || wager.status === 'lost')) {
+          // Filter by user ID and settled status (won/lost/canceled)
+          const status = wager.status?.toLowerCase();
+          if (wager.uid === userId && (status === 'won' || status === 'lost' || status === 'canceled')) {
             wagersData.push({
               id: childSnapshot.key,
               ...wager,
@@ -437,10 +439,10 @@ function PastWagers({ userId, rtdb }) {
           }
         });
       }
-      // Sort by settledAt or createdAt descending
+      // Sort by settledAt or canceledAt or createdAt descending
       wagersData.sort((a, b) => {
-        const dateA = new Date(a.settledAt || a.createdAt);
-        const dateB = new Date(b.settledAt || b.createdAt);
+        const dateA = new Date(a.settledAt || a.canceledAt || a.createdAt);
+        const dateB = new Date(b.settledAt || b.canceledAt || b.createdAt);
         return dateB - dateA;
       });
       setWagers(wagersData);
@@ -464,6 +466,37 @@ function PastWagers({ userId, rtdb }) {
     );
   }
 
+  // Helper to get status display info
+  const getStatusInfo = (status) => {
+    const normalizedStatus = status?.toLowerCase();
+    switch (normalizedStatus) {
+      case 'won':
+        return { 
+          label: '✓ WON', 
+          bgClass: 'bg-green-500 text-white',
+          cardClass: 'bg-gradient-to-r from-green-50 to-emerald-50 border-green-500'
+        };
+      case 'lost':
+        return { 
+          label: '✗ LOST', 
+          bgClass: 'bg-red-500 text-white',
+          cardClass: 'bg-gradient-to-r from-red-50 to-rose-50 border-red-500'
+        };
+      case 'canceled':
+        return { 
+          label: '🚫 CANCELED', 
+          bgClass: 'bg-gray-500 text-white',
+          cardClass: 'bg-gradient-to-r from-gray-50 to-slate-50 border-gray-400'
+        };
+      default:
+        return { 
+          label: status?.toUpperCase() || 'UNKNOWN', 
+          bgClass: 'bg-gray-400 text-white',
+          cardClass: 'bg-gray-50 border-gray-300'
+        };
+    }
+  };
+
   return (
     <div className="bg-white rounded-lg shadow-md p-4 mb-4">
       <h2 className="text-lg font-bold text-gray-800 mb-3">
@@ -476,63 +509,65 @@ function PastWagers({ userId, rtdb }) {
         </div>
       ) : (
         <div className="space-y-3 max-h-96 overflow-y-auto">
-          {wagers.map((wager) => (
-            <div
-              key={wager.id}
-              className={`rounded-r-lg p-3 shadow-sm border-l-4 ${
-                wager.status === "won"
-                  ? "bg-gradient-to-r from-green-50 to-emerald-50 border-green-500"
-                  : "bg-gradient-to-r from-red-50 to-rose-50 border-red-500"
-              }`}
-            >
-              {/* Mobile-first: Stack vertically */}
-              <div className="flex flex-col space-y-2">
-                {/* Wager Details - Prominent */}
-                <p className="text-sm font-semibold text-gray-800 leading-tight">
-                  {wager.details || `Ticket #${wager.wagerData?.ticketNumber || 'Unknown'}`}
-                </p>
-                
-                {/* Bet Type Badge */}
-                {wager.wagerData?.betType && (
-                  <span className="inline-block w-fit px-2 py-0.5 text-xs font-medium bg-blue-100 text-blue-700 rounded">
-                    {wager.wagerData.betType === 'parlay' ? '🎯 Parlay' : '📊 Straight'}
-                  </span>
-                )}
-                
-                {/* Amount, Status, and Payout Row */}
-                <div className="flex items-center justify-between flex-wrap gap-2">
-                  <span className="text-lg font-bold text-gray-900">
-                    ${wager.amount?.toFixed(2) || '0.00'}
-                  </span>
-                  <div className="flex items-center gap-2">
-                    <span
-                      className={`inline-flex items-center px-2.5 py-1 text-xs font-bold rounded-full shadow-sm ${
-                        wager.status === "won"
-                          ? "bg-green-500 text-white"
-                          : "bg-red-500 text-white"
-                      }`}
-                    >
-                      {wager.status === "won" ? "✓ WON" : "✗ LOST"}
+          {wagers.map((wager) => {
+            const statusInfo = getStatusInfo(wager.status);
+            return (
+              <div
+                key={wager.id}
+                className={`rounded-r-lg p-3 shadow-sm border-l-4 ${statusInfo.cardClass}`}
+              >
+                {/* Mobile-first: Stack vertically */}
+                <div className="flex flex-col space-y-2">
+                  {/* Wager Details - Prominent */}
+                  <p className="text-sm font-semibold text-gray-800 leading-tight">
+                    {wager.details || `Ticket #${wager.wagerData?.ticketNumber || 'Unknown'}`}
+                  </p>
+                  
+                  {/* Bet Type Badge */}
+                  {wager.wagerData?.betType && (
+                    <span className="inline-block w-fit px-2 py-0.5 text-xs font-medium bg-blue-100 text-blue-700 rounded">
+                      {wager.wagerData.betType === 'parlay' ? '🎯 Parlay' : '📊 Straight'}
                     </span>
-                    {wager.status === "won" && wager.payout && (
-                      <span className="text-sm font-bold text-green-600 bg-green-100 px-2 py-0.5 rounded">
-                        +${wager.payout.toFixed(2)}
+                  )}
+                  
+                  {/* Amount, Status, and Payout Row */}
+                  <div className="flex items-center justify-between flex-wrap gap-2">
+                    <span className={`text-lg font-bold ${wager.status?.toLowerCase() === 'canceled' ? 'text-gray-500 line-through' : 'text-gray-900'}`}>
+                      ${wager.amount?.toFixed(2) || '0.00'}
+                    </span>
+                    <div className="flex items-center gap-2">
+                      <span
+                        className={`inline-flex items-center px-2.5 py-1 text-xs font-bold rounded-full shadow-sm ${statusInfo.bgClass}`}
+                      >
+                        {statusInfo.label}
                       </span>
-                    )}
+                      {wager.status?.toLowerCase() === 'won' && wager.payout && (
+                        <span className="text-sm font-bold text-green-600 bg-green-100 px-2 py-0.5 rounded">
+                          +${wager.payout.toFixed(2)}
+                        </span>
+                      )}
+                      {wager.status?.toLowerCase() === 'canceled' && wager.creditReturned && (
+                        <span className="text-sm font-bold text-blue-600 bg-blue-100 px-2 py-0.5 rounded">
+                          +${wager.creditReturned.toFixed(2)} returned
+                        </span>
+                      )}
+                    </div>
                   </div>
+                  
+                  {/* Date - Smaller */}
+                  <p className="text-xs text-gray-500">
+                    {wager.status?.toLowerCase() === 'canceled'
+                      ? `Canceled: ${wager.canceledAt ? new Date(wager.canceledAt).toLocaleString() : 'Unknown'}`
+                      : wager.settledAt
+                      ? `Settled: ${new Date(wager.settledAt).toLocaleString()}`
+                      : wager.createdAt
+                      ? `Placed: ${new Date(wager.createdAt).toLocaleString()}`
+                      : "Unknown date"}
+                  </p>
                 </div>
-                
-                {/* Date - Smaller */}
-                <p className="text-xs text-gray-500">
-                  {wager.settledAt
-                    ? `Settled: ${new Date(wager.settledAt).toLocaleString()}`
-                    : wager.createdAt
-                    ? `Placed: ${new Date(wager.createdAt).toLocaleString()}`
-                    : "Unknown date"}
-                </p>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>
