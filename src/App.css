@@ -368,8 +368,8 @@ input[type="number"]:focus {
     /* Betting slip becomes bottom sheet on mobile - positioned above nav bar */
     .betting-slip {
         position: fixed !important;
-        /* Position above mobile bottom nav (55px height + 2px buffer + safe area) */
-        bottom: calc(57px + env(safe-area-inset-bottom, 0px)) !important;
+        /* Position flush above mobile bottom nav (55px height + safe area) */
+        bottom: calc(55px + env(safe-area-inset-bottom, 0px)) !important;
         left: 0 !important;
         right: 0 !important;
         top: auto !important;
