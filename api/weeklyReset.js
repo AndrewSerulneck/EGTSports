@@ -123,6 +123,9 @@ module.exports = async (req, res) => {
       const db = admin.database();
       const usersRef = db.ref('users');
 
+      // User status constants
+      const USER_STATUS_REVOKED = 'revoked';
+
       // Get all users
       const usersSnapshot = await usersRef.once('value');
       
@@ -149,7 +152,7 @@ module.exports = async (req, res) => {
         results.total++;
         
         // Skip revoked or admin users (optional - you can reset admins too)
-        if (userData.status === 'revoked') {
+        if (userData.status === USER_STATUS_REVOKED) {
           results.skipped++;
           console.log(`Skipping revoked user: ${uid}`);
           continue;

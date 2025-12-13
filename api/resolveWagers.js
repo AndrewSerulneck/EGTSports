@@ -248,7 +248,9 @@ async function resolveWager(wagerId, wagerData, db) {
     const wagerAmount = parseFloat(wagerData.amount) || 0;
 
     if (betType === 'parlay') {
-      // For parlays: all picks must win (pushes are treated as losses)
+      // For parlays: all picks must win
+      // BUSINESS RULE: Pushes are treated as losses per platform policy
+      // This can be modified to remove push picks and reduce parlay size
       if (losses > 0 || pushes > 0) {
         wagerStatus = 'lost';
       } else if (wins === picks.length) {

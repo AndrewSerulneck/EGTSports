@@ -426,7 +426,8 @@ function formatWagerDetails(wagerData) {
       } else if (pick.pickType === 'total') {
         // Format total pick: "Over 42.5" or "Under 42.5"
         const overUnder = pick.overUnder === 'over' ? 'Over' : 'Under';
-        pickDescription = `${overUnder} ${pick.total}`;
+        const totalValue = pick.total || '';
+        pickDescription = totalValue ? `${overUnder} ${totalValue}` : `${overUnder}`;
       } else {
         // Fallback for any other pick type
         pickDescription = `${pick.team || 'Selection'} ${pick.spread || pick.moneyline || pick.odds || ''}`;
