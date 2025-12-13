@@ -360,8 +360,8 @@ input[type="number"]:focus {
     .main-content.with-sidebar, .main-content:not(.with-sidebar) {
         margin: 0;
         width: 100%;
-        /* Padding at bottom: betting slip collapsed (60px) + bottom nav (60px) + buffer (10px) + safe area */
-        padding: 10px 10px calc(60px + 60px + 10px + env(safe-area-inset-bottom, 0px)) 10px;
+        /* Padding at bottom: betting slip position (55px) + bottom nav (60px) + buffer (10px) + safe area */
+        padding: 10px 10px calc(55px + 60px + 10px + env(safe-area-inset-bottom, 0px)) 10px;
         flex-grow: 1;
     }
 
@@ -920,8 +920,8 @@ input[type="number"]:focus {
     /* Add bottom padding to main content to prevent overlap with fixed nav and betting slip */
     .mobile-with-bottom-nav .main-content,
     .mobile-with-bottom-nav .container {
-        /* Padding: betting slip collapsed (60px) + bottom nav (60px) + buffer (20px) + safe area */
-        padding-bottom: calc(60px + 60px + 20px + env(safe-area-inset-bottom, 0px)) !important;
+        /* Padding: betting slip position (55px) + bottom nav (60px) + buffer (20px) + safe area */
+        padding-bottom: calc(55px + 60px + 20px + env(safe-area-inset-bottom, 0px)) !important;
     }
 
     /* Hide the old MobileActionsContainer when MobileBottomNav is present */
