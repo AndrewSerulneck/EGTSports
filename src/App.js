@@ -1947,6 +1947,50 @@ Email: ${contactInfo.email}`;
               ))}
             </div>
 
+            {/* Credit Information Display */}
+            {userCredit && (() => {
+              const creditRemaining = userCredit.creditLimit - userCredit.totalWagered;
+              const hasPositiveCredit = creditRemaining > 0;
+              const exceedsCredit = checkoutCalculations.totalStake > creditRemaining;
+              
+              return (
+                <div style={{marginTop: '24px', background: '#f0f8ff', padding: '16px', borderRadius: '8px', border: '2px solid #b8daff'}}>
+                  <h3 className="mb-2" style={{color: '#004085', fontSize: '18px'}}>💰 Your Credit Information</h3>
+                  <div style={{display: 'flex', justifyContent: 'space-between', marginBottom: '8px'}}>
+                    <span style={{color: '#004085', fontWeight: '600'}}>Credit Limit:</span>
+                    <span style={{fontWeight: 'bold', color: '#004085'}}>${userCredit.creditLimit.toFixed(2)}</span>
+                  </div>
+                  <div style={{display: 'flex', justifyContent: 'space-between', marginBottom: '8px'}}>
+                    <span style={{color: '#856404', fontWeight: '600'}}>Total Wagered:</span>
+                    <span style={{fontWeight: 'bold', color: '#856404'}}>${userCredit.totalWagered.toFixed(2)}</span>
+                  </div>
+                  <div style={{display: 'flex', justifyContent: 'space-between', paddingTop: '8px', borderTop: '1px solid #b8daff'}}>
+                    <span style={{fontWeight: 'bold', color: hasPositiveCredit ? '#155724' : '#721c24'}}>
+                      Credit Remaining:
+                    </span>
+                    <span style={{fontWeight: 'bold', fontSize: '18px', color: hasPositiveCredit ? '#155724' : '#721c24'}}>
+                      ${creditRemaining.toFixed(2)}
+                    </span>
+                  </div>
+                  {exceedsCredit && (
+                    <div style={{
+                      marginTop: '12px',
+                      padding: '10px',
+                      background: '#f8d7da',
+                      borderRadius: '6px',
+                      border: '1px solid #f5c6cb',
+                      color: '#721c24',
+                      fontSize: '13px',
+                      textAlign: 'center',
+                      fontWeight: 'bold'
+                    }}>
+                      ⚠️ Warning: This wager exceeds your remaining credit by ${(checkoutCalculations.totalStake - creditRemaining).toFixed(2)}
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
+
             <div style={{marginTop: '24px', background: '#e7f3ff', padding: '16px', borderRadius: '8px'}}>
               <h3 className="mb-2" style={{color: '#004085'}}>Bet Summary</h3>
               <div style={{display: 'flex', justifyContent: 'space-between', marginBottom: '8px'}}>

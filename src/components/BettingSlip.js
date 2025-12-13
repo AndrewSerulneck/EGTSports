@@ -399,34 +399,6 @@ function BettingSlip({
           {/* Summary */}
           {pickCount > 0 && (
             <div className="betting-slip-summary">
-              {/* Credit Limit Display */}
-              {userCredit && (
-                <div className="credit-limit-display" style={{
-                  marginBottom: '12px',
-                  padding: '10px',
-                  background: '#e7f3ff',
-                  borderRadius: '6px',
-                  border: '1px solid #b8daff'
-                }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', marginBottom: '4px' }}>
-                    <span style={{ color: '#004085' }}>💰 Credit Limit:</span>
-                    <span style={{ fontWeight: 'bold', color: '#004085' }}>${userCredit.creditLimit.toFixed(2)}</span>
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', marginBottom: '4px' }}>
-                    <span style={{ color: '#856404' }}>📊 Total Wagered:</span>
-                    <span style={{ fontWeight: 'bold', color: '#856404' }}>${userCredit.totalWagered.toFixed(2)}</span>
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14px', fontWeight: 'bold' }}>
-                    <span style={{ color: (userCredit.creditLimit - userCredit.totalWagered) > 0 ? '#155724' : '#721c24' }}>
-                      ✅ Remaining:
-                    </span>
-                    <span style={{ color: (userCredit.creditLimit - userCredit.totalWagered) > 0 ? '#155724' : '#721c24' }}>
-                      ${(userCredit.creditLimit - userCredit.totalWagered).toFixed(2)}
-                    </span>
-                  </div>
-                </div>
-              )}
-
               {activeTab === 'single' ? (
                 <>
                   <div className="summary-row">
