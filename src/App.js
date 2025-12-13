@@ -818,8 +818,8 @@ function LandingPage({ games, allSportsGames, currentViewSport, onChangeSport, l
           processPick('winner', odds);
         }
         if (pick.spread) {
-           const odds = pick.spread === 'away' ? game.awayMoneyline : game.homeMoneyline;
-           processPick('spread', odds);
+           // Spread bets typically use standard -110 odds
+           processPick('spread', '-110');
         }
         if (pick.total) {
           processPick('total', -110);
@@ -1270,7 +1270,8 @@ const saveSubmission = async (submission) => {
             };
             
             // Calculate individual payout for this straight bet
-            const odds = parseInt(pickObj.spread === 'away' ? game.awayMoneyline : game.homeMoneyline) || -110;
+            // Spread bets typically use standard -110 odds
+            const odds = -110;
             const profit = calculateAmericanOddsPayout(betAmount, odds);
             const payout = betAmount + profit;
             
@@ -1614,12 +1615,16 @@ const saveSubmission = async (submission) => {
           userCredit={userCredit}
         />
         
-        {/* Mobile Bottom Navigation - Always Visible */}
+        {/* Mobile Bottom Navigation - Always Visible - For No Games State */}
         <MobileBottomNav
           onManualRefresh={onManualRefresh}
           isRefreshing={isRefreshing}
           onSignOut={onSignOut}
           onNavigateToDashboard={onNavigateToDashboard}
+          onNavigateHome={() => {
+            // Navigate to home (betting grid) - already on this page, no action needed
+          }}
+          currentView="home"
         />
       </div>
     );
@@ -1654,18 +1659,22 @@ const saveSubmission = async (submission) => {
           </div>
         </div>
         
-        {/* Mobile Bottom Navigation - Always Visible */}
+        {/* Mobile Bottom Navigation - Always Visible - For Prop Bets View */}
         <MobileBottomNav
           onManualRefresh={onManualRefresh}
           isRefreshing={isRefreshing}
           onSignOut={onSignOut}
           onNavigateToDashboard={onNavigateToDashboard}
+          onNavigateHome={() => {
+            // Navigate to home (betting grid) - already on this page, no action needed
+          }}
+          currentView="home"
         />
       </div>
     );
   }
-  
-  if (games.length === 0 && hasGamesInAllSports) {
+
+  const hasGamesInAllSports = allSportsGames && allSportsGames[displaySport] && allSportsGames[displaySport].length > 0;
     return (
       <div className="gradient-bg main-layout-wrapper mobile-with-bottom-nav">
         <MobileSportsMenu
@@ -1688,12 +1697,16 @@ const saveSubmission = async (submission) => {
           </div>
         </div>
         
-        {/* Mobile Bottom Navigation - Always Visible */}
+        {/* Mobile Bottom Navigation - Always Visible - For Loading State */}
         <MobileBottomNav
           onManualRefresh={onManualRefresh}
           isRefreshing={isRefreshing}
           onSignOut={onSignOut}
           onNavigateToDashboard={onNavigateToDashboard}
+          onNavigateHome={() => {
+            // Navigate to home (betting grid) - already on this page, no action needed
+          }}
+          currentView="home"
         />
       </div>
     );
