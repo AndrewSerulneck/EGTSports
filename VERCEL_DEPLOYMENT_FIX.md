@@ -168,6 +168,19 @@ You still need to add the `CRON_SECRET` environment variable in Vercel:
 - Wager resolution won't run automatically
 - Weekly credit reset won't happen
 
+### How Vercel Cron Authentication Works
+
+When you use the `crons` configuration in your `vercel.json` (as we do), Vercel automatically handles the cron job authentication. Here's what happens:
+
+1. **Vercel manages the cron schedule** - The cron jobs defined in `vercel.json` are automatically set up in Vercel
+2. **Vercel sends authentication** - When the cron job runs, Vercel automatically sends the `x-vercel-cron-secret` header
+3. **Your API validates** - Your API functions check this header against the `CRON_SECRET` environment variable
+
+**Important:** The `CRON_SECRET` environment variable you set in Vercel's dashboard is what Vercel will use when sending the `x-vercel-cron-secret` header. Make sure:
+- The value is secure (use `openssl rand -hex 32` to generate it)
+- It's set in all environments (Production, Preview, Development)
+- You redeploy after setting it so the functions can access it
+
 ## Testing After Deployment
 
 ### 1. Check Deployment Status
