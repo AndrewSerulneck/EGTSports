@@ -1,5 +1,20 @@
 {
   "version": 2,
+  "buildCommand": "npm run build",
+  "outputDirectory": "build",
+  "installCommand": "npm install && cd api && npm install",
+  "functions": {
+    "api/**/*.js": {
+      "memory": 1024,
+      "maxDuration": 10
+    }
+  },
+  "rewrites": [
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
+  ],
   "crons": [
     {
       "path": "/api/resolveWagers",
