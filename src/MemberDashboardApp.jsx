@@ -397,11 +397,30 @@ function CurrentWagers({ userId, rtdb }) {
                         </span>
                       )}
                       
-                      {/* Amount and Status Row */}
-                      <div className="flex items-center justify-between">
-                        <span className="text-lg font-bold text-gray-900">
-                          ${wager.amount?.toFixed(2) || '0.00'}
-                        </span>
+                      {/* Financial Details */}
+                      {wager.wagerData && (
+                        <div className="bg-blue-50 rounded p-2 space-y-1 text-xs">
+                          <div className="flex justify-between">
+                            <span className="text-gray-600">Total Stake:</span>
+                            <span className="font-bold text-gray-900">${(wager.amount || wager.wagerData.betAmount || 0).toFixed(2)}</span>
+                          </div>
+                          {wager.wagerData.potentialPayout && (
+                            <>
+                              <div className="flex justify-between">
+                                <span className="text-gray-600">Potential Payout:</span>
+                                <span className="font-bold text-green-700">${wager.wagerData.potentialPayout.toFixed(2)}</span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span className="text-gray-600">Potential Profit:</span>
+                                <span className="font-bold text-blue-700">${(wager.wagerData.potentialPayout - (wager.amount || wager.wagerData.betAmount || 0)).toFixed(2)}</span>
+                              </div>
+                            </>
+                          )}
+                        </div>
+                      )}
+                      
+                      {/* Status Row - Simplified since financial details are shown above */}
+                      <div className="flex items-center justify-end">
                         <span className="inline-flex items-center px-2.5 py-1 text-xs font-bold bg-yellow-400 text-yellow-900 rounded-full shadow-sm">
                           ⏳ PENDING
                         </span>
@@ -457,9 +476,23 @@ function formatWagerDetails(wagerData) {
       };
     });
     
-    const summary = pickCount === 1 
-      ? formattedPicks[0].description 
-      : `${pickCount}-leg ${wagerData.betType || 'parlay'}`;
+    // Update summary based on bet type and pick count
+    let summary;
+    if (wagerData.betType === 'straight' && pickCount === 1) {
+      // Single straight bet - show the pick description
+      summary = formattedPicks[0].description;
+    } else if (wagerData.betType === 'straight' && pickCount > 1) {
+      // Multiple straight bets shouldn't happen in the new system, but handle legacy data
+      summary = `${pickCount} Straight Bets`;
+    } else if (wagerData.betType === 'parlay') {
+      // Parlay bet - show leg count
+      summary = `${pickCount}-leg Parlay`;
+    } else {
+      // Fallback for unknown bet types
+      summary = pickCount === 1 
+        ? formattedPicks[0].description 
+        : `${pickCount}-leg ${wagerData.betType || 'bet'}`;
+    }
     
     return { summary, picks: formattedPicks };
   }
@@ -619,22 +652,44 @@ function PastWagers({ userId, rtdb }) {
                         </span>
                       )}
                       
-                      {/* Amount, Status, and Payout Row */}
+                      {/* Financial Details - Show for all wagers */}
+                      {wager.wagerData && (
+                        <div className="bg-blue-50 rounded p-2 space-y-1 text-xs">
+                          <div className="flex justify-between">
+                            <span className="text-gray-600">Total Stake:</span>
+                            <span className={`font-bold ${isCanceled ? 'text-gray-500 line-through' : 'text-gray-900'}`}>
+                              ${(wager.amount || wager.wagerData.betAmount || 0).toFixed(2)}
+                            </span>
+                          </div>
+                          {wager.wagerData.potentialPayout && (
+                            <>
+                              <div className="flex justify-between">
+                                <span className="text-gray-600">Potential Payout:</span>
+                                <span className="font-bold text-green-700">${wager.wagerData.potentialPayout.toFixed(2)}</span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span className="text-gray-600">Potential Profit:</span>
+                                <span className="font-bold text-blue-700">${(wager.wagerData.potentialPayout - (wager.amount || wager.wagerData.betAmount || 0)).toFixed(2)}</span>
+                              </div>
+                            </>
+                          )}
+                          {wager.status?.toLowerCase() === 'won' && wager.payout && (
+                            <div className="flex justify-between border-t border-gray-300 pt-1 mt-1">
+                              <span className="text-gray-700 font-medium">Actual Payout:</span>
+                              <span className="font-bold text-green-700">${wager.payout.toFixed(2)}</span>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                      
+                      {/* Status and Result Row - Simplified since financial details are shown above */}
                       <div className="flex items-center justify-between flex-wrap gap-2">
-                        <span className={`text-lg font-bold ${isCanceled ? 'text-gray-500 line-through' : 'text-gray-900'}`}>
-                          ${wager.amount?.toFixed(2) || '0.00'}
-                        </span>
                         <div className="flex items-center gap-2">
                           <span
                             className={`inline-flex items-center px-2.5 py-1 text-xs font-bold rounded-full shadow-sm ${statusInfo.bgClass}`}
                           >
                             {statusInfo.label}
                           </span>
-                          {wager.status?.toLowerCase() === 'won' && wager.payout && (
-                            <span className="text-sm font-bold text-green-600 bg-green-100 px-2 py-0.5 rounded">
-                              +${wager.payout.toFixed(2)}
-                            </span>
-                          )}
                           {isCanceled && wager.creditReturned && (
                             <span className="text-sm font-bold text-blue-600 bg-blue-100 px-2 py-0.5 rounded">
                               Stake Returned: +${wager.creditReturned.toFixed(2)}

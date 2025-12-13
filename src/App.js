@@ -1232,96 +1232,222 @@ const saveSubmission = async (submission) => {
 
     setIsSubmittingWager(true);
 
-    // Format picks for submission
-    Object.entries(selectedPicks).forEach(([gameId, pickObj]) => {
-      let game = games.find(g => g.id === gameId);
-      if (!game) {
-          for (const sport in allSportsGames) {
-              game = allSportsGames[sport].find(g => g.id === gameId);
-              if (game) break;
+    // For straight bets: create separate submissions for each pick
+    // For parlays: create single submission with all picks
+    const submissionsToCreate = [];
+    
+    if (betType === 'straight') {
+      // Each pick becomes its own separate wager
+      Object.entries(selectedPicks).forEach(([gameId, pickObj]) => {
+        let game = games.find(g => g.id === gameId);
+        if (!game) {
+            for (const sport in allSportsGames) {
+                game = allSportsGames[sport].find(g => g.id === gameId);
+                if (game) break;
+            }
+        }
+        if (!game) return;
+        
+        const gameName = `${game.awayTeam} @ ${game.homeTeam}`;
+        const sportLabel = game.sport ? ` (${game.sport})` : '';
+        
+        // Process spread pick
+        if (pickObj.spread) {
+          const team = pickObj.spread === 'away' ? game.awayTeam : game.homeTeam;
+          const spread = pickObj.spread === 'away' ? game.awaySpread : game.homeSpread;
+          const betAmount = parseFloat(individualBetAmounts[getPickId(gameId, 'spread')]) || 0;
+          
+          if (betAmount > 0) {
+            const pick = {
+              gameId: game.espnId,
+              gameName: gameName + sportLabel,
+              sport: game.sport,
+              pickType: 'spread',
+              team,
+              spread,
+              pickedTeamType: pickObj.spread,
+              betAmount
+            };
+            
+            // Calculate individual payout for this straight bet
+            const odds = parseInt(pickObj.spread === 'away' ? game.awayMoneyline : game.homeMoneyline) || -110;
+            const profit = calculateAmericanOddsPayout(betAmount, odds);
+            const payout = betAmount + profit;
+            
+            submissionsToCreate.push({
+              ticketNumber: `${ticketNum}-${submissionsToCreate.length + 1}`,
+              timestamp: new Date().toISOString(),
+              contactInfo: {
+                name: contactInfo.name,
+                email: contactInfo.email,
+                confirmMethod: 'email'
+              },
+              betAmount: betAmount,
+              potentialPayout: payout,
+              freePlay: 0,
+              picks: [pick],
+              paymentStatus: 'pending',
+              sport: game.sport,
+              betType: 'straight'
+            });
           }
-      }
-      if (!game) return;
-      
-      const gameName = `${game.awayTeam} @ ${game.homeTeam}`;
-      const sportLabel = game.sport ? ` (${game.sport})` : '';
-      
-      if (pickObj.spread) {
-        const team = pickObj.spread === 'away' ? game.awayTeam : game.homeTeam;
-        const spread = pickObj.spread === 'away' ? game.awaySpread : game.homeSpread;
-        
-        const pick = {
-          gameId: game.espnId,
-          gameName: gameName + sportLabel,
-          sport: game.sport,
-          pickType: 'spread',
-          team,
-          spread,
-          pickedTeamType: pickObj.spread
-        };
-        
-        if (betType === 'straight') {
-          pick.betAmount = parseFloat(individualBetAmounts[getPickId(gameId, 'spread')]);
         }
         
-        picksFormatted.push(pick);
-      }
-       if (pickObj.winner) {
-        const team = pickObj.winner === 'away' ? game.awayTeam : game.homeTeam;
-        const moneyline = pickObj.winner === 'away' ? game.awayMoneyline : game.homeMoneyline;
-        
-        const pick = {
-          gameId: game.espnId,
-          gameName: gameName + sportLabel,
-          sport: game.sport,
-          pickType: 'winner',
-          team,
-          moneyline,
-          pickedTeamType: pickObj.winner
-        };
-        
-        if (betType === 'straight') {
-          pick.betAmount = parseFloat(individualBetAmounts[getPickId(gameId, 'winner')]);
+        // Process winner/moneyline pick
+        if (pickObj.winner) {
+          const team = pickObj.winner === 'away' ? game.awayTeam : game.homeTeam;
+          const moneyline = pickObj.winner === 'away' ? game.awayMoneyline : game.homeMoneyline;
+          const betAmount = parseFloat(individualBetAmounts[getPickId(gameId, 'winner')]) || 0;
+          
+          if (betAmount > 0) {
+            const pick = {
+              gameId: game.espnId,
+              gameName: gameName + sportLabel,
+              sport: game.sport,
+              pickType: 'winner',
+              team,
+              moneyline,
+              pickedTeamType: pickObj.winner,
+              betAmount
+            };
+            
+            const odds = parseInt(moneyline) || -110;
+            const profit = calculateAmericanOddsPayout(betAmount, odds);
+            const payout = betAmount + profit;
+            
+            submissionsToCreate.push({
+              ticketNumber: `${ticketNum}-${submissionsToCreate.length + 1}`,
+              timestamp: new Date().toISOString(),
+              contactInfo: {
+                name: contactInfo.name,
+                email: contactInfo.email,
+                confirmMethod: 'email'
+              },
+              betAmount: betAmount,
+              potentialPayout: payout,
+              freePlay: 0,
+              picks: [pick],
+              paymentStatus: 'pending',
+              sport: game.sport,
+              betType: 'straight'
+            });
+          }
         }
         
-        picksFormatted.push(pick);
-      }
-      if (pickObj.total) {
-        const pick = {
-          gameId: game.espnId,
-          gameName: gameName + sportLabel,
-          sport: game.sport,
-          pickType: 'total',
-          overUnder: pickObj.total,
-          total: game.total
-        };
+        // Process total pick
+        if (pickObj.total) {
+          const betAmount = parseFloat(individualBetAmounts[getPickId(gameId, 'total')]) || 0;
+          
+          if (betAmount > 0) {
+            const pick = {
+              gameId: game.espnId,
+              gameName: gameName + sportLabel,
+              sport: game.sport,
+              pickType: 'total',
+              overUnder: pickObj.total,
+              total: game.total,
+              betAmount
+            };
+            
+            const odds = -110; // Standard odds for totals
+            const profit = calculateAmericanOddsPayout(betAmount, odds);
+            const payout = betAmount + profit;
+            
+            submissionsToCreate.push({
+              ticketNumber: `${ticketNum}-${submissionsToCreate.length + 1}`,
+              timestamp: new Date().toISOString(),
+              contactInfo: {
+                name: contactInfo.name,
+                email: contactInfo.email,
+                confirmMethod: 'email'
+              },
+              betAmount: betAmount,
+              potentialPayout: payout,
+              freePlay: 0,
+              picks: [pick],
+              paymentStatus: 'pending',
+              sport: game.sport,
+              betType: 'straight'
+            });
+          }
+        }
+      });
+    } else {
+      // Parlay: single submission with all picks
+      Object.entries(selectedPicks).forEach(([gameId, pickObj]) => {
+        let game = games.find(g => g.id === gameId);
+        if (!game) {
+            for (const sport in allSportsGames) {
+                game = allSportsGames[sport].find(g => g.id === gameId);
+                if (game) break;
+            }
+        }
+        if (!game) return;
         
-        if (betType === 'straight') {
-          pick.betAmount = parseFloat(individualBetAmounts[getPickId(gameId, 'total')]);
+        const gameName = `${game.awayTeam} @ ${game.homeTeam}`;
+        const sportLabel = game.sport ? ` (${game.sport})` : '';
+        
+        if (pickObj.spread) {
+          const team = pickObj.spread === 'away' ? game.awayTeam : game.homeTeam;
+          const spread = pickObj.spread === 'away' ? game.awaySpread : game.homeSpread;
+          
+          picksFormatted.push({
+            gameId: game.espnId,
+            gameName: gameName + sportLabel,
+            sport: game.sport,
+            pickType: 'spread',
+            team,
+            spread,
+            pickedTeamType: pickObj.spread
+          });
         }
         
-        picksFormatted.push(pick);
-      }
-    });
+        if (pickObj.winner) {
+          const team = pickObj.winner === 'away' ? game.awayTeam : game.homeTeam;
+          const moneyline = pickObj.winner === 'away' ? game.awayMoneyline : game.homeMoneyline;
+          
+          picksFormatted.push({
+            gameId: game.espnId,
+            gameName: gameName + sportLabel,
+            sport: game.sport,
+            pickType: 'winner',
+            team,
+            moneyline,
+            pickedTeamType: pickObj.winner
+          });
+        }
+        
+        if (pickObj.total) {
+          picksFormatted.push({
+            gameId: game.espnId,
+            gameName: gameName + sportLabel,
+            sport: game.sport,
+            pickType: 'total',
+            overUnder: pickObj.total,
+            total: game.total
+          });
+        }
+      });
 
-    const submission = {
-      ticketNumber: ticketNum,
-      timestamp: new Date().toISOString(),
-      contactInfo: {
-        name: contactInfo.name,
-        email: contactInfo.email,
-        confirmMethod: 'email'
-      },
-      betAmount: totalStake,
-      potentialPayout: checkoutCalculations.potentialPayout,
-      freePlay: 0,
-      picks: picksFormatted,
-      paymentStatus: 'pending',
-      sport: betType === 'parlay' ? 'Multi-Sport' : sport,
-      betType: betType
-    };
+      submissionsToCreate.push({
+        ticketNumber: ticketNum,
+        timestamp: new Date().toISOString(),
+        contactInfo: {
+          name: contactInfo.name,
+          email: contactInfo.email,
+          confirmMethod: 'email'
+        },
+        betAmount: totalStake,
+        potentialPayout: checkoutCalculations.potentialPayout,
+        freePlay: 0,
+        picks: picksFormatted,
+        paymentStatus: 'pending',
+        sport: 'Multi-Sport',
+        betType: 'parlay'
+      });
+    }
 
-    // Server-side credit limit enforcement via API
+    // Server-side credit limit enforcement via API (once for total stake)
     try {
       const currentUser = auth.currentUser;
       if (currentUser) {
@@ -1336,8 +1462,9 @@ const saveSubmission = async (submission) => {
             wagerAmount: totalStake,
             wagerData: {
               ticketNumber: ticketNum,
-              picks: picksFormatted,
-              betType
+              picks: betType === 'straight' ? submissionsToCreate.map(s => s.picks).flat() : submissionsToCreate[0].picks,
+              betType,
+              straightBetCount: betType === 'straight' ? submissionsToCreate.length : 1
             }
           })
         });
@@ -1367,11 +1494,14 @@ const saveSubmission = async (submission) => {
       return;
     }
 
-    // Save submission to Firebase
-    saveSubmission(submission);
+    // Save all submissions to Firebase
+    for (const submission of submissionsToCreate) {
+      saveSubmission(submission);
+    }
     
-    // Send confirmation email
+    // Send confirmation email (with info about all submissions)
     try {
+      const allPicks = submissionsToCreate.map(s => s.picks).flat();
       await fetch('https://api.egtsports.ws/api/send-ticket-confirmation', {
         method: 'POST',
         headers: {
@@ -1383,13 +1513,14 @@ const saveSubmission = async (submission) => {
             name: contactInfo.name,
             email: contactInfo.email,
           },
-          picks: picksFormatted,
+          picks: allPicks,
           betAmount: totalStake,
           potentialPayout: checkoutCalculations.potentialPayout,
           potentialProfit: checkoutCalculations.potentialProfit,
-          sport: submission.sport,
-          timestamp: submission.timestamp,
-          betType: betType
+          sport: betType === 'parlay' ? 'Multi-Sport' : sport,
+          timestamp: submissionsToCreate[0].timestamp,
+          betType: betType,
+          straightBetCount: betType === 'straight' ? submissionsToCreate.length : undefined
         })
       });
     } catch (emailError) {
