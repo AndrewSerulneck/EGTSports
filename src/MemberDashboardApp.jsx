@@ -349,44 +349,59 @@ function CurrentWagers({ userId, rtdb }) {
         </div>
       ) : (
         <div className="space-y-3 max-h-96 overflow-y-auto">
-          {wagers.map((wager) => (
-            <div
-              key={wager.id}
-              className="bg-gradient-to-r from-yellow-50 to-amber-50 border-l-4 border-yellow-400 rounded-r-lg p-3 shadow-sm"
-            >
-              {/* Mobile-first: Stack vertically */}
-              <div className="flex flex-col space-y-2">
-                {/* Wager Details - Prominent */}
-                <p className="text-sm font-semibold text-gray-800 leading-tight">
-                  {wager.details || `Ticket #${wager.wagerData?.ticketNumber || 'Unknown'}`}
-                </p>
-                
-                {/* Bet Type Badge */}
-                {wager.wagerData?.betType && (
-                  <span className="inline-block w-fit px-2 py-0.5 text-xs font-medium bg-blue-100 text-blue-700 rounded">
-                    {wager.wagerData.betType === 'parlay' ? '🎯 Parlay' : '📊 Straight'}
-                  </span>
-                )}
-                
-                {/* Amount and Status Row */}
-                <div className="flex items-center justify-between">
-                  <span className="text-lg font-bold text-gray-900">
-                    ${wager.amount?.toFixed(2) || '0.00'}
-                  </span>
-                  <span className="inline-flex items-center px-2.5 py-1 text-xs font-bold bg-yellow-400 text-yellow-900 rounded-full shadow-sm">
-                    ⏳ PENDING
-                  </span>
+          {wagers.map((wager) => {
+            const details = wager.details || { summary: `Ticket #${wager.wagerData?.ticketNumber || 'Unknown'}`, picks: [] };
+            return (
+              <div
+                key={wager.id}
+                className="bg-gradient-to-r from-yellow-50 to-amber-50 border-l-4 border-yellow-400 rounded-r-lg p-3 shadow-sm"
+              >
+                {/* Mobile-first: Stack vertically */}
+                <div className="flex flex-col space-y-2">
+                  {/* Wager Summary - Prominent */}
+                  <p className="text-sm font-semibold text-gray-800 leading-tight">
+                    {details.summary}
+                  </p>
+                  
+                  {/* Full Pick Details */}
+                  {details.picks && details.picks.length > 0 && (
+                    <div className="bg-white bg-opacity-60 rounded p-2 space-y-1">
+                      {details.picks.map((pick, idx) => (
+                        <div key={idx} className="text-xs">
+                          <div className="font-medium text-gray-900">{pick.description}</div>
+                          <div className="text-gray-600">{pick.gameName}</div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  
+                  {/* Bet Type Badge */}
+                  {wager.wagerData?.betType && (
+                    <span className="inline-block w-fit px-2 py-0.5 text-xs font-medium bg-blue-100 text-blue-700 rounded">
+                      {wager.wagerData.betType === 'parlay' ? '🎯 Parlay' : '📊 Straight'}
+                    </span>
+                  )}
+                  
+                  {/* Amount and Status Row */}
+                  <div className="flex items-center justify-between">
+                    <span className="text-lg font-bold text-gray-900">
+                      ${wager.amount?.toFixed(2) || '0.00'}
+                    </span>
+                    <span className="inline-flex items-center px-2.5 py-1 text-xs font-bold bg-yellow-400 text-yellow-900 rounded-full shadow-sm">
+                      ⏳ PENDING
+                    </span>
+                  </div>
+                  
+                  {/* Date - Smaller */}
+                  <p className="text-xs text-gray-500">
+                    {wager.createdAt
+                      ? new Date(wager.createdAt).toLocaleString()
+                      : "Just now"}
+                  </p>
                 </div>
-                
-                {/* Date - Smaller */}
-                <p className="text-xs text-gray-500">
-                  {wager.createdAt
-                    ? new Date(wager.createdAt).toLocaleString()
-                    : "Just now"}
-                </p>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>
@@ -395,19 +410,46 @@ function CurrentWagers({ userId, rtdb }) {
 
 // Helper function to format wager details for display
 function formatWagerDetails(wagerData) {
-  if (!wagerData) return 'Wager details unavailable';
+  if (!wagerData) return { summary: 'Wager details unavailable', picks: [] };
   
   if (wagerData.picks && Array.isArray(wagerData.picks)) {
     const pickCount = wagerData.picks.length;
-    if (pickCount === 1) {
-      const pick = wagerData.picks[0];
-      return `${pick.team || pick.pickedTeam || 'Selection'} ${pick.spread || pick.odds || ''}`.trim();
-    } else {
-      return `${pickCount}-leg ${wagerData.betType || 'parlay'}`;
-    }
+    const formattedPicks = wagerData.picks.map(pick => {
+      let pickDescription = '';
+      
+      if (pick.pickType === 'spread') {
+        // Format spread pick: "Team A -5.5"
+        pickDescription = `${pick.team} ${pick.spread}`;
+      } else if (pick.pickType === 'winner' || pick.pickType === 'moneyline') {
+        // Format moneyline pick: "Team A ML +150"
+        pickDescription = `${pick.team} ML ${pick.moneyline || ''}`;
+      } else if (pick.pickType === 'total') {
+        // Format total pick: "Over 42.5" or "Under 42.5"
+        const overUnder = pick.overUnder === 'over' ? 'Over' : 'Under';
+        pickDescription = `${overUnder} ${pick.total}`;
+      } else {
+        // Fallback for any other pick type
+        pickDescription = `${pick.team || 'Selection'} ${pick.spread || pick.moneyline || pick.odds || ''}`;
+      }
+      
+      return {
+        description: pickDescription.trim(),
+        gameName: pick.gameName || `${pick.team} game`,
+        sport: pick.sport || ''
+      };
+    });
+    
+    const summary = pickCount === 1 
+      ? formattedPicks[0].description 
+      : `${pickCount}-leg ${wagerData.betType || 'parlay'}`;
+    
+    return { summary, picks: formattedPicks };
   }
   
-  return wagerData.ticketNumber ? `Ticket #${wagerData.ticketNumber}` : 'Wager';
+  return { 
+    summary: wagerData.ticketNumber ? `Ticket #${wagerData.ticketNumber}` : 'Wager',
+    picks: []
+  };
 }
 
 // ============================================================================
@@ -511,6 +553,7 @@ function PastWagers({ userId, rtdb }) {
         <div className="space-y-3 max-h-96 overflow-y-auto">
           {wagers.map((wager) => {
             const statusInfo = getStatusInfo(wager.status);
+            const details = wager.details || { summary: `Ticket #${wager.wagerData?.ticketNumber || 'Unknown'}`, picks: [] };
             return (
               <div
                 key={wager.id}
@@ -518,10 +561,22 @@ function PastWagers({ userId, rtdb }) {
               >
                 {/* Mobile-first: Stack vertically */}
                 <div className="flex flex-col space-y-2">
-                  {/* Wager Details - Prominent */}
+                  {/* Wager Summary - Prominent */}
                   <p className="text-sm font-semibold text-gray-800 leading-tight">
-                    {wager.details || `Ticket #${wager.wagerData?.ticketNumber || 'Unknown'}`}
+                    {details.summary}
                   </p>
+                  
+                  {/* Full Pick Details */}
+                  {details.picks && details.picks.length > 0 && (
+                    <div className="bg-white bg-opacity-60 rounded p-2 space-y-1">
+                      {details.picks.map((pick, idx) => (
+                        <div key={idx} className="text-xs">
+                          <div className="font-medium text-gray-900">{pick.description}</div>
+                          <div className="text-gray-600">{pick.gameName}</div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                   
                   {/* Bet Type Badge */}
                   {wager.wagerData?.betType && (
@@ -731,14 +786,38 @@ function Dashboard({ userId, db, rtdb }) {
 // ============================================================================
 // Header Component
 // ============================================================================
-function Header({ userId, db }) {
+function Header({ userId, db, onBack }) {
   return (
     <header className="bg-blue-600 shadow-lg sticky top-0 z-30">
       <div className="max-w-3xl mx-auto px-4 py-3">
         <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-xl font-bold text-white">🎯 My Bets</h1>
-            <p className="text-xs text-blue-200">View your wagers & credit</p>
+          <div className="flex items-center gap-3">
+            {onBack && (
+              <button
+                onClick={onBack}
+                className="p-2 rounded-lg bg-blue-500 hover:bg-blue-400 active:bg-blue-700 transition-colors focus:outline-none focus:ring-2 focus:ring-white shadow-md"
+                aria-label="Back to Betting"
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  className="h-6 w-6 text-white"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M10 19l-7-7m0 0l7-7m-7 7h18"
+                  />
+                </svg>
+              </button>
+            )}
+            <div>
+              <h1 className="text-xl font-bold text-white">🎯 My Bets</h1>
+              <p className="text-xs text-blue-200">View your wagers & credit</p>
+            </div>
           </div>
           <div className="flex items-center gap-3">
             <NotificationBell userId={userId} db={db} />
@@ -939,7 +1018,20 @@ function MemberDashboardApp() {
   // Render main application - My Bets view (wager history only)
   return (
     <div className="min-h-screen bg-gray-100">
-      <Header userId={userId} db={db} />
+      <Header 
+        userId={userId} 
+        db={db} 
+        onBack={() => {
+          // Navigate back to the main betting page
+          // Use window.history to go back or navigate to a specific page
+          if (window.history.length > 1) {
+            window.history.back();
+          } else {
+            // Fallback: redirect to NFL betting page
+            window.location.href = '/member/NFL';
+          }
+        }}
+      />
 
       <main className="max-w-3xl mx-auto px-4 py-4">
         {/* Dashboard with Credit Status, Current and Past Wagers */}
