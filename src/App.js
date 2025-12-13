@@ -1127,7 +1127,8 @@ const saveSubmission = async (submission) => {
     return `TKT-${timestamp}-${random}`;
   };
 
-  const submitPicks = () => {
+  const submitPicks = async () => {
+    // Validation: Check minimum picks
     let pickCount = 0;
     Object.values(selectedPicks).forEach(obj => {
       if (obj.winner) pickCount++;
@@ -1139,19 +1140,26 @@ const saveSubmission = async (submission) => {
       alert(`Please select at least ${minPicks} pick${minPicks > 1 ? 's' : ''}!`);
       return;
     }
+
+    // Validation: Parlay bet amount
     if (betType === 'parlay' && (!contactInfo.betAmount || parseFloat(contactInfo.betAmount) <= 0)) {
-        alert('Please enter a wager amount for your parlay.');
-        return;
+      alert('Please enter a wager amount for your parlay.');
+      return;
     }
-    setTicketNumber(generateTicketNumber());
-    setShowConfirmation(true);
+
+    // Generate ticket number
+    const newTicketNumber = generateTicketNumber();
+    setTicketNumber(newTicketNumber);
+
+    // Proceed to immediate submission (no checkout page)
+    await handleWagerSubmission(newTicketNumber);
   };
 
-  const handleCheckoutSubmit = async () => {
+  const handleWagerSubmission = async (ticketNum) => {
     const getPickId = (gameId, pickType) => `${gameId}-${pickType}`;
     
     if (!contactInfo.name || !contactInfo.email) {
-      alert('Please fill in all contact information');
+      alert('Please fill in all contact information in your user profile');
       return;
     }
     
@@ -1224,6 +1232,7 @@ const saveSubmission = async (submission) => {
 
     setIsSubmittingWager(true);
 
+    // Format picks for submission
     Object.entries(selectedPicks).forEach(([gameId, pickObj]) => {
       let game = games.find(g => g.id === gameId);
       if (!game) {
@@ -1296,7 +1305,7 @@ const saveSubmission = async (submission) => {
     });
 
     const submission = {
-      ticketNumber,
+      ticketNumber: ticketNum,
       timestamp: new Date().toISOString(),
       contactInfo: {
         name: contactInfo.name,
@@ -1313,7 +1322,6 @@ const saveSubmission = async (submission) => {
     };
 
     // Server-side credit limit enforcement via API
-    // This ensures atomic update of user's wagered amount
     try {
       const currentUser = auth.currentUser;
       if (currentUser) {
@@ -1327,7 +1335,7 @@ const saveSubmission = async (submission) => {
           body: JSON.stringify({
             wagerAmount: totalStake,
             wagerData: {
-              ticketNumber,
+              ticketNumber: ticketNum,
               picks: picksFormatted,
               betType
             }
@@ -1355,13 +1363,14 @@ const saveSubmission = async (submission) => {
     } catch (wagerError) {
       console.error('❌ Wager submission error:', wagerError);
       setIsSubmittingWager(false);
-      // Do not allow submission if credit limit enforcement fails
       alert('❌ Unable to verify credit limit. Please try again or contact support.');
       return;
     }
 
+    // Save submission to Firebase
     saveSubmission(submission);
     
+    // Send confirmation email
     try {
       await fetch('https://api.egtsports.ws/api/send-ticket-confirmation', {
         method: 'POST',
@@ -1369,7 +1378,7 @@ const saveSubmission = async (submission) => {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          ticketNumber: ticketNumber,
+          ticketNumber: ticketNum,
           contactInfo: {
             name: contactInfo.name,
             email: contactInfo.email,
@@ -1383,13 +1392,20 @@ const saveSubmission = async (submission) => {
           betType: betType
         })
       });
-
     } catch (emailError) {
       console.error('❌ Email error:', emailError);
     }
     
     setIsSubmittingWager(false);
     setHasSubmitted(true);
+    
+    // Show success message and navigate to My Bets after a brief delay
+    setTimeout(() => {
+      setHasSubmitted(false);
+      setSelectedPicks({});
+      setIndividualBetAmounts({});
+      onNavigateToDashboard();
+    }, 3000);
   };
 
   if (loading) {
@@ -1880,156 +1896,32 @@ Email: ${contactInfo.email}`;
     );
   }
 
-  if (showCheckout) {
-    const getPickId = (gameId, pickType) => `${gameId}-${pickType}`;
-    
-    const picksForCheckout = [];
-    Object.entries(selectedPicks).forEach(([gameId, pickObj]) => {
-      let game = games.find(g => g.id === gameId);
-      if (!game && allSportsGames) {
-        for (const sportGames of Object.values(allSportsGames)) {
-          game = sportGames.find(g => g.id === gameId);
-          if (game) break;
-        }
-      }
-      if (!game) return;
-
-      const gameDetails = `${game.awayTeam} @ ${game.homeTeam}`;
-
-      if (pickObj.spread) {
-        const team = pickObj.spread === 'away' ? game.awayTeam : game.homeTeam;
-        const spread = pickObj.spread === 'away' ? game.awaySpread : game.homeSpread;
-        const betAmount = betType === 'straight' ? parseFloat(individualBetAmounts[getPickId(gameId, 'spread')]) || 0 : undefined;
-        picksForCheckout.push({
-          id: getPickId(gameId, 'spread'),
-          text: `[SPREAD] ${team} ${spread} (${gameDetails})`,
-          betAmount
-        });
-      }
-      if (pickObj.winner) {
-        const team = pickObj.winner === 'away' ? game.awayTeam : game.homeTeam;
-        const moneyline = pickObj.winner === 'away' ? game.awayMoneyline : game.homeMoneyline;
-        const betAmount = betType === 'straight' ? parseFloat(individualBetAmounts[getPickId(gameId, 'winner')]) || 0 : undefined;
-        picksForCheckout.push({
-          id: getPickId(gameId, 'winner'),
-          text: `[MONEYLINE] ${team} ${moneyline} (${gameDetails})`,
-          betAmount
-        });
-      }
-      if (pickObj.total) {
-        const total = game.total;
-        const overUnder = pickObj.total === 'over' ? 'Over' : 'Under';
-        const betAmount = betType === 'straight' ? parseFloat(individualBetAmounts[getPickId(gameId, 'total')]) || 0 : undefined;
-        picksForCheckout.push({
-          id: getPickId(gameId, 'total'),
-          text: `[TOTAL] ${overUnder} ${total} (${gameDetails})`,
-          betAmount
-        });
-      }
-    });
-
+  // Show success message after submission (hasSubmitted state is managed in handleWagerSubmission)
+  if (hasSubmitted) {
     return (
-      <div className="gradient-bg">
-        <div className="container" style={{maxWidth: '600px'}}>
-          <div className="text-center text-white mb-4">
-            <h1>Checkout</h1>
+      <div className="gradient-bg" style={{display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh'}}>
+        <div className="card" style={{maxWidth: '500px', textAlign: 'center'}}>
+          <div style={{fontSize: '64px', marginBottom: '20px'}}>✅</div>
+          <h2 style={{color: '#28a745', marginBottom: '16px'}}>Wager Submitted Successfully!</h2>
+          <div style={{background: '#f8f9fa', padding: '20px', borderRadius: '8px', marginBottom: '24px'}}>
+            <div style={{fontSize: '12px', color: '#666', marginBottom: '8px'}}>TICKET NUMBER</div>
+            <div style={{fontSize: '24px', fontWeight: 'bold', color: '#28a745'}}>{ticketNumber}</div>
           </div>
-          <button className="btn btn-secondary mb-2" onClick={() => setShowCheckout(false)}>Back</button>
-          <div className="card">
-            <div style={{background: '#f8f9fa', padding: '20px', borderRadius: '8px', textAlign: 'center', marginBottom: '24px'}}>
-              <div style={{fontSize: '12px', color: '#666', marginBottom: '8px'}}>TICKET NUMBER</div>
-              <div style={{fontSize: '24px', fontWeight: 'bold', color: '#28a745'}}>{ticketNumber}</div>
-            </div>
-            
-            <h3 className="mb-2">Your {betType === 'parlay' ? `Picks (${pickCount})` : `Bets (${pickCount})`}</h3>
-            <div style={{maxHeight: '300px', overflowY: 'auto', padding: '10px', background: '#f8f9fa', borderRadius: '8px', marginBottom: '24px'}}>
-              {picksForCheckout.map((pick, idx) => (
-                <div key={pick.id} style={{padding: '12px', borderBottom: '1px solid #e0e0e0'}}>
-                  <div style={{fontWeight: 'bold'}}>{idx + 1}. {pick.text}</div>
-                  {pick.betAmount !== undefined && (
-                    <div style={{color: '#28a745', fontWeight: 'bold', textAlign: 'right'}}>
-                      Wager: ${pick.betAmount.toFixed(2)}
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-
-            {/* Credit Information Display */}
-            {userCredit && (() => {
-              const creditRemaining = userCredit.creditLimit - userCredit.totalWagered;
-              const hasPositiveCredit = creditRemaining > 0;
-              const exceedsCredit = checkoutCalculations.totalStake > creditRemaining;
-              
-              return (
-                <div style={{marginTop: '24px', background: '#f0f8ff', padding: '16px', borderRadius: '8px', border: '2px solid #b8daff'}}>
-                  <h3 className="mb-2" style={{color: '#004085', fontSize: '18px'}}>💰 Your Credit Information</h3>
-                  <div style={{display: 'flex', justifyContent: 'space-between', marginBottom: '8px'}}>
-                    <span style={{color: '#004085', fontWeight: '600'}}>Credit Limit:</span>
-                    <span style={{fontWeight: 'bold', color: '#004085'}}>${userCredit.creditLimit.toFixed(2)}</span>
-                  </div>
-                  <div style={{display: 'flex', justifyContent: 'space-between', marginBottom: '8px'}}>
-                    <span style={{color: '#856404', fontWeight: '600'}}>Total Wagered:</span>
-                    <span style={{fontWeight: 'bold', color: '#856404'}}>${userCredit.totalWagered.toFixed(2)}</span>
-                  </div>
-                  <div style={{display: 'flex', justifyContent: 'space-between', paddingTop: '8px', borderTop: '1px solid #b8daff'}}>
-                    <span style={{fontWeight: 'bold', color: hasPositiveCredit ? '#155724' : '#721c24'}}>
-                      Credit Remaining:
-                    </span>
-                    <span style={{fontWeight: 'bold', fontSize: '18px', color: hasPositiveCredit ? '#155724' : '#721c24'}}>
-                      ${creditRemaining.toFixed(2)}
-                    </span>
-                  </div>
-                  {exceedsCredit && (
-                    <div style={{
-                      marginTop: '12px',
-                      padding: '10px',
-                      background: '#f8d7da',
-                      borderRadius: '6px',
-                      border: '1px solid #f5c6cb',
-                      color: '#721c24',
-                      fontSize: '13px',
-                      textAlign: 'center',
-                      fontWeight: 'bold'
-                    }}>
-                      ⚠️ Warning: This wager exceeds your remaining credit by ${(checkoutCalculations.totalStake - creditRemaining).toFixed(2)}
-                    </div>
-                  )}
-                </div>
-              );
-            })()}
-
-            <div style={{marginTop: '24px', background: '#e7f3ff', padding: '16px', borderRadius: '8px'}}>
-              <h3 className="mb-2" style={{color: '#004085'}}>Bet Summary</h3>
-              <div style={{display: 'flex', justifyContent: 'space-between', marginBottom: '8px'}}>
-                <strong>Total Stake:</strong>
-                <span style={{fontWeight: 'bold', color: '#dc3545'}}>${checkoutCalculations.totalStake.toFixed(2)}</span>
-              </div>
-              <div style={{display: 'flex', justifyContent: 'space-between', marginBottom: '8px'}}>
-                <strong>Potential Payout:</strong>
-                <span style={{fontWeight: 'bold', color: '#28a745'}}>${checkoutCalculations.potentialPayout.toFixed(2)}</span>
-              </div>
-              <div style={{display: 'flex', justifyContent: 'space-between'}}>
-                <strong>Potential Profit:</strong>
-                <span style={{fontWeight: 'bold', color: '#007bff'}}>${checkoutCalculations.potentialProfit.toFixed(2)}</span>
-              </div>
-            </div>
-
-            <h3 className="mb-2" style={{marginTop: '32px'}}>Contact Information</h3>
-            <label>Full Name *</label>
-            <input type="text" value={contactInfo.name} onChange={(e) => setContactInfo({...contactInfo, name: e.target.value})} />
-
-            <label>Email *</label>
-            <input type="email" value={contactInfo.email} onChange={(e) => setContactInfo({...contactInfo, email: e.target.value})} />
-
-            <button 
-              className="btn btn-success" 
-              onClick={handleCheckoutSubmit} 
-              disabled={isSubmittingWager}
-              style={{width: '100%', fontSize: '18px', marginTop: '16px'}}
-            >
-              {isSubmittingWager ? '⏳ Processing...' : 'Send Me My Confirmation Ticket'}
-            </button>
+          <p style={{marginBottom: '24px', color: '#666'}}>
+            Keep your ticket number safe! Your wager is now visible in "My Bets".
+          </p>
+          <div style={{
+            marginTop: '24px',
+            background: 'rgba(40, 167, 69, 0.1)',
+            border: '2px solid rgba(40, 167, 69, 0.3)',
+            borderRadius: '12px',
+            padding: '16px',
+            textAlign: 'center'
+          }}>
+            <p style={{fontSize: '14px', marginBottom: '8px', lineHeight: '1.6'}}>
+              Redirecting to My Bets...
+            </p>
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-600 mx-auto"></div>
           </div>
         </div>
       </div>
@@ -2139,23 +2031,6 @@ Email: ${contactInfo.email}`;
         }}
         currentView="home"
       />
-      
-      <div className={`modal ${showConfirmation ? 'active' : ''}`}>
-        <div className="modal-content">
-          <h2 className="text-center" style={{fontSize: '32px', color: '#28a745', marginBottom: '20px'}}>Picks Submitted!</h2>
-          <div style={{background: '#f8f9fa', padding: '20px', borderRadius: '8px', textAlign: 'center', marginBottom: '24px'}}>
-            <div style={{fontSize: '24px', fontWeight: 'bold'}}>{ticketNumber}</div>
-          </div>
-          <p className="text-center mb-4">Save this ticket number!</p>
-          <button
-            className="btn btn-primary"
-            onClick={() => { setShowConfirmation(false); setShowCheckout(true); }}
-            style={{width: '100%', fontSize: '18px'}}
-          >
-            Continue to Checkout
-          </button>
-        </div>
-      </div>
     </div>
   );
 }
