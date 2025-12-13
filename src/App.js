@@ -103,8 +103,9 @@ function MobileSportsMenu({ currentSport, onSelectSport, allSportsGames }) {
     );
 }
 
-// Mobile Bottom Navigation Bar - Always visible with Refresh, My Bets, Sign Out
-function MobileBottomNav({ onManualRefresh, isRefreshing, onSignOut, onNavigateToDashboard }) {
+// Mobile Bottom Navigation Bar - Always visible with Refresh, Home, My Bets, Sign Out
+// Updated order: Refresh (action), Home (tab), My Bets (tab), Sign Out (action)
+function MobileBottomNav({ onManualRefresh, isRefreshing, onSignOut, onNavigateToDashboard, onNavigateHome, currentView }) {
     return (
         <div className="mobile-bottom-nav">
             <button 
@@ -116,8 +117,15 @@ function MobileBottomNav({ onManualRefresh, isRefreshing, onSignOut, onNavigateT
                 <span className="mobile-nav-label">{isRefreshing ? 'Refreshing' : 'Refresh'}</span>
             </button>
             <button 
+                onClick={onNavigateHome}
+                className={`mobile-nav-btn ${currentView === 'home' ? 'mobile-nav-btn-active' : ''}`}
+            >
+                <span className="mobile-nav-icon">🏠</span>
+                <span className="mobile-nav-label">Home</span>
+            </button>
+            <button 
                 onClick={onNavigateToDashboard}
-                className="mobile-nav-btn mobile-nav-btn-primary"
+                className={`mobile-nav-btn mobile-nav-btn-primary ${currentView === 'mybets' ? 'mobile-nav-btn-active' : ''}`}
             >
                 <span className="mobile-nav-icon">🎯</span>
                 <span className="mobile-nav-label">My Bets</span>
@@ -2125,6 +2133,11 @@ Email: ${contactInfo.email}`;
         isRefreshing={isRefreshing}
         onSignOut={onSignOut}
         onNavigateToDashboard={onNavigateToDashboard}
+        onNavigateHome={() => {
+          // Navigate to home (betting grid) - this is the default view
+          // Since we're already on this page, we just ensure the view is set correctly
+        }}
+        currentView="home"
       />
       
       <div className={`modal ${showConfirmation ? 'active' : ''}`}>

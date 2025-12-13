@@ -227,13 +227,15 @@ module.exports = async (req, res) => {
       
       // Now update the wager status (this happens after credit is successfully returned)
       // Using a separate update to ensure we have proper error handling
+      // Status set to "CANCELED" for database, displayed as "Cancelled by Admin" in UI
       const wagerUpdates = {
         status: 'CANCELED',
         canceledAt: new Date().toISOString(),
         canceledBy: decodedToken.uid,
         previousStatus: wagerData.status || 'pending',
         creditReturned: wagerAmount,
-        creditReturnedAt: new Date().toISOString()
+        creditReturnedAt: new Date().toISOString(),
+        cancelReason: 'Admin cancellation'
       };
       
       await db.ref(wagerPath).update(wagerUpdates);

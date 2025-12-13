@@ -285,12 +285,14 @@ function CreditStatus({ userId, rtdb }) {
 }
 
 // ============================================================================
-// Current Wagers Component (Pending Wagers) - Mobile-First Design
+// Current Wagers Component (Pending Wagers) - Mobile-First Design with Collapsible
 // Reads from Firebase Realtime Database /wagers collection
+// Default: Collapsed on mobile for optimal viewport usage
 // ============================================================================
 function CurrentWagers({ userId, rtdb }) {
   const [wagers, setWagers] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [isExpanded, setIsExpanded] = useState(false); // Default collapsed for mobile-first
 
   useEffect(() => {
     if (!userId || !rtdb) return;
@@ -339,70 +341,85 @@ function CurrentWagers({ userId, rtdb }) {
 
   return (
     <div className="bg-white rounded-lg shadow-md p-4 mb-4">
-      <h2 className="text-lg font-bold text-gray-800 mb-3">
-        ⏳ Current Wagers <span className="text-blue-600">({wagers.length})</span>
-      </h2>
-      {wagers.length === 0 ? (
-        <div className="text-center py-6">
-          <p className="text-gray-400 text-sm">No pending wagers</p>
-          <p className="text-gray-300 text-xs mt-1">Your active bets will appear here</p>
-        </div>
-      ) : (
-        <div className="space-y-3 max-h-96 overflow-y-auto">
-          {wagers.map((wager) => {
-            const details = wager.details || { summary: `Ticket #${wager.wagerData?.ticketNumber || 'Unknown'}`, picks: [] };
-            return (
-              <div
-                key={wager.id}
-                className="bg-gradient-to-r from-yellow-50 to-amber-50 border-l-4 border-yellow-400 rounded-r-lg p-3 shadow-sm"
-              >
-                {/* Mobile-first: Stack vertically */}
-                <div className="flex flex-col space-y-2">
-                  {/* Wager Summary - Prominent */}
-                  <p className="text-sm font-semibold text-gray-800 leading-tight">
-                    {details.summary}
-                  </p>
-                  
-                  {/* Full Pick Details */}
-                  {details.picks && details.picks.length > 0 && (
-                    <div className="bg-white bg-opacity-60 rounded p-2 space-y-1">
-                      {details.picks.map((pick, idx) => (
-                        <div key={idx} className="text-xs">
-                          <div className="font-medium text-gray-900">{pick.description}</div>
-                          <div className="text-gray-600">{pick.gameName}</div>
+      {/* Collapsible Header - Click to expand/collapse */}
+      <button
+        onClick={() => setIsExpanded(!isExpanded)}
+        className="w-full flex items-center justify-between text-left hover:bg-gray-50 active:bg-gray-100 rounded p-2 transition-colors"
+      >
+        <h2 className="text-lg font-bold text-gray-800">
+          ⏳ Current Wagers <span className="text-blue-600">({wagers.length})</span>
+        </h2>
+        <span className="text-2xl text-gray-600">
+          {isExpanded ? '▼' : '▶'}
+        </span>
+      </button>
+      
+      {/* Collapsible Content */}
+      {isExpanded && (
+        <>
+          {wagers.length === 0 ? (
+            <div className="text-center py-6 mt-2">
+              <p className="text-gray-400 text-sm">No pending wagers</p>
+              <p className="text-gray-300 text-xs mt-1">Your active bets will appear here</p>
+            </div>
+          ) : (
+            <div className="space-y-3 max-h-96 overflow-y-auto mt-3">
+              {wagers.map((wager) => {
+                const details = wager.details || { summary: `Ticket #${wager.wagerData?.ticketNumber || 'Unknown'}`, picks: [] };
+                return (
+                  <div
+                    key={wager.id}
+                    className="bg-gradient-to-r from-yellow-50 to-amber-50 border-l-4 border-yellow-400 rounded-r-lg p-3 shadow-sm"
+                  >
+                    {/* Mobile-first: Stack vertically */}
+                    <div className="flex flex-col space-y-2">
+                      {/* Wager Summary - Prominent */}
+                      <p className="text-sm font-semibold text-gray-800 leading-tight">
+                        {details.summary}
+                      </p>
+                      
+                      {/* Full Pick Details */}
+                      {details.picks && details.picks.length > 0 && (
+                        <div className="bg-white bg-opacity-60 rounded p-2 space-y-1">
+                          {details.picks.map((pick, idx) => (
+                            <div key={idx} className="text-xs">
+                              <div className="font-medium text-gray-900">{pick.description}</div>
+                              <div className="text-gray-600">{pick.gameName}</div>
+                            </div>
+                          ))}
                         </div>
-                      ))}
+                      )}
+                      
+                      {/* Bet Type Badge */}
+                      {wager.wagerData?.betType && (
+                        <span className="inline-block w-fit px-2 py-0.5 text-xs font-medium bg-blue-100 text-blue-700 rounded">
+                          {wager.wagerData.betType === 'parlay' ? '🎯 Parlay' : '📊 Straight'}
+                        </span>
+                      )}
+                      
+                      {/* Amount and Status Row */}
+                      <div className="flex items-center justify-between">
+                        <span className="text-lg font-bold text-gray-900">
+                          ${wager.amount?.toFixed(2) || '0.00'}
+                        </span>
+                        <span className="inline-flex items-center px-2.5 py-1 text-xs font-bold bg-yellow-400 text-yellow-900 rounded-full shadow-sm">
+                          ⏳ PENDING
+                        </span>
+                      </div>
+                      
+                      {/* Date - Smaller */}
+                      <p className="text-xs text-gray-500">
+                        {wager.createdAt
+                          ? new Date(wager.createdAt).toLocaleString()
+                          : "Just now"}
+                      </p>
                     </div>
-                  )}
-                  
-                  {/* Bet Type Badge */}
-                  {wager.wagerData?.betType && (
-                    <span className="inline-block w-fit px-2 py-0.5 text-xs font-medium bg-blue-100 text-blue-700 rounded">
-                      {wager.wagerData.betType === 'parlay' ? '🎯 Parlay' : '📊 Straight'}
-                    </span>
-                  )}
-                  
-                  {/* Amount and Status Row */}
-                  <div className="flex items-center justify-between">
-                    <span className="text-lg font-bold text-gray-900">
-                      ${wager.amount?.toFixed(2) || '0.00'}
-                    </span>
-                    <span className="inline-flex items-center px-2.5 py-1 text-xs font-bold bg-yellow-400 text-yellow-900 rounded-full shadow-sm">
-                      ⏳ PENDING
-                    </span>
                   </div>
-                  
-                  {/* Date - Smaller */}
-                  <p className="text-xs text-gray-500">
-                    {wager.createdAt
-                      ? new Date(wager.createdAt).toLocaleString()
-                      : "Just now"}
-                  </p>
-                </div>
-              </div>
-            );
-          })}
-        </div>
+                );
+              })}
+            </div>
+          )}
+        </>
       )}
     </div>
   );
@@ -454,12 +471,14 @@ function formatWagerDetails(wagerData) {
 }
 
 // ============================================================================
-// Past Wagers Component (Won/Lost/Canceled Wagers) - Mobile-First Design
+// Past Wagers Component (Won/Lost/Canceled Wagers) - Mobile-First Design with Collapsible
 // Reads from Firebase Realtime Database /wagers collection
+// Default: Collapsed on mobile for optimal viewport usage
 // ============================================================================
 function PastWagers({ userId, rtdb }) {
   const [wagers, setWagers] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [isExpanded, setIsExpanded] = useState(false); // Default collapsed for mobile-first
 
   useEffect(() => {
     if (!userId || !rtdb) return;
@@ -527,7 +546,7 @@ function PastWagers({ userId, rtdb }) {
         };
       case 'canceled':
         return { 
-          label: '🚫 CANCELED', 
+          label: '🚫 CANCELED BY ADMIN', 
           bgClass: 'bg-gray-500 text-white',
           cardClass: 'bg-gradient-to-r from-gray-50 to-slate-50 border-gray-400'
         };
@@ -542,89 +561,105 @@ function PastWagers({ userId, rtdb }) {
 
   return (
     <div className="bg-white rounded-lg shadow-md p-4 mb-4">
-      <h2 className="text-lg font-bold text-gray-800 mb-3">
-        📜 Past Wagers <span className="text-gray-500">({wagers.length})</span>
-      </h2>
-      {wagers.length === 0 ? (
-        <div className="text-center py-6">
-          <p className="text-gray-400 text-sm">No settled wagers yet</p>
-          <p className="text-gray-300 text-xs mt-1">Results will appear here once bets are settled</p>
-        </div>
-      ) : (
-        <div className="space-y-3 max-h-96 overflow-y-auto">
-          {wagers.map((wager) => {
-            const statusInfo = getStatusInfo(wager.status);
-            const details = wager.details || { summary: `Ticket #${wager.wagerData?.ticketNumber || 'Unknown'}`, picks: [] };
-            return (
-              <div
-                key={wager.id}
-                className={`rounded-r-lg p-3 shadow-sm border-l-4 ${statusInfo.cardClass}`}
-              >
-                {/* Mobile-first: Stack vertically */}
-                <div className="flex flex-col space-y-2">
-                  {/* Wager Summary - Prominent */}
-                  <p className="text-sm font-semibold text-gray-800 leading-tight">
-                    {details.summary}
-                  </p>
-                  
-                  {/* Full Pick Details */}
-                  {details.picks && details.picks.length > 0 && (
-                    <div className="bg-white bg-opacity-60 rounded p-2 space-y-1">
-                      {details.picks.map((pick, idx) => (
-                        <div key={idx} className="text-xs">
-                          <div className="font-medium text-gray-900">{pick.description}</div>
-                          <div className="text-gray-600">{pick.gameName}</div>
+      {/* Collapsible Header - Click to expand/collapse */}
+      <button
+        onClick={() => setIsExpanded(!isExpanded)}
+        className="w-full flex items-center justify-between text-left hover:bg-gray-50 active:bg-gray-100 rounded p-2 transition-colors"
+      >
+        <h2 className="text-lg font-bold text-gray-800">
+          📜 Past Wagers <span className="text-gray-500">({wagers.length})</span>
+        </h2>
+        <span className="text-2xl text-gray-600">
+          {isExpanded ? '▼' : '▶'}
+        </span>
+      </button>
+      
+      {/* Collapsible Content */}
+      {isExpanded && (
+        <>
+          {wagers.length === 0 ? (
+            <div className="text-center py-6 mt-2">
+              <p className="text-gray-400 text-sm">No settled wagers yet</p>
+              <p className="text-gray-300 text-xs mt-1">Results will appear here once bets are settled</p>
+            </div>
+          ) : (
+            <div className="space-y-3 max-h-96 overflow-y-auto mt-3">
+              {wagers.map((wager) => {
+                const statusInfo = getStatusInfo(wager.status);
+                const details = wager.details || { summary: `Ticket #${wager.wagerData?.ticketNumber || 'Unknown'}`, picks: [] };
+                const isCanceled = wager.status?.toLowerCase() === 'canceled';
+                return (
+                  <div
+                    key={wager.id}
+                    className={`rounded-r-lg p-3 shadow-sm border-l-4 ${statusInfo.cardClass}`}
+                  >
+                    {/* Mobile-first: Stack vertically */}
+                    <div className="flex flex-col space-y-2">
+                      {/* Wager Summary - Prominent */}
+                      <p className="text-sm font-semibold text-gray-800 leading-tight">
+                        {details.summary}
+                      </p>
+                      
+                      {/* Full Pick Details */}
+                      {details.picks && details.picks.length > 0 && (
+                        <div className="bg-white bg-opacity-60 rounded p-2 space-y-1">
+                          {details.picks.map((pick, idx) => (
+                            <div key={idx} className="text-xs">
+                              <div className="font-medium text-gray-900">{pick.description}</div>
+                              <div className="text-gray-600">{pick.gameName}</div>
+                            </div>
+                          ))}
                         </div>
-                      ))}
-                    </div>
-                  )}
-                  
-                  {/* Bet Type Badge */}
-                  {wager.wagerData?.betType && (
-                    <span className="inline-block w-fit px-2 py-0.5 text-xs font-medium bg-blue-100 text-blue-700 rounded">
-                      {wager.wagerData.betType === 'parlay' ? '🎯 Parlay' : '📊 Straight'}
-                    </span>
-                  )}
-                  
-                  {/* Amount, Status, and Payout Row */}
-                  <div className="flex items-center justify-between flex-wrap gap-2">
-                    <span className={`text-lg font-bold ${wager.status?.toLowerCase() === 'canceled' ? 'text-gray-500 line-through' : 'text-gray-900'}`}>
-                      ${wager.amount?.toFixed(2) || '0.00'}
-                    </span>
-                    <div className="flex items-center gap-2">
-                      <span
-                        className={`inline-flex items-center px-2.5 py-1 text-xs font-bold rounded-full shadow-sm ${statusInfo.bgClass}`}
-                      >
-                        {statusInfo.label}
-                      </span>
-                      {wager.status?.toLowerCase() === 'won' && wager.payout && (
-                        <span className="text-sm font-bold text-green-600 bg-green-100 px-2 py-0.5 rounded">
-                          +${wager.payout.toFixed(2)}
+                      )}
+                      
+                      {/* Bet Type Badge */}
+                      {wager.wagerData?.betType && (
+                        <span className="inline-block w-fit px-2 py-0.5 text-xs font-medium bg-blue-100 text-blue-700 rounded">
+                          {wager.wagerData.betType === 'parlay' ? '🎯 Parlay' : '📊 Straight'}
                         </span>
                       )}
-                      {wager.status?.toLowerCase() === 'canceled' && wager.creditReturned && (
-                        <span className="text-sm font-bold text-blue-600 bg-blue-100 px-2 py-0.5 rounded">
-                          +${wager.creditReturned.toFixed(2)} returned
+                      
+                      {/* Amount, Status, and Payout Row */}
+                      <div className="flex items-center justify-between flex-wrap gap-2">
+                        <span className={`text-lg font-bold ${isCanceled ? 'text-gray-500 line-through' : 'text-gray-900'}`}>
+                          ${wager.amount?.toFixed(2) || '0.00'}
                         </span>
-                      )}
+                        <div className="flex items-center gap-2">
+                          <span
+                            className={`inline-flex items-center px-2.5 py-1 text-xs font-bold rounded-full shadow-sm ${statusInfo.bgClass}`}
+                          >
+                            {statusInfo.label}
+                          </span>
+                          {wager.status?.toLowerCase() === 'won' && wager.payout && (
+                            <span className="text-sm font-bold text-green-600 bg-green-100 px-2 py-0.5 rounded">
+                              +${wager.payout.toFixed(2)}
+                            </span>
+                          )}
+                          {isCanceled && wager.creditReturned && (
+                            <span className="text-sm font-bold text-blue-600 bg-blue-100 px-2 py-0.5 rounded">
+                              Stake Returned: +${wager.creditReturned.toFixed(2)}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      
+                      {/* Date - Smaller */}
+                      <p className="text-xs text-gray-500">
+                        {isCanceled
+                          ? `Canceled: ${wager.canceledAt ? new Date(wager.canceledAt).toLocaleString() : 'Unknown'}`
+                          : wager.settledAt
+                          ? `Settled: ${new Date(wager.settledAt).toLocaleString()}`
+                          : wager.createdAt
+                          ? `Placed: ${new Date(wager.createdAt).toLocaleString()}`
+                          : "Unknown date"}
+                      </p>
                     </div>
                   </div>
-                  
-                  {/* Date - Smaller */}
-                  <p className="text-xs text-gray-500">
-                    {wager.status?.toLowerCase() === 'canceled'
-                      ? `Canceled: ${wager.canceledAt ? new Date(wager.canceledAt).toLocaleString() : 'Unknown'}`
-                      : wager.settledAt
-                      ? `Settled: ${new Date(wager.settledAt).toLocaleString()}`
-                      : wager.createdAt
-                      ? `Placed: ${new Date(wager.createdAt).toLocaleString()}`
-                      : "Unknown date"}
-                  </p>
-                </div>
-              </div>
-            );
-          })}
-        </div>
+                );
+              })}
+            </div>
+          )}
+        </>
       )}
     </div>
   );
@@ -785,7 +820,7 @@ function Dashboard({ userId, db, rtdb }) {
 }
 
 // ============================================================================
-// Header Component
+// Header Component - Mobile-First: Back button only shows on desktop
 // ============================================================================
 function Header({ userId, db, onBack }) {
   return (
@@ -793,10 +828,11 @@ function Header({ userId, db, onBack }) {
       <div className="max-w-3xl mx-auto px-4 py-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
+            {/* Back button only visible on desktop (hidden on mobile) */}
             {onBack && (
               <button
                 onClick={onBack}
-                className="p-2 rounded-lg bg-blue-500 hover:bg-blue-400 active:bg-blue-700 transition-colors focus:outline-none focus:ring-2 focus:ring-white shadow-md"
+                className="hidden md:block p-2 rounded-lg bg-blue-500 hover:bg-blue-400 active:bg-blue-700 transition-colors focus:outline-none focus:ring-2 focus:ring-white shadow-md"
                 aria-label="Back to Betting"
               >
                 <svg
