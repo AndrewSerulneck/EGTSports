@@ -1,6 +1,6 @@
 // Serverless function to resolve pending wagers
 // This checks game completion status and updates wager outcomes
-// Designed to run on a schedule (hourly via Vercel cron)
+// Designed to run on a schedule (every 15 minutes via Vercel cron)
 
 let admin;
 let initializationError = null;
