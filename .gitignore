@@ -2,3 +2,6 @@
 .env.local
 node_modules/
 build/
+.vercel
+api/node_modules/
+coverage/
