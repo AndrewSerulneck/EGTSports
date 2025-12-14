@@ -43,6 +43,11 @@ import {
    ============================================================================= */
 
 // ============================================================================
+// Constants for betting slip state management (Issue #1)
+// ============================================================================
+const COLLAPSE_FLAG_KEY = 'collapseBettingSlipOnReturn'; // sessionStorage key
+
+// ============================================================================
 // Global Variables Access with Safe Fallbacks
 // ============================================================================
 let appId = "member-dashboard-dev";
@@ -1218,7 +1223,7 @@ function MemberDashboardApp() {
           // Navigate back to the main betting page
           // Use window.history to go back or navigate to a specific page
           // Issue #1: Set flag to collapse betting slip when returning to Home
-          sessionStorage.setItem('collapseBettingSlipOnReturn', 'true');
+          sessionStorage.setItem(COLLAPSE_FLAG_KEY, 'true');
           if (window.history.length > 1) {
             window.history.back();
           } else {
@@ -1255,7 +1260,7 @@ function MemberDashboardApp() {
             // This component doesn't have access to React Router context
             // See documentation at top of file for details
             // Issue #1: Set flag to collapse betting slip when returning to Home
-            sessionStorage.setItem('collapseBettingSlipOnReturn', 'true');
+            sessionStorage.setItem(COLLAPSE_FLAG_KEY, 'true');
             window.location.href = '/member/NFL';
           }}
           className="mobile-nav-btn"

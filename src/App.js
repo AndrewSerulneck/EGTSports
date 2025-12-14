@@ -20,6 +20,10 @@ import PropBetsView from './components/PropBetsView';
 import BettingSlip from './components/BettingSlip';
 import MemberDashboardApp from './MemberDashboardApp';
 
+// Constants for betting slip state management (Issue #1)
+const COLLAPSE_RESET_DELAY = 100; // ms - delay before resetting collapse state
+const COLLAPSE_FLAG_KEY = 'collapseBettingSlipOnReturn'; // sessionStorage key
+
 function SportsMenu({ currentSport, onSelectSport, allSportsGames, onSignOut, onManualRefresh, isRefreshing, onNavigateToDashboard }) {
     const sportOrder = ['NFL', 'College Football', 'NBA', 'College Basketball', 'Major League Baseball', 'NHL'];
     
@@ -1611,7 +1615,7 @@ const saveSubmission = async (submission) => {
           MIN_BET={MIN_BET}
           MAX_BET={MAX_BET}
           userCredit={userCredit}
-          forceCollapse={collapseBettingSlip}
+          shouldCollapse={collapseBettingSlip}
         />
         
         {/* Mobile Bottom Navigation - Always Visible - For No Games State */}
@@ -1833,7 +1837,7 @@ const saveSubmission = async (submission) => {
         MIN_BET={MIN_BET}
         MAX_BET={MAX_BET}
         userCredit={userCredit}
-        forceCollapse={collapseBettingSlip}
+        shouldCollapse={collapseBettingSlip}
       />
       
       {/* Mobile Bottom Navigation - Always Visible */}
@@ -1964,24 +1968,27 @@ function MemberSportRoute({
   const [collapseBettingSlip, setCollapseBettingSlip] = useState(false);
   
   // Issue #1: Detect when returning from dashboard and collapse betting slip
+  const collapseProcessedRef = useRef(false);
+  
   useEffect(() => {
     // Check location state (from React Router navigation)
-    if (location.state?.from === 'dashboard' && location.state?.collapseBettingSlip) {
+    if (location.state?.from === 'dashboard' && location.state?.collapseBettingSlip && !collapseProcessedRef.current) {
+      collapseProcessedRef.current = true;
       setCollapseBettingSlip(true);
       // Reset after brief delay to allow prop to be processed
-      setTimeout(() => setCollapseBettingSlip(false), 100);
+      setTimeout(() => setCollapseBettingSlip(false), COLLAPSE_RESET_DELAY);
       // Clear the state using navigate to avoid React Router conflicts
       navigate(location.pathname, { replace: true, state: {} });
     }
     
     // Check sessionStorage (from window.location.href navigation)
-    const shouldCollapse = sessionStorage.getItem('collapseBettingSlipOnReturn');
+    const shouldCollapse = sessionStorage.getItem(COLLAPSE_FLAG_KEY);
     if (shouldCollapse === 'true') {
       setCollapseBettingSlip(true);
       // Reset after brief delay
-      setTimeout(() => setCollapseBettingSlip(false), 100);
+      setTimeout(() => setCollapseBettingSlip(false), COLLAPSE_RESET_DELAY);
       // Clear the flag
-      sessionStorage.removeItem('collapseBettingSlipOnReturn');
+      sessionStorage.removeItem(COLLAPSE_FLAG_KEY);
     }
   }, [location.state, location.pathname, navigate]);
   
