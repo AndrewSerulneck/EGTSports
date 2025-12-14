@@ -42,8 +42,8 @@ function BettingSlip({
 
   // Handle external collapse control (for Issue 1: always minimize when navigating to Home)
   useEffect(() => {
-    if (forceCollapse !== undefined && forceCollapse !== null) {
-      setIsExpanded(!forceCollapse);
+    if (forceCollapse) {
+      setIsExpanded(false);
     }
   }, [forceCollapse]);
 

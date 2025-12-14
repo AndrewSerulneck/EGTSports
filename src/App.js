@@ -1158,7 +1158,7 @@ const saveSubmission = async (submission) => {
     // Get authenticated user info from Firebase
     const currentUser = auth.currentUser;
     if (!currentUser) {
-      alert('You must be logged in to place a bet');
+      alert('Authentication session expired. Please refresh the page and try again.');
       return;
     }
     
@@ -1970,8 +1970,8 @@ function MemberSportRoute({
       setCollapseBettingSlip(true);
       // Reset after brief delay to allow prop to be processed
       setTimeout(() => setCollapseBettingSlip(false), 100);
-      // Clear the state so it doesn't persist
-      window.history.replaceState({}, document.title);
+      // Clear the state using navigate to avoid React Router conflicts
+      navigate(location.pathname, { replace: true, state: {} });
     }
     
     // Check sessionStorage (from window.location.href navigation)
@@ -1983,7 +1983,7 @@ function MemberSportRoute({
       // Clear the flag
       sessionStorage.removeItem('collapseBettingSlipOnReturn');
     }
-  }, [location.state, location.pathname]);
+  }, [location.state, location.pathname, navigate]);
   
   useEffect(() => {
     if (sport === 'prop-bets') {
