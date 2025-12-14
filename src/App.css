@@ -940,6 +940,11 @@ input[type="number"]:focus {
         padding-bottom: calc(55px + 60px + 20px + env(safe-area-inset-bottom, 0px)) !important;
     }
 
+    /* Utility class for padding bottom on My Bets dashboard */
+    .pb-mobile-nav-safe {
+        padding-bottom: calc(60px + env(safe-area-inset-bottom, 0px) + 20px) !important;
+    }
+
     /* Hide the old MobileActionsContainer when MobileBottomNav is present */
     .mobile-with-bottom-nav .mobile-actions-container {
         display: none;

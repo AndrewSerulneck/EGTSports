@@ -34,6 +34,12 @@ import {
    - Tailwind CSS (utility-first styling, MOBILE-FIRST)
    - Firebase Auth and Cloud Firestore
    
+   Navigation Note:
+   - This component is rendered standalone on the /member/dashboard route
+   - It does not have access to React Router context from App.js
+   - Navigation uses window.location for compatibility with standalone rendering
+   - This is intentional to allow the dashboard to be embedded or rendered independently
+   
    ============================================================================= */
 
 // ============================================================================
@@ -878,11 +884,15 @@ let lastResolutionTime = 0;
 
 function Dashboard({ userId, db, rtdb }) {
   const [isResolvingWagers, setIsResolvingWagers] = useState(false);
+  const [resolutionStatus, setResolutionStatus] = useState('');
 
   useEffect(() => {
     // Trigger on-demand wager resolution when dashboard loads
-    // This replaces the scheduled cron job approach
-    const resolveWagers = async () => {
+    // Sequential execution as per problem statement:
+    // Step A: Update game scores from external APIs
+    // Step B: Resolve wagers based on updated scores
+    // Step C: Display results (automatic via Firebase real-time listeners)
+    const resolveOnDemand = async () => {
       // Check if resolution was recently triggered (cooldown period)
       const now = Date.now();
       if (now - lastResolutionTime < RESOLUTION_COOLDOWN) {
@@ -894,43 +904,67 @@ function Dashboard({ userId, db, rtdb }) {
         setIsResolvingWagers(true);
         lastResolutionTime = now;
         
-        // Call the resolve wagers API endpoint
-        // No authentication needed - public endpoint for on-demand resolution
-        const response = await fetch('/api/resolveWagers', {
+        // Step A: Update game scores from external sports APIs
+        setResolutionStatus('Updating game scores...');
+        console.log('Step A: Calling updateGameScores API');
+        const scoresResponse = await fetch('/api/updateGameScores', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
           },
         });
 
-        if (response.ok) {
-          const result = await response.json();
-          console.log('Wager resolution triggered:', result);
+        if (scoresResponse.ok) {
+          const scoresResult = await scoresResponse.json();
+          console.log('✅ Step A complete - Game scores updated:', scoresResult);
         } else {
-          // Non-blocking error - just log it
-          console.log('Wager resolution request failed (non-critical):', response.status);
+          console.warn('⚠️ Step A warning - Game scores update had issues:', scoresResponse.status);
+          // Continue to Step B even if Step A has issues (non-blocking)
         }
+
+        // Step B: Resolve wagers based on completed games
+        setResolutionStatus('Resolving wagers...');
+        console.log('Step B: Calling resolveWagers API');
+        const wagersResponse = await fetch('/api/resolveWagers', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        });
+
+        if (wagersResponse.ok) {
+          const wagersResult = await wagersResponse.json();
+          console.log('✅ Step B complete - Wagers resolved:', wagersResult);
+        } else {
+          console.warn('⚠️ Step B warning - Wager resolution had issues:', wagersResponse.status);
+        }
+
+        // Step C: Display results - handled automatically by Firebase real-time listeners
+        console.log('✅ Step C - Display will update automatically via real-time listeners');
+        setResolutionStatus('');
+        
       } catch (error) {
         // Non-blocking error - just log it
-        console.log('Wager resolution error (non-critical):', error.message);
+        console.error('Wager resolution error (non-critical):', error.message);
+        setResolutionStatus('');
       } finally {
         setIsResolvingWagers(false);
       }
     };
 
     // Trigger resolution after a short delay to allow page to render
-    const timeoutId = setTimeout(resolveWagers, WAGER_RESOLUTION_DELAY);
+    const timeoutId = setTimeout(resolveOnDemand, WAGER_RESOLUTION_DELAY);
     
     return () => clearTimeout(timeoutId);
   }, []); // Empty dependency array - only trigger on initial mount
 
   return (
     <div className="space-y-4">
-      {/* Optional: Show subtle indicator when resolving wagers */}
+      {/* Show status indicator when resolving wagers */}
       {isResolvingWagers && (
         <div className="bg-blue-50 border-l-4 border-blue-400 p-3 rounded-r-lg">
           <p className="text-xs text-blue-700">
-            ⚡ Checking for completed games...
+            ⚡ {resolutionStatus || 'Checking for completed games...'}
           </p>
         </div>
       )}
@@ -1192,10 +1226,64 @@ function MemberDashboardApp() {
         }}
       />
 
-      <main className="max-w-3xl mx-auto px-4 py-4">
+      <main className="max-w-3xl mx-auto px-4 py-4 pb-mobile-nav-safe">
         {/* Dashboard with Credit Status, Current and Past Wagers */}
         <Dashboard userId={userId} db={db} rtdb={rtdb} />
       </main>
+
+      {/* Mobile Bottom Navigation - Always Visible */}
+      <div className="mobile-bottom-nav">
+        <button 
+          onClick={() => {
+            // NOTE: Using window.location.reload() is intentional here
+            // This is a standalone component without access to parent state
+            // Reloading triggers the Dashboard's useEffect which calls the resolution APIs
+            // Alternative: Implement a custom event system or shared state management
+            window.location.reload();
+          }}
+          className="mobile-nav-btn"
+          title="Refresh game scores and wager status"
+        >
+          <span className="mobile-nav-icon">🔄</span>
+          <span className="mobile-nav-label">Refresh</span>
+        </button>
+        <button 
+          onClick={() => {
+            // NOTE: Using window.location.href is intentional here
+            // This component doesn't have access to React Router context
+            // See documentation at top of file for details
+            window.location.href = '/member/NFL';
+          }}
+          className="mobile-nav-btn"
+          title="Go to betting page"
+        >
+          <span className="mobile-nav-icon">🏠</span>
+          <span className="mobile-nav-label">Home</span>
+        </button>
+        <button 
+          className="mobile-nav-btn mobile-nav-btn-active"
+          title="My Bets - Current page"
+        >
+          <span className="mobile-nav-icon">🎯</span>
+          <span className="mobile-nav-label">My Bets</span>
+        </button>
+        <button 
+          onClick={async () => {
+            // NOTE: Sign out should be handled by the parent App component
+            // which has proper auth context and state management
+            // For now, redirecting to root will trigger the auth check
+            // and the user will be sent to login if not authenticated
+            // TODO: If this component ever gains access to auth context,
+            // call auth.signOut() before redirecting
+            window.location.href = '/';
+          }}
+          className="mobile-nav-btn"
+          title="Sign out"
+        >
+          <span className="mobile-nav-icon">🚪</span>
+          <span className="mobile-nav-label">Sign Out</span>
+        </button>
+      </div>
     </div>
   );
 }

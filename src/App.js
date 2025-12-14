@@ -769,14 +769,11 @@ function AdminLandingPage({ onManageUsers, onViewSubmissions, onSignOut }) {
 
 function LandingPage({ games, allSportsGames, currentViewSport, onChangeSport, loading, onBackToMenu, sport, betType, onBetTypeChange, apiError, onManualRefresh, lastRefreshTime, propBets, propBetsLoading, propBetsError, onSignOut, isRefreshing, onNavigateToDashboard, userCredit, onRefreshCredit }) {
   const [selectedPicks, setSelectedPicks] = useState({});
-  const [showConfirmation, setShowConfirmation] = useState(false);
   const [ticketNumber, setTicketNumber] = useState('');
-  const [showCheckout, setShowCheckout] = useState(false);
   const [contactInfo, setContactInfo] = useState({ name: '', email: '', betAmount: '' });
   const [individualBetAmounts, setIndividualBetAmounts] = useState({});
   const [submissions, setSubmissions] = useState([]);
   const [hasSubmitted, setHasSubmitted] = useState(false);
-  const [isSubmittingWager, setIsSubmittingWager] = useState(false);
   const processedTicketsRef = useRef(new Set());
 
   const calculateAmericanOddsPayout = (stake, odds) => {
@@ -1230,8 +1227,6 @@ const saveSubmission = async (submission) => {
       }
     }
 
-    setIsSubmittingWager(true);
-
     // For straight bets: create separate submissions for each pick
     // For parlays: create single submission with all picks
     const submissionsToCreate = [];
@@ -1474,7 +1469,6 @@ const saveSubmission = async (submission) => {
 
         if (!wagerResponse.ok || !wagerResult.success) {
           // Credit limit exceeded or other error
-          setIsSubmittingWager(false);
           if (wagerResult.error === 'Wager exceeds credit limit') {
             alert(`⚠️ Credit Limit Exceeded!\n\n${wagerResult.hint}\n\nPlease reduce your wager or contact an administrator.`);
           } else {
@@ -1490,7 +1484,6 @@ const saveSubmission = async (submission) => {
       }
     } catch (wagerError) {
       console.error('❌ Wager submission error:', wagerError);
-      setIsSubmittingWager(false);
       alert('❌ Unable to verify credit limit. Please try again or contact support.');
       return;
     }
@@ -1528,7 +1521,6 @@ const saveSubmission = async (submission) => {
       console.error('❌ Email error:', emailError);
     }
     
-    setIsSubmittingWager(false);
     setHasSubmitted(true);
     
     // Show success message and navigate to My Bets after a brief delay
