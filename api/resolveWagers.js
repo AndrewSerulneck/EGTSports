@@ -1,6 +1,6 @@
 // Serverless function to resolve pending wagers
 // This checks game completion status and updates wager outcomes
-// Designed to run on a schedule (hourly via Vercel cron)
+// Designed to be triggered on-demand when users visit the My Bets page
 
 let admin;
 let initializationError = null;
@@ -54,6 +54,16 @@ const initializeFirebaseAdmin = () => {
 if (admin) {
   initializeFirebaseAdmin();
 }
+
+// Simple in-memory rate limiting for public endpoint abuse prevention
+// Tracks last resolution time to prevent excessive calls
+// NOTE: This is suitable for low-traffic Hobby plan deployments
+// For production with multiple serverless instances, consider:
+// - Redis-based rate limiting
+// - Database-backed rate limiting
+// - External rate limiting service (e.g., Vercel Edge Config)
+let lastPublicResolutionTime = 0;
+const PUBLIC_RESOLUTION_COOLDOWN = 30000; // 30 seconds minimum between public calls
 
 // ESPN API endpoints for checking game status
 const ESPN_API_ENDPOINTS = {
@@ -340,30 +350,65 @@ module.exports = async (req, res) => {
     }
 
     try {
-      // For cron jobs, verify the request is from Vercel
+      // Authentication logic:
+      // 1. If called with Bearer token, verify admin privileges (no rate limit)
+      // 2. If called with cron secret (for scheduled tasks), verify secret (no rate limit)
+      // 3. Otherwise, allow public access with rate limiting for abuse prevention
+      
       const authHeader = req.headers.authorization;
       const cronSecret = process.env.CRON_SECRET;
+      const providedCronSecret = req.headers['x-vercel-cron-secret'] || req.query.secret;
+      
+      let isAuthenticated = false;
       
       // If invoked manually with auth token, verify admin
       if (authHeader && authHeader.startsWith('Bearer ')) {
         const idToken = authHeader.split('Bearer ')[1];
-        const decodedToken = await admin.auth().verifyIdToken(idToken);
-        
-        if (!decodedToken.admin) {
-          return res.status(403).json({ 
-            success: false, 
-            error: 'Admin privileges required'
+        try {
+          const decodedToken = await admin.auth().verifyIdToken(idToken);
+          
+          if (!decodedToken.admin) {
+            return res.status(403).json({ 
+              success: false, 
+              error: 'Admin privileges required'
+            });
+          }
+          isAuthenticated = true;
+        } catch (authError) {
+          return res.status(401).json({
+            success: false,
+            error: 'Invalid authentication token'
           });
         }
-      } else if (cronSecret) {
-        // Verify cron secret for scheduled invocations
-        const providedSecret = req.headers['x-vercel-cron-secret'] || req.query.secret;
-        if (providedSecret !== cronSecret) {
+      } else if (providedCronSecret) {
+        // If a cron secret is provided, verify it (for scheduled invocations)
+        // Require that CRON_SECRET is configured in environment
+        if (!cronSecret) {
+          return res.status(500).json({
+            success: false,
+            error: 'Server configuration error: CRON_SECRET not configured'
+          });
+        }
+        if (providedCronSecret !== cronSecret) {
           return res.status(401).json({ 
             success: false, 
             error: 'Unauthorized: Invalid cron secret'
           });
         }
+        isAuthenticated = true;
+      }
+      
+      // If not authenticated, apply rate limiting to prevent abuse
+      if (!isAuthenticated) {
+        const now = Date.now();
+        if (now - lastPublicResolutionTime < PUBLIC_RESOLUTION_COOLDOWN) {
+          return res.status(429).json({
+            success: false,
+            error: 'Rate limit exceeded. Please try again later.',
+            retryAfter: Math.ceil((PUBLIC_RESOLUTION_COOLDOWN - (now - lastPublicResolutionTime)) / 1000)
+          });
+        }
+        lastPublicResolutionTime = now;
       }
 
       const db = admin.database();
