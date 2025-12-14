@@ -1674,8 +1674,7 @@ const saveSubmission = async (submission) => {
     );
   }
 
-  const hasGamesInAllSports = allSportsGames && allSportsGames[displaySport] && allSportsGames[displaySport].length > 0;
-    return (
+  return (
       <div className="gradient-bg main-layout-wrapper mobile-with-bottom-nav">
         <MobileSportsMenu
             currentSport={currentViewSport}
