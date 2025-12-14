@@ -209,11 +209,21 @@ module.exports = async (req, res) => {
 
     const db = admin.database();
 
-    // Update scores for all supported sports
+    // Update scores for all supported sports - sequential processing to avoid API throttling
     const allSports = Object.keys(ESPN_API_ENDPOINTS);
-    const results = await Promise.all(
-      allSports.map(sport => updateSportScores(sport, db))
-    );
+    const results = [];
+    
+    // Process sports sequentially with a small delay between each to avoid rate limiting
+    for (const sport of allSports) {
+      const result = await updateSportScores(sport, db);
+      results.push(result);
+      
+      // Add a small delay between API calls to avoid overwhelming ESPN API
+      // This is especially important for the free tier which may have rate limits
+      if (results.length < allSports.length) {
+        await new Promise(resolve => setTimeout(resolve, 500)); // 500ms delay between sports
+      }
+    }
 
     // Summarize results
     const summary = {

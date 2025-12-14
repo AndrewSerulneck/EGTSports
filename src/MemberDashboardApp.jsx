@@ -34,6 +34,12 @@ import {
    - Tailwind CSS (utility-first styling, MOBILE-FIRST)
    - Firebase Auth and Cloud Firestore
    
+   Navigation Note:
+   - This component is rendered standalone on the /member/dashboard route
+   - It does not have access to React Router context from App.js
+   - Navigation uses window.location for compatibility with standalone rendering
+   - This is intentional to allow the dashboard to be embedded or rendered independently
+   
    ============================================================================= */
 
 // ============================================================================
@@ -1220,7 +1226,7 @@ function MemberDashboardApp() {
         }}
       />
 
-      <main className="max-w-3xl mx-auto px-4 py-4" style={{ paddingBottom: 'calc(60px + env(safe-area-inset-bottom, 0px) + 20px)' }}>
+      <main className="max-w-3xl mx-auto px-4 py-4 pb-mobile-nav-safe">
         {/* Dashboard with Credit Status, Current and Past Wagers */}
         <Dashboard userId={userId} db={db} rtdb={rtdb} />
       </main>
@@ -1229,10 +1235,12 @@ function MemberDashboardApp() {
       <div className="mobile-bottom-nav">
         <button 
           onClick={() => {
-            // Refresh functionality - reload the page to trigger wager resolution
+            // Trigger wager resolution by calling the Dashboard resolution logic
+            // Force a component re-mount which will trigger the useEffect in Dashboard
             window.location.reload();
           }}
           className="mobile-nav-btn"
+          title="Refresh game scores and wager status"
         >
           <span className="mobile-nav-icon">🔄</span>
           <span className="mobile-nav-label">Refresh</span>
@@ -1242,12 +1250,14 @@ function MemberDashboardApp() {
             window.location.href = '/member/NFL';
           }}
           className="mobile-nav-btn"
+          title="Go to betting page"
         >
           <span className="mobile-nav-icon">🏠</span>
           <span className="mobile-nav-label">Home</span>
         </button>
         <button 
           className="mobile-nav-btn mobile-nav-btn-active"
+          title="My Bets - Current page"
         >
           <span className="mobile-nav-icon">🎯</span>
           <span className="mobile-nav-label">My Bets</span>
@@ -1258,6 +1268,7 @@ function MemberDashboardApp() {
             window.location.href = '/';
           }}
           className="mobile-nav-btn"
+          title="Sign out"
         >
           <span className="mobile-nav-icon">🚪</span>
           <span className="mobile-nav-label">Sign Out</span>
