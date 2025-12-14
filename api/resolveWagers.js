@@ -1,6 +1,6 @@
 // Serverless function to resolve pending wagers
 // This checks game completion status and updates wager outcomes
-// Designed to run on a schedule (every 15 minutes via Vercel cron)
+// Designed to be triggered on-demand when users visit the My Bets page
 
 let admin;
 let initializationError = null;
@@ -340,31 +340,44 @@ module.exports = async (req, res) => {
     }
 
     try {
-      // For cron jobs, verify the request is from Vercel
+      // Authentication logic:
+      // 1. If called with Bearer token, verify admin privileges
+      // 2. If called with cron secret (for scheduled tasks), verify secret
+      // 3. Otherwise, allow public access for on-demand resolution from client
+      
       const authHeader = req.headers.authorization;
       const cronSecret = process.env.CRON_SECRET;
+      const providedCronSecret = req.headers['x-vercel-cron-secret'] || req.query.secret;
       
       // If invoked manually with auth token, verify admin
       if (authHeader && authHeader.startsWith('Bearer ')) {
         const idToken = authHeader.split('Bearer ')[1];
-        const decodedToken = await admin.auth().verifyIdToken(idToken);
-        
-        if (!decodedToken.admin) {
-          return res.status(403).json({ 
-            success: false, 
-            error: 'Admin privileges required'
+        try {
+          const decodedToken = await admin.auth().verifyIdToken(idToken);
+          
+          if (!decodedToken.admin) {
+            return res.status(403).json({ 
+              success: false, 
+              error: 'Admin privileges required'
+            });
+          }
+        } catch (authError) {
+          return res.status(401).json({
+            success: false,
+            error: 'Invalid authentication token'
           });
         }
-      } else if (cronSecret) {
-        // Verify cron secret for scheduled invocations
-        const providedSecret = req.headers['x-vercel-cron-secret'] || req.query.secret;
-        if (providedSecret !== cronSecret) {
+      } else if (providedCronSecret) {
+        // If a cron secret is provided, verify it (for scheduled invocations)
+        if (cronSecret && providedCronSecret !== cronSecret) {
           return res.status(401).json({ 
             success: false, 
             error: 'Unauthorized: Invalid cron secret'
           });
         }
       }
+      // If neither auth header nor cron secret provided, allow public access
+      // This enables on-demand resolution when users visit My Bets page
 
       const db = admin.database();
 

@@ -17,10 +17,6 @@
   ],
   "crons": [
     {
-      "path": "/api/resolveWagers",
-      "schedule": "*/15 * * * *"
-    },
-    {
       "path": "/api/weeklyReset",
       "schedule": "0 0 * * 2"
     }

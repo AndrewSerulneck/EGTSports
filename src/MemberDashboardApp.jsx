@@ -863,10 +863,58 @@ function NotificationBell({ userId, db }) {
 
 // ============================================================================
 // Dashboard Component - Updated to use both Firestore and Realtime Database
+// Triggers on-demand wager resolution when page loads
 // ============================================================================
 function Dashboard({ userId, db, rtdb }) {
+  const [isResolvingWagers, setIsResolvingWagers] = useState(false);
+
+  useEffect(() => {
+    // Trigger on-demand wager resolution when dashboard loads
+    // This replaces the scheduled cron job approach
+    const resolveWagers = async () => {
+      try {
+        setIsResolvingWagers(true);
+        
+        // Call the resolve wagers API endpoint
+        // No authentication needed - public endpoint for on-demand resolution
+        const response = await fetch('/api/resolveWagers', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        });
+
+        if (response.ok) {
+          const result = await response.json();
+          console.log('Wager resolution triggered:', result);
+        } else {
+          // Non-blocking error - just log it
+          console.log('Wager resolution request failed (non-critical):', response.status);
+        }
+      } catch (error) {
+        // Non-blocking error - just log it
+        console.log('Wager resolution error (non-critical):', error.message);
+      } finally {
+        setIsResolvingWagers(false);
+      }
+    };
+
+    // Trigger resolution after a short delay to allow page to render
+    const timeoutId = setTimeout(resolveWagers, 1000);
+    
+    return () => clearTimeout(timeoutId);
+  }, [userId]); // Re-trigger if userId changes
+
   return (
     <div className="space-y-4">
+      {/* Optional: Show subtle indicator when resolving wagers */}
+      {isResolvingWagers && (
+        <div className="bg-blue-50 border-l-4 border-blue-400 p-3 rounded-r-lg">
+          <p className="text-xs text-blue-700">
+            ⚡ Checking for completed games...
+          </p>
+        </div>
+      )}
       <CreditStatus userId={userId} rtdb={rtdb} />
       <CurrentWagers userId={userId} rtdb={rtdb} />
       <PastWagers userId={userId} rtdb={rtdb} />
