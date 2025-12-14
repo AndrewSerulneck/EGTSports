@@ -125,7 +125,7 @@ function MobileBottomNav({ onManualRefresh, isRefreshing, onSignOut, onNavigateT
             </button>
             <button 
                 onClick={onNavigateToDashboard}
-                className={`mobile-nav-btn mobile-nav-btn-primary ${currentView === 'mybets' ? 'mobile-nav-btn-active' : ''}`}
+                className={`mobile-nav-btn ${currentView === 'mybets' ? 'mobile-nav-btn-active' : ''}`}
             >
                 <span className="mobile-nav-icon">🎯</span>
                 <span className="mobile-nav-label">My Bets</span>
