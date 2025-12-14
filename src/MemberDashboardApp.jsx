@@ -865,6 +865,14 @@ function NotificationBell({ userId, db }) {
 // Dashboard Component - Updated to use both Firestore and Realtime Database
 // Triggers on-demand wager resolution when page loads
 // ============================================================================
+
+// Configuration constants
+const WAGER_RESOLUTION_DELAY = 1000; // Delay before triggering resolution (ms)
+const RESOLUTION_COOLDOWN = 60000; // Minimum time between resolution attempts (ms)
+
+// Module-level state to prevent excessive resolution calls
+let lastResolutionTime = 0;
+
 function Dashboard({ userId, db, rtdb }) {
   const [isResolvingWagers, setIsResolvingWagers] = useState(false);
 
@@ -872,8 +880,16 @@ function Dashboard({ userId, db, rtdb }) {
     // Trigger on-demand wager resolution when dashboard loads
     // This replaces the scheduled cron job approach
     const resolveWagers = async () => {
+      // Check if resolution was recently triggered (cooldown period)
+      const now = Date.now();
+      if (now - lastResolutionTime < RESOLUTION_COOLDOWN) {
+        console.log('Wager resolution skipped (cooldown period)');
+        return;
+      }
+
       try {
         setIsResolvingWagers(true);
+        lastResolutionTime = now;
         
         // Call the resolve wagers API endpoint
         // No authentication needed - public endpoint for on-demand resolution
@@ -900,10 +916,10 @@ function Dashboard({ userId, db, rtdb }) {
     };
 
     // Trigger resolution after a short delay to allow page to render
-    const timeoutId = setTimeout(resolveWagers, 1000);
+    const timeoutId = setTimeout(resolveWagers, WAGER_RESOLUTION_DELAY);
     
     return () => clearTimeout(timeoutId);
-  }, [userId]); // Re-trigger if userId changes
+  }, []); // Empty dependency array - only trigger on initial mount
 
   return (
     <div className="space-y-4">

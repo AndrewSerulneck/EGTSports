@@ -55,6 +55,11 @@ if (admin) {
   initializeFirebaseAdmin();
 }
 
+// Simple in-memory rate limiting for public endpoint abuse prevention
+// Tracks last resolution time to prevent excessive calls
+let lastPublicResolutionTime = 0;
+const PUBLIC_RESOLUTION_COOLDOWN = 30000; // 30 seconds minimum between public calls
+
 // ESPN API endpoints for checking game status
 const ESPN_API_ENDPOINTS = {
   'NFL': 'https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard',
@@ -341,13 +346,15 @@ module.exports = async (req, res) => {
 
     try {
       // Authentication logic:
-      // 1. If called with Bearer token, verify admin privileges
-      // 2. If called with cron secret (for scheduled tasks), verify secret
-      // 3. Otherwise, allow public access for on-demand resolution from client
+      // 1. If called with Bearer token, verify admin privileges (no rate limit)
+      // 2. If called with cron secret (for scheduled tasks), verify secret (no rate limit)
+      // 3. Otherwise, allow public access with rate limiting for abuse prevention
       
       const authHeader = req.headers.authorization;
       const cronSecret = process.env.CRON_SECRET;
       const providedCronSecret = req.headers['x-vercel-cron-secret'] || req.query.secret;
+      
+      let isAuthenticated = false;
       
       // If invoked manually with auth token, verify admin
       if (authHeader && authHeader.startsWith('Bearer ')) {
@@ -361,6 +368,7 @@ module.exports = async (req, res) => {
               error: 'Admin privileges required'
             });
           }
+          isAuthenticated = true;
         } catch (authError) {
           return res.status(401).json({
             success: false,
@@ -375,9 +383,21 @@ module.exports = async (req, res) => {
             error: 'Unauthorized: Invalid cron secret'
           });
         }
+        isAuthenticated = true;
       }
-      // If neither auth header nor cron secret provided, allow public access
-      // This enables on-demand resolution when users visit My Bets page
+      
+      // If not authenticated, apply rate limiting to prevent abuse
+      if (!isAuthenticated) {
+        const now = Date.now();
+        if (now - lastPublicResolutionTime < PUBLIC_RESOLUTION_COOLDOWN) {
+          return res.status(429).json({
+            success: false,
+            error: 'Rate limit exceeded. Please try again later.',
+            retryAfter: Math.ceil((PUBLIC_RESOLUTION_COOLDOWN - (now - lastPublicResolutionTime)) / 1000)
+          });
+        }
+        lastPublicResolutionTime = now;
+      }
 
       const db = admin.database();
 
