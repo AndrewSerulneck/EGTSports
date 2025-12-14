@@ -24,7 +24,8 @@ function BettingSlip({
   onParlayBetAmountChange,
   MIN_BET,
   MAX_BET,
-  userCredit
+  userCredit,
+  shouldCollapse // Prop to externally trigger collapse (one-way: true = collapse, false = no action)
 }) {
   // On mobile, start collapsed; on desktop, start expanded
   // Default to expanded for SSR safety, then update on mount
@@ -38,6 +39,14 @@ function BettingSlip({
     setIsMobile(checkMobile);
     setIsExpanded(!checkMobile);
   }, []);
+
+  // Handle external collapse control (for Issue 1: always minimize when navigating to Home)
+  // Note: This is one-way - only handles collapse, not expansion
+  useEffect(() => {
+    if (shouldCollapse) {
+      setIsExpanded(false);
+    }
+  }, [shouldCollapse]);
 
   // Update expanded state on window resize
   useEffect(() => {

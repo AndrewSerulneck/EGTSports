@@ -1,7 +1,7 @@
 
 import './App.css';
 import React, { useState, useEffect, useCallback, useRef } from "react";
-import { Routes, Route, useNavigate, useParams, Navigate } from 'react-router-dom';
+import { Routes, Route, useNavigate, useParams, Navigate, useLocation } from 'react-router-dom';
 import { initializeApp, getApps } from "firebase/app";
 import { getDatabase, ref, set, onValue, push, get } from "firebase/database";
 import {
@@ -19,6 +19,10 @@ import GridBettingLayout from './components/GridBettingLayout';
 import PropBetsView from './components/PropBetsView';
 import BettingSlip from './components/BettingSlip';
 import MemberDashboardApp from './MemberDashboardApp';
+
+// Constants for betting slip state management (Issue #1)
+const COLLAPSE_RESET_DELAY = 100; // ms - delay before resetting collapse state
+const COLLAPSE_FLAG_KEY = 'collapseBettingSlipOnReturn'; // sessionStorage key
 
 function SportsMenu({ currentSport, onSelectSport, allSportsGames, onSignOut, onManualRefresh, isRefreshing, onNavigateToDashboard }) {
     const sportOrder = ['NFL', 'College Football', 'NBA', 'College Basketball', 'Major League Baseball', 'NHL'];
@@ -767,7 +771,7 @@ function AdminLandingPage({ onManageUsers, onViewSubmissions, onSignOut }) {
   );
 }
 
-function LandingPage({ games, allSportsGames, currentViewSport, onChangeSport, loading, onBackToMenu, sport, betType, onBetTypeChange, apiError, onManualRefresh, lastRefreshTime, propBets, propBetsLoading, propBetsError, onSignOut, isRefreshing, onNavigateToDashboard, userCredit, onRefreshCredit }) {
+function LandingPage({ games, allSportsGames, currentViewSport, onChangeSport, loading, onBackToMenu, sport, betType, onBetTypeChange, apiError, onManualRefresh, lastRefreshTime, propBets, propBetsLoading, propBetsError, onSignOut, isRefreshing, onNavigateToDashboard, userCredit, onRefreshCredit, collapseBettingSlip }) {
   const [selectedPicks, setSelectedPicks] = useState({});
   const [ticketNumber, setTicketNumber] = useState('');
   const [contactInfo, setContactInfo] = useState({ name: '', email: '', betAmount: '' });
@@ -1155,10 +1159,16 @@ const saveSubmission = async (submission) => {
   const handleWagerSubmission = async (ticketNum) => {
     const getPickId = (gameId, pickType) => `${gameId}-${pickType}`;
     
-    if (!contactInfo.name || !contactInfo.email) {
-      alert('Please fill in all contact information in your user profile');
+    // Get authenticated user info from Firebase
+    const currentUser = auth.currentUser;
+    if (!currentUser) {
+      alert('Authentication session expired. Please refresh the page and try again.');
       return;
     }
+    
+    // Use authenticated user's email and UID for tracking
+    const userEmail = currentUser.email || 'member@egtsports.com';
+    const userName = currentUser.displayName || userEmail.split('@')[0];
     
     const { totalStake } = checkoutCalculations;
     const picksFormatted = [];
@@ -1274,8 +1284,8 @@ const saveSubmission = async (submission) => {
               ticketNumber: `${ticketNum}-${submissionsToCreate.length + 1}`,
               timestamp: new Date().toISOString(),
               contactInfo: {
-                name: contactInfo.name,
-                email: contactInfo.email,
+                name: userName,
+                email: userEmail,
                 confirmMethod: 'email'
               },
               betAmount: betAmount,
@@ -1315,8 +1325,8 @@ const saveSubmission = async (submission) => {
               ticketNumber: `${ticketNum}-${submissionsToCreate.length + 1}`,
               timestamp: new Date().toISOString(),
               contactInfo: {
-                name: contactInfo.name,
-                email: contactInfo.email,
+                name: userName,
+                email: userEmail,
                 confirmMethod: 'email'
               },
               betAmount: betAmount,
@@ -1353,8 +1363,8 @@ const saveSubmission = async (submission) => {
               ticketNumber: `${ticketNum}-${submissionsToCreate.length + 1}`,
               timestamp: new Date().toISOString(),
               contactInfo: {
-                name: contactInfo.name,
-                email: contactInfo.email,
+                name: userName,
+                email: userEmail,
                 confirmMethod: 'email'
               },
               betAmount: betAmount,
@@ -1429,8 +1439,8 @@ const saveSubmission = async (submission) => {
         ticketNumber: ticketNum,
         timestamp: new Date().toISOString(),
         contactInfo: {
-          name: contactInfo.name,
-          email: contactInfo.email,
+          name: userName,
+          email: userEmail,
           confirmMethod: 'email'
         },
         betAmount: totalStake,
@@ -1504,8 +1514,8 @@ const saveSubmission = async (submission) => {
         body: JSON.stringify({
           ticketNumber: ticketNum,
           contactInfo: {
-            name: contactInfo.name,
-            email: contactInfo.email,
+            name: userName,
+            email: userEmail,
           },
           picks: allPicks,
           betAmount: totalStake,
@@ -1605,6 +1615,7 @@ const saveSubmission = async (submission) => {
           MIN_BET={MIN_BET}
           MAX_BET={MAX_BET}
           userCredit={userCredit}
+          shouldCollapse={collapseBettingSlip}
         />
         
         {/* Mobile Bottom Navigation - Always Visible - For No Games State */}
@@ -1826,6 +1837,7 @@ const saveSubmission = async (submission) => {
         MIN_BET={MIN_BET}
         MAX_BET={MAX_BET}
         userCredit={userCredit}
+        shouldCollapse={collapseBettingSlip}
       />
       
       {/* Mobile Bottom Navigation - Always Visible */}
@@ -1952,6 +1964,35 @@ function MemberSportRoute({
 }) {
   const { sport } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
+  const [collapseBettingSlip, setCollapseBettingSlip] = useState(false);
+  
+  // Helper function to trigger collapse with automatic reset
+  const triggerCollapseWithReset = () => {
+    setCollapseBettingSlip(true);
+    setTimeout(() => setCollapseBettingSlip(false), COLLAPSE_RESET_DELAY);
+  };
+  
+  // Issue #1: Detect when returning from dashboard and collapse betting slip
+  const collapseProcessedRef = useRef(false);
+  
+  useEffect(() => {
+    // Check location state (from React Router navigation)
+    if (location.state?.from === 'dashboard' && location.state?.collapseBettingSlip && !collapseProcessedRef.current) {
+      collapseProcessedRef.current = true;
+      triggerCollapseWithReset();
+      // Clear the state using navigate to avoid React Router conflicts
+      navigate(location.pathname, { replace: true, state: {} });
+    }
+    
+    // Check sessionStorage (from window.location.href navigation)
+    const shouldCollapse = sessionStorage.getItem(COLLAPSE_FLAG_KEY);
+    if (shouldCollapse === 'true') {
+      triggerCollapseWithReset();
+      // Clear the flag
+      sessionStorage.removeItem(COLLAPSE_FLAG_KEY);
+    }
+  }, [location.state, location.pathname, navigate]);
   
   useEffect(() => {
     if (sport === 'prop-bets') {
@@ -1998,9 +2039,10 @@ function MemberSportRoute({
       propBets={propBets}
       propBetsLoading={propBetsLoading}
       propBetsError={propBetsError}
-      onNavigateToDashboard={() => navigate('/member/dashboard')}
+      onNavigateToDashboard={() => navigate('/member/dashboard', { state: { from: 'home' } })}
       userCredit={userCredit}
       onRefreshCredit={onRefreshCredit}
+      collapseBettingSlip={collapseBettingSlip}
     />
   );
 }
