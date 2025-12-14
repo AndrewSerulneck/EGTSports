@@ -917,6 +917,22 @@ input[type="number"]:focus {
         color: #666;
     }
 
+    /* Active tab styling - Mobile-First Design */
+    .mobile-nav-btn-active {
+        background: linear-gradient(135deg, #3b82f6, #2563eb) !important;
+        box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+        transform: scale(1.05);
+    }
+
+    .mobile-nav-btn-active .mobile-nav-icon,
+    .mobile-nav-btn-active .mobile-nav-label {
+        color: white !important;
+    }
+
+    .mobile-nav-btn-active:hover {
+        background: linear-gradient(135deg, #2563eb, #1d4ed8) !important;
+    }
+
     /* Add bottom padding to main content to prevent overlap with fixed nav and betting slip */
     .mobile-with-bottom-nav .main-content,
     .mobile-with-bottom-nav .container {
