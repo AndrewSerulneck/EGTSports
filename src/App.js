@@ -767,7 +767,7 @@ function AdminLandingPage({ onManageUsers, onViewSubmissions, onSignOut }) {
   );
 }
 
-function LandingPage({ games, allSportsGames, currentViewSport, onChangeSport, loading, onBackToMenu, sport, betType, onBetTypeChange, apiError, onManualRefresh, lastRefreshTime, propBets, propBetsLoading, propBetsError, onSignOut, isRefreshing, onNavigateToDashboard, userCredit, onRefreshCredit }) {
+function LandingPage({ games, allSportsGames, currentViewSport, onChangeSport, loading, onBackToMenu, sport, betType, onBetTypeChange, apiError, onManualRefresh, lastRefreshTime, propBets, propBetsLoading, propBetsError, onSignOut, isRefreshing, onNavigateToDashboard, userCredit, onRefreshCredit, collapseBettingSlip }) {
   const [selectedPicks, setSelectedPicks] = useState({});
   const [ticketNumber, setTicketNumber] = useState('');
   const [contactInfo, setContactInfo] = useState({ name: '', email: '', betAmount: '' });
@@ -1155,10 +1155,16 @@ const saveSubmission = async (submission) => {
   const handleWagerSubmission = async (ticketNum) => {
     const getPickId = (gameId, pickType) => `${gameId}-${pickType}`;
     
-    if (!contactInfo.name || !contactInfo.email) {
-      alert('Please fill in all contact information in your user profile');
+    // Get authenticated user info from Firebase
+    const currentUser = auth.currentUser;
+    if (!currentUser) {
+      alert('You must be logged in to place a bet');
       return;
     }
+    
+    // Use authenticated user's email and UID for tracking
+    const userEmail = currentUser.email || 'member@egtsports.com';
+    const userName = currentUser.displayName || userEmail.split('@')[0];
     
     const { totalStake } = checkoutCalculations;
     const picksFormatted = [];
@@ -1274,8 +1280,8 @@ const saveSubmission = async (submission) => {
               ticketNumber: `${ticketNum}-${submissionsToCreate.length + 1}`,
               timestamp: new Date().toISOString(),
               contactInfo: {
-                name: contactInfo.name,
-                email: contactInfo.email,
+                name: userName,
+                email: userEmail,
                 confirmMethod: 'email'
               },
               betAmount: betAmount,
@@ -1315,8 +1321,8 @@ const saveSubmission = async (submission) => {
               ticketNumber: `${ticketNum}-${submissionsToCreate.length + 1}`,
               timestamp: new Date().toISOString(),
               contactInfo: {
-                name: contactInfo.name,
-                email: contactInfo.email,
+                name: userName,
+                email: userEmail,
                 confirmMethod: 'email'
               },
               betAmount: betAmount,
@@ -1353,8 +1359,8 @@ const saveSubmission = async (submission) => {
               ticketNumber: `${ticketNum}-${submissionsToCreate.length + 1}`,
               timestamp: new Date().toISOString(),
               contactInfo: {
-                name: contactInfo.name,
-                email: contactInfo.email,
+                name: userName,
+                email: userEmail,
                 confirmMethod: 'email'
               },
               betAmount: betAmount,
@@ -1429,8 +1435,8 @@ const saveSubmission = async (submission) => {
         ticketNumber: ticketNum,
         timestamp: new Date().toISOString(),
         contactInfo: {
-          name: contactInfo.name,
-          email: contactInfo.email,
+          name: userName,
+          email: userEmail,
           confirmMethod: 'email'
         },
         betAmount: totalStake,
@@ -1504,8 +1510,8 @@ const saveSubmission = async (submission) => {
         body: JSON.stringify({
           ticketNumber: ticketNum,
           contactInfo: {
-            name: contactInfo.name,
-            email: contactInfo.email,
+            name: userName,
+            email: userEmail,
           },
           picks: allPicks,
           betAmount: totalStake,
@@ -1605,6 +1611,7 @@ const saveSubmission = async (submission) => {
           MIN_BET={MIN_BET}
           MAX_BET={MAX_BET}
           userCredit={userCredit}
+          forceCollapse={collapseBettingSlip}
         />
         
         {/* Mobile Bottom Navigation - Always Visible - For No Games State */}
@@ -1826,6 +1833,7 @@ const saveSubmission = async (submission) => {
         MIN_BET={MIN_BET}
         MAX_BET={MAX_BET}
         userCredit={userCredit}
+        forceCollapse={collapseBettingSlip}
       />
       
       {/* Mobile Bottom Navigation - Always Visible */}
@@ -1952,6 +1960,30 @@ function MemberSportRoute({
 }) {
   const { sport } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
+  const [collapseBettingSlip, setCollapseBettingSlip] = useState(false);
+  
+  // Issue #1: Detect when returning from dashboard and collapse betting slip
+  useEffect(() => {
+    // Check location state (from React Router navigation)
+    if (location.state?.from === 'dashboard' && location.state?.collapseBettingSlip) {
+      setCollapseBettingSlip(true);
+      // Reset after brief delay to allow prop to be processed
+      setTimeout(() => setCollapseBettingSlip(false), 100);
+      // Clear the state so it doesn't persist
+      window.history.replaceState({}, document.title);
+    }
+    
+    // Check sessionStorage (from window.location.href navigation)
+    const shouldCollapse = sessionStorage.getItem('collapseBettingSlipOnReturn');
+    if (shouldCollapse === 'true') {
+      setCollapseBettingSlip(true);
+      // Reset after brief delay
+      setTimeout(() => setCollapseBettingSlip(false), 100);
+      // Clear the flag
+      sessionStorage.removeItem('collapseBettingSlipOnReturn');
+    }
+  }, [location.state, location.pathname]);
   
   useEffect(() => {
     if (sport === 'prop-bets') {
@@ -1998,9 +2030,10 @@ function MemberSportRoute({
       propBets={propBets}
       propBetsLoading={propBetsLoading}
       propBetsError={propBetsError}
-      onNavigateToDashboard={() => navigate('/member/dashboard')}
+      onNavigateToDashboard={() => navigate('/member/dashboard', { state: { from: 'home' } })}
       userCredit={userCredit}
       onRefreshCredit={onRefreshCredit}
+      collapseBettingSlip={collapseBettingSlip}
     />
   );
 }

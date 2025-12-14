@@ -1217,6 +1217,8 @@ function MemberDashboardApp() {
         onBack={() => {
           // Navigate back to the main betting page
           // Use window.history to go back or navigate to a specific page
+          // Issue #1: Set flag to collapse betting slip when returning to Home
+          sessionStorage.setItem('collapseBettingSlipOnReturn', 'true');
           if (window.history.length > 1) {
             window.history.back();
           } else {
@@ -1252,6 +1254,8 @@ function MemberDashboardApp() {
             // NOTE: Using window.location.href is intentional here
             // This component doesn't have access to React Router context
             // See documentation at top of file for details
+            // Issue #1: Set flag to collapse betting slip when returning to Home
+            sessionStorage.setItem('collapseBettingSlipOnReturn', 'true');
             window.location.href = '/member/NFL';
           }}
           className="mobile-nav-btn"
