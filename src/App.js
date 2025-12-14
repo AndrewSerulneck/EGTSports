@@ -1674,7 +1674,8 @@ const saveSubmission = async (submission) => {
     );
   }
 
-  return (
+  if (games.length === 0 && hasGamesInAllSports) {
+    return (
       <div className="gradient-bg main-layout-wrapper mobile-with-bottom-nav">
         <MobileSportsMenu
             currentSport={currentViewSport}
