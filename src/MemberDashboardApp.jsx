@@ -1235,8 +1235,10 @@ function MemberDashboardApp() {
       <div className="mobile-bottom-nav">
         <button 
           onClick={() => {
-            // Trigger wager resolution by calling the Dashboard resolution logic
-            // Force a component re-mount which will trigger the useEffect in Dashboard
+            // NOTE: Using window.location.reload() is intentional here
+            // This is a standalone component without access to parent state
+            // Reloading triggers the Dashboard's useEffect which calls the resolution APIs
+            // Alternative: Implement a custom event system or shared state management
             window.location.reload();
           }}
           className="mobile-nav-btn"
@@ -1247,6 +1249,9 @@ function MemberDashboardApp() {
         </button>
         <button 
           onClick={() => {
+            // NOTE: Using window.location.href is intentional here
+            // This component doesn't have access to React Router context
+            // See documentation at top of file for details
             window.location.href = '/member/NFL';
           }}
           className="mobile-nav-btn"
@@ -1263,8 +1268,13 @@ function MemberDashboardApp() {
           <span className="mobile-nav-label">My Bets</span>
         </button>
         <button 
-          onClick={() => {
-            // Sign out - clear auth and redirect to login
+          onClick={async () => {
+            // NOTE: Sign out should be handled by the parent App component
+            // which has proper auth context and state management
+            // For now, redirecting to root will trigger the auth check
+            // and the user will be sent to login if not authenticated
+            // TODO: If this component ever gains access to auth context,
+            // call auth.signOut() before redirecting
             window.location.href = '/';
           }}
           className="mobile-nav-btn"

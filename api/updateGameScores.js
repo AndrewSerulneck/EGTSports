@@ -65,14 +65,18 @@ const ESPN_API_ENDPOINTS = {
   'NHL': 'https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard'
 };
 
+// Configuration constants
+const GAME_LOOKBACK_DAYS = 7; // How many days back to check for completed games
+const SPORT_API_DELAY_MS = 500; // Delay between sport API calls to prevent rate limiting
+
 // Helper function to get date range URLs for ESPN API
-// Fetches events from today to 7 days in the past (to catch recently completed games)
+// Fetches events from today to GAME_LOOKBACK_DAYS days in the past (to catch recently completed games)
 const getESPNDateRangeURLs = (baseURL) => {
   const urls = [];
   const today = new Date();
   
-  // Check past 7 days plus today for recently completed games
-  for (let i = -7; i <= 0; i++) {
+  // Check past GAME_LOOKBACK_DAYS plus today for recently completed games
+  for (let i = -GAME_LOOKBACK_DAYS; i <= 0; i++) {
     const date = new Date(today);
     date.setDate(date.getDate() + i);
     const dateStr = date.toISOString().split('T')[0].replace(/-/g, ''); // Format: YYYYMMDD
@@ -221,7 +225,7 @@ module.exports = async (req, res) => {
       // Add a small delay between API calls to avoid overwhelming ESPN API
       // This is especially important for the free tier which may have rate limits
       if (results.length < allSports.length) {
-        await new Promise(resolve => setTimeout(resolve, 500)); // 500ms delay between sports
+        await new Promise(resolve => setTimeout(resolve, SPORT_API_DELAY_MS));
       }
     }
 
