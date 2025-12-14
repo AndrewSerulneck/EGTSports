@@ -1967,6 +1967,12 @@ function MemberSportRoute({
   const location = useLocation();
   const [collapseBettingSlip, setCollapseBettingSlip] = useState(false);
   
+  // Helper function to trigger collapse with automatic reset
+  const triggerCollapseWithReset = () => {
+    setCollapseBettingSlip(true);
+    setTimeout(() => setCollapseBettingSlip(false), COLLAPSE_RESET_DELAY);
+  };
+  
   // Issue #1: Detect when returning from dashboard and collapse betting slip
   const collapseProcessedRef = useRef(false);
   
@@ -1974,9 +1980,7 @@ function MemberSportRoute({
     // Check location state (from React Router navigation)
     if (location.state?.from === 'dashboard' && location.state?.collapseBettingSlip && !collapseProcessedRef.current) {
       collapseProcessedRef.current = true;
-      setCollapseBettingSlip(true);
-      // Reset after brief delay to allow prop to be processed
-      setTimeout(() => setCollapseBettingSlip(false), COLLAPSE_RESET_DELAY);
+      triggerCollapseWithReset();
       // Clear the state using navigate to avoid React Router conflicts
       navigate(location.pathname, { replace: true, state: {} });
     }
@@ -1984,9 +1988,7 @@ function MemberSportRoute({
     // Check sessionStorage (from window.location.href navigation)
     const shouldCollapse = sessionStorage.getItem(COLLAPSE_FLAG_KEY);
     if (shouldCollapse === 'true') {
-      setCollapseBettingSlip(true);
-      // Reset after brief delay
-      setTimeout(() => setCollapseBettingSlip(false), COLLAPSE_RESET_DELAY);
+      triggerCollapseWithReset();
       // Clear the flag
       sessionStorage.removeItem(COLLAPSE_FLAG_KEY);
     }
