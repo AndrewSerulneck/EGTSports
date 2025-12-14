@@ -57,6 +57,11 @@ if (admin) {
 
 // Simple in-memory rate limiting for public endpoint abuse prevention
 // Tracks last resolution time to prevent excessive calls
+// NOTE: This is suitable for low-traffic Hobby plan deployments
+// For production with multiple serverless instances, consider:
+// - Redis-based rate limiting
+// - Database-backed rate limiting
+// - External rate limiting service (e.g., Vercel Edge Config)
 let lastPublicResolutionTime = 0;
 const PUBLIC_RESOLUTION_COOLDOWN = 30000; // 30 seconds minimum between public calls
 
@@ -377,7 +382,14 @@ module.exports = async (req, res) => {
         }
       } else if (providedCronSecret) {
         // If a cron secret is provided, verify it (for scheduled invocations)
-        if (cronSecret && providedCronSecret !== cronSecret) {
+        // Require that CRON_SECRET is configured in environment
+        if (!cronSecret) {
+          return res.status(500).json({
+            success: false,
+            error: 'Server configuration error: CRON_SECRET not configured'
+          });
+        }
+        if (providedCronSecret !== cronSecret) {
           return res.status(401).json({ 
             success: false, 
             error: 'Unauthorized: Invalid cron secret'

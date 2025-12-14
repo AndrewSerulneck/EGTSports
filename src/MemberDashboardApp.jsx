@@ -871,6 +871,9 @@ const WAGER_RESOLUTION_DELAY = 1000; // Delay before triggering resolution (ms)
 const RESOLUTION_COOLDOWN = 60000; // Minimum time between resolution attempts (ms)
 
 // Module-level state to prevent excessive resolution calls
+// NOTE: This is shared across component instances which is intentional
+// to prevent multiple users triggering resolution simultaneously
+// For production with high concurrency, consider sessionStorage or React Context
 let lastResolutionTime = 0;
 
 function Dashboard({ userId, db, rtdb }) {
