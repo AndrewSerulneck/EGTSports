@@ -75,9 +75,32 @@ const ESPN_API_ENDPOINTS = {
   'NHL': 'https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard'
 };
 
-// Fetch game data from ESPN API
-async function fetchGameData(gameId, sport) {
+// Fetch game data - first check cached results, then fall back to ESPN API
+async function fetchGameData(gameId, sport, db) {
   try {
+    // Step 1: Try to get cached results from database (populated by updateGameScores)
+    if (db) {
+      try {
+        const cachedResult = await db.ref(`gameResults/${sport}/${gameId}`).once('value');
+        if (cachedResult.exists()) {
+          const data = cachedResult.val();
+          console.log(`Using cached game result for ${gameId}`);
+          return {
+            id: gameId,
+            status: data.status,
+            isFinal: data.isFinal,
+            awayScore: data.awayScore,
+            homeScore: data.homeScore,
+            awayTeam: data.awayTeam,
+            homeTeam: data.homeTeam
+          };
+        }
+      } catch (dbError) {
+        console.warn(`Database lookup failed for ${gameId}, falling back to API:`, dbError);
+      }
+    }
+    
+    // Step 2: Fall back to ESPN API if not in cache
     const baseUrl = ESPN_API_ENDPOINTS[sport];
     if (!baseUrl) {
       console.error(`Unknown sport: ${sport}`);
@@ -211,7 +234,7 @@ async function resolveWager(wagerId, wagerData, db) {
     let allGamesComplete = true;
 
     for (const pick of picks) {
-      const gameData = await fetchGameData(pick.gameId, pick.sport);
+      const gameData = await fetchGameData(pick.gameId, pick.sport, db);
       
       if (!gameData) {
         console.log(`Game data not available for ${pick.gameId}`);
