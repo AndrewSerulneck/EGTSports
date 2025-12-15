@@ -777,7 +777,7 @@ function LandingPage({ games, allSportsGames, currentViewSport, onChangeSport, l
   const [contactInfo, setContactInfo] = useState({ name: '', email: '', betAmount: '' });
   const [individualBetAmounts, setIndividualBetAmounts] = useState({});
   const [submissions, setSubmissions] = useState([]);
-  const [hasSubmitted, setHasSubmitted] = useState(false);
+  const [submissionSuccess, setSubmissionSuccess] = useState(null); // Changed: Track success state instead of hasSubmitted
   const processedTicketsRef = useRef(new Set());
 
   const calculateAmericanOddsPayout = (stake, odds) => {
@@ -1531,14 +1531,17 @@ const saveSubmission = async (submission) => {
       console.error('❌ Email error:', emailError);
     }
     
-    setHasSubmitted(true);
+    // Set success state with ticket number for inline notification
+    setSubmissionSuccess(ticketNum);
     
-    // Show success message and navigate to My Bets after a brief delay
+    // Reset betting slip immediately
+    setSelectedPicks({});
+    setIndividualBetAmounts({});
+    setContactInfo({ name: '', email: '', betAmount: '' });
+    
+    // Clear success notification after 3 seconds
     setTimeout(() => {
-      setHasSubmitted(false);
-      setSelectedPicks({});
-      setIndividualBetAmounts({});
-      onNavigateToDashboard();
+      setSubmissionSuccess(null);
     }, 3000);
   };
 
@@ -1616,6 +1619,7 @@ const saveSubmission = async (submission) => {
           MAX_BET={MAX_BET}
           userCredit={userCredit}
           shouldCollapse={collapseBettingSlip}
+          submissionSuccess={submissionSuccess}
         />
         
         {/* Mobile Bottom Navigation - Always Visible - For No Games State */}
@@ -1717,36 +1721,7 @@ const saveSubmission = async (submission) => {
 
 
   // Show success message after submission (hasSubmitted state is managed in handleWagerSubmission)
-  if (hasSubmitted) {
-    return (
-      <div className="gradient-bg" style={{display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh'}}>
-        <div className="card" style={{maxWidth: '500px', textAlign: 'center'}}>
-          <div style={{fontSize: '64px', marginBottom: '20px'}}>✅</div>
-          <h2 style={{color: '#28a745', marginBottom: '16px'}}>Wager Submitted Successfully!</h2>
-          <div style={{background: '#f8f9fa', padding: '20px', borderRadius: '8px', marginBottom: '24px'}}>
-            <div style={{fontSize: '12px', color: '#666', marginBottom: '8px'}}>TICKET NUMBER</div>
-            <div style={{fontSize: '24px', fontWeight: 'bold', color: '#28a745'}}>{ticketNumber}</div>
-          </div>
-          <p style={{marginBottom: '24px', color: '#666'}}>
-            Keep your ticket number safe! Your wager is now visible in "My Bets".
-          </p>
-          <div style={{
-            marginTop: '24px',
-            background: 'rgba(40, 167, 69, 0.1)',
-            border: '2px solid rgba(40, 167, 69, 0.3)',
-            borderRadius: '12px',
-            padding: '16px',
-            textAlign: 'center'
-          }}>
-            <p style={{fontSize: '14px', marginBottom: '8px', lineHeight: '1.6'}}>
-              Redirecting to My Bets...
-            </p>
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-600 mx-auto"></div>
-          </div>
-        </div>
-      </div>
-    );
-  }
+  // REMOVED: No longer showing full-page confirmation screen - notification is inline in BettingSlip
 
   return (
     <div className="gradient-bg main-layout-wrapper mobile-with-bottom-nav">
@@ -1838,6 +1813,7 @@ const saveSubmission = async (submission) => {
         MAX_BET={MAX_BET}
         userCredit={userCredit}
         shouldCollapse={collapseBettingSlip}
+        submissionSuccess={submissionSuccess}
       />
       
       {/* Mobile Bottom Navigation - Always Visible */}
