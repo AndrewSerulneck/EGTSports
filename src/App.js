@@ -19,6 +19,7 @@ import GridBettingLayout from './components/GridBettingLayout';
 import PropBetsView from './components/PropBetsView';
 import BettingSlip from './components/BettingSlip';
 import MemberDashboardApp from './MemberDashboardApp';
+import MemberContainer from './components/MemberContainer';
 
 // Constants for betting slip state management (Issue #1)
 const COLLAPSE_RESET_DELAY = 100; // ms - delay before resetting collapse state
@@ -3016,16 +3017,10 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
         )
       } />
 
-      {/* Member routes - require authentication */}
+      {/* Member routes - unified container for seamless tab switching */}
+      {/* Both /member/:sport and /member/dashboard use the same container */}
+      {/* This keeps both Home and My Bets views mounted, eliminating loading delays */}
       <Route path="/member/dashboard" element={
-        !authState.user || authState.isAdmin ? (
-          <Navigate to="/login/user" replace />
-        ) : (
-          <MemberDashboardApp />
-        )
-      } />
-
-      <Route path="/member/:sport" element={
         !authState.user || authState.isAdmin ? (
           <Navigate to="/login/user" replace />
         ) : loading && !apiError ? (
@@ -3035,7 +3030,7 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
             </div>
           </div>
         ) : (
-          <MemberSportRoute
+          <MemberContainer
             games={games}
             allSportsGames={allSportsGames}
             betType={betType}
@@ -3055,6 +3050,42 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
             loadAllPropBets={loadAllPropBets}
             userCredit={userCredit}
             onRefreshCredit={refreshUserCredit}
+            LandingPage={LandingPage}
+          />
+        )
+      } />
+
+      <Route path="/member/:sport" element={
+        !authState.user || authState.isAdmin ? (
+          <Navigate to="/login/user" replace />
+        ) : loading && !apiError ? (
+          <div className="gradient-bg" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh' }}>
+            <div className="text-white" style={{ fontSize: '24px' }}>
+              Loading games...
+            </div>
+          </div>
+        ) : (
+          <MemberContainer
+            games={games}
+            allSportsGames={allSportsGames}
+            betType={betType}
+            onBetTypeChange={setBetType}
+            loading={loading}
+            apiError={apiError}
+            onManualRefresh={handleManualRefresh}
+            lastRefreshTime={lastRefreshTime}
+            onSignOut={handleSignOut}
+            isRefreshing={isRefreshing}
+            propBets={propBets}
+            propBetsLoading={propBetsLoading}
+            propBetsError={propBetsError}
+            setCurrentViewSport={setCurrentViewSport}
+            currentViewSportRef={currentViewSportRef}
+            setGames={setGames}
+            loadAllPropBets={loadAllPropBets}
+            userCredit={userCredit}
+            onRefreshCredit={refreshUserCredit}
+            LandingPage={LandingPage}
           />
         )
       } />
