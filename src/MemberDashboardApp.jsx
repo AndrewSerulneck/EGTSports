@@ -983,16 +983,16 @@ function Dashboard({ userId, db, rtdb }) {
 // ============================================================================
 // Header Component - Mobile-First: Back button only shows on desktop
 // ============================================================================
-function Header({ userId, db, onBack }) {
+function Header({ userId, db, onBack, onNavigateHome }) {
   return (
     <header className="bg-blue-600 shadow-lg sticky top-0 z-30">
       <div className="max-w-3xl mx-auto px-4 py-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             {/* Back button only visible on desktop (hidden on mobile) */}
-            {onBack && (
+            {(onBack || onNavigateHome) && (
               <button
-                onClick={onBack}
+                onClick={onBack || onNavigateHome}
                 className="hidden md:block p-2 rounded-lg bg-blue-500 hover:bg-blue-400 active:bg-blue-700 transition-colors focus:outline-none focus:ring-2 focus:ring-white shadow-md"
                 aria-label="Back to Betting"
               >
@@ -1076,7 +1076,7 @@ function FatalErrorScreen({ title, message, onRetry }) {
 // ============================================================================
 // Main App Component
 // ============================================================================
-function MemberDashboardApp() {
+function MemberDashboardApp({ onNavigateToHome }) {
   const [userId, setUserId] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [loadingError, setLoadingError] = useState(null);
@@ -1219,16 +1219,22 @@ function MemberDashboardApp() {
       <Header 
         userId={userId} 
         db={db} 
+        onNavigateHome={onNavigateToHome}
         onBack={() => {
-          // Navigate back to the main betting page
-          // Use window.history to go back or navigate to a specific page
-          // Issue #1: Set flag to collapse betting slip when returning to Home
-          sessionStorage.setItem(COLLAPSE_FLAG_KEY, 'true');
-          if (window.history.length > 1) {
-            window.history.back();
+          // Fallback: Use prop if provided, otherwise use default navigation
+          if (onNavigateToHome) {
+            onNavigateToHome();
           } else {
-            // Fallback: redirect to NFL betting page
-            window.location.href = '/member/NFL';
+            // Navigate back to the main betting page
+            // Use window.history to go back or navigate to a specific page
+            // Issue #1: Set flag to collapse betting slip when returning to Home
+            sessionStorage.setItem(COLLAPSE_FLAG_KEY, 'true');
+            if (window.history.length > 1) {
+              window.history.back();
+            } else {
+              // Fallback: redirect to NFL betting page
+              window.location.href = '/member/NFL';
+            }
           }
         }}
       />
@@ -1256,12 +1262,17 @@ function MemberDashboardApp() {
         </button>
         <button 
           onClick={() => {
-            // NOTE: Using window.location.href is intentional here
-            // This component doesn't have access to React Router context
-            // See documentation at top of file for details
-            // Issue #1: Set flag to collapse betting slip when returning to Home
-            sessionStorage.setItem(COLLAPSE_FLAG_KEY, 'true');
-            window.location.href = '/member/NFL';
+            // Use prop if provided, otherwise use default navigation
+            if (onNavigateToHome) {
+              onNavigateToHome();
+            } else {
+              // NOTE: Using window.location.href is intentional here
+              // This component doesn't have access to React Router context
+              // See documentation at top of file for details
+              // Issue #1: Set flag to collapse betting slip when returning to Home
+              sessionStorage.setItem(COLLAPSE_FLAG_KEY, 'true');
+              window.location.href = '/member/NFL';
+            }
           }}
           className="mobile-nav-btn"
           title="Go to betting page"

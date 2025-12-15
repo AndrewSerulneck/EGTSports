@@ -19,6 +19,7 @@ import GridBettingLayout from './components/GridBettingLayout';
 import PropBetsView from './components/PropBetsView';
 import BettingSlip from './components/BettingSlip';
 import MemberDashboardApp from './MemberDashboardApp';
+import MemberContainer from './components/MemberContainer';
 
 // Constants for betting slip state management (Issue #1)
 const COLLAPSE_RESET_DELAY = 100; // ms - delay before resetting collapse state
@@ -777,7 +778,7 @@ function LandingPage({ games, allSportsGames, currentViewSport, onChangeSport, l
   const [contactInfo, setContactInfo] = useState({ name: '', email: '', betAmount: '' });
   const [individualBetAmounts, setIndividualBetAmounts] = useState({});
   const [submissions, setSubmissions] = useState([]);
-  const [hasSubmitted, setHasSubmitted] = useState(false);
+  const [submissionSuccess, setSubmissionSuccess] = useState(null); // Changed: Track success state instead of hasSubmitted
   const processedTicketsRef = useRef(new Set());
 
   const calculateAmericanOddsPayout = (stake, odds) => {
@@ -1531,14 +1532,17 @@ const saveSubmission = async (submission) => {
       console.error('❌ Email error:', emailError);
     }
     
-    setHasSubmitted(true);
+    // Set success state with ticket number for inline notification
+    setSubmissionSuccess(ticketNum);
     
-    // Show success message and navigate to My Bets after a brief delay
+    // Reset betting slip immediately
+    setSelectedPicks({});
+    setIndividualBetAmounts({});
+    setContactInfo({ name: '', email: '', betAmount: '' });
+    
+    // Clear success notification after 3 seconds
     setTimeout(() => {
-      setHasSubmitted(false);
-      setSelectedPicks({});
-      setIndividualBetAmounts({});
-      onNavigateToDashboard();
+      setSubmissionSuccess(null);
     }, 3000);
   };
 
@@ -1616,6 +1620,7 @@ const saveSubmission = async (submission) => {
           MAX_BET={MAX_BET}
           userCredit={userCredit}
           shouldCollapse={collapseBettingSlip}
+          submissionSuccess={submissionSuccess}
         />
         
         {/* Mobile Bottom Navigation - Always Visible - For No Games State */}
@@ -1717,36 +1722,7 @@ const saveSubmission = async (submission) => {
 
 
   // Show success message after submission (hasSubmitted state is managed in handleWagerSubmission)
-  if (hasSubmitted) {
-    return (
-      <div className="gradient-bg" style={{display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh'}}>
-        <div className="card" style={{maxWidth: '500px', textAlign: 'center'}}>
-          <div style={{fontSize: '64px', marginBottom: '20px'}}>✅</div>
-          <h2 style={{color: '#28a745', marginBottom: '16px'}}>Wager Submitted Successfully!</h2>
-          <div style={{background: '#f8f9fa', padding: '20px', borderRadius: '8px', marginBottom: '24px'}}>
-            <div style={{fontSize: '12px', color: '#666', marginBottom: '8px'}}>TICKET NUMBER</div>
-            <div style={{fontSize: '24px', fontWeight: 'bold', color: '#28a745'}}>{ticketNumber}</div>
-          </div>
-          <p style={{marginBottom: '24px', color: '#666'}}>
-            Keep your ticket number safe! Your wager is now visible in "My Bets".
-          </p>
-          <div style={{
-            marginTop: '24px',
-            background: 'rgba(40, 167, 69, 0.1)',
-            border: '2px solid rgba(40, 167, 69, 0.3)',
-            borderRadius: '12px',
-            padding: '16px',
-            textAlign: 'center'
-          }}>
-            <p style={{fontSize: '14px', marginBottom: '8px', lineHeight: '1.6'}}>
-              Redirecting to My Bets...
-            </p>
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-600 mx-auto"></div>
-          </div>
-        </div>
-      </div>
-    );
-  }
+  // REMOVED: No longer showing full-page confirmation screen - notification is inline in BettingSlip
 
   return (
     <div className="gradient-bg main-layout-wrapper mobile-with-bottom-nav">
@@ -1838,6 +1814,7 @@ const saveSubmission = async (submission) => {
         MAX_BET={MAX_BET}
         userCredit={userCredit}
         shouldCollapse={collapseBettingSlip}
+        submissionSuccess={submissionSuccess}
       />
       
       {/* Mobile Bottom Navigation - Always Visible */}
@@ -1937,112 +1914,6 @@ function AdminSportRoute({
       submissions={submissions}
       sport={sport}
       onBackToMenu={() => navigate('/admin/dashboard')}
-    />
-  );
-}
-
-function MemberSportRoute({
-  games,
-  allSportsGames,
-  betType,
-  onBetTypeChange,
-  loading,
-  apiError,
-  onManualRefresh,
-  lastRefreshTime,
-  onSignOut,
-  isRefreshing,
-  propBets,
-  propBetsLoading,
-  propBetsError,
-  setCurrentViewSport,
-  currentViewSportRef,
-  setGames,
-  loadAllPropBets,
-  userCredit,
-  onRefreshCredit
-}) {
-  const { sport } = useParams();
-  const navigate = useNavigate();
-  const location = useLocation();
-  const [collapseBettingSlip, setCollapseBettingSlip] = useState(false);
-  
-  // Helper function to trigger collapse with automatic reset
-  const triggerCollapseWithReset = () => {
-    setCollapseBettingSlip(true);
-    setTimeout(() => setCollapseBettingSlip(false), COLLAPSE_RESET_DELAY);
-  };
-  
-  // Issue #1: Detect when returning from dashboard and collapse betting slip
-  const collapseProcessedRef = useRef(false);
-  
-  useEffect(() => {
-    // Check location state (from React Router navigation)
-    if (location.state?.from === 'dashboard' && location.state?.collapseBettingSlip && !collapseProcessedRef.current) {
-      collapseProcessedRef.current = true;
-      triggerCollapseWithReset();
-      // Clear the state using navigate to avoid React Router conflicts
-      navigate(location.pathname, { replace: true, state: {} });
-    }
-    
-    // Check sessionStorage (from window.location.href navigation)
-    const shouldCollapse = sessionStorage.getItem(COLLAPSE_FLAG_KEY);
-    if (shouldCollapse === 'true') {
-      triggerCollapseWithReset();
-      // Clear the flag
-      sessionStorage.removeItem(COLLAPSE_FLAG_KEY);
-    }
-  }, [location.state, location.pathname, navigate]);
-  
-  useEffect(() => {
-    if (sport === 'prop-bets') {
-      setCurrentViewSport('Prop Bets');
-      currentViewSportRef.current = 'Prop Bets';
-      setGames([]);
-      if (Object.keys(propBets).length === 0 && !propBetsLoading) {
-        loadAllPropBets();
-      }
-    } else {
-      const gamesForSport = allSportsGames[sport] || [];
-      setCurrentViewSport(sport);
-      currentViewSportRef.current = sport;
-      setGames(gamesForSport);
-    }
-  }, [sport, allSportsGames, propBets, propBetsLoading, setCurrentViewSport, currentViewSportRef, setGames, loadAllPropBets]);
-  
-  const currentSport = sport === 'prop-bets' ? 'Prop Bets' : sport;
-  
-  const handleChangeSport = (newSport) => {
-    if (newSport === 'Prop Bets') {
-      navigate('/member/prop-bets');
-    } else {
-      navigate(`/member/${newSport}`);
-    }
-  };
-  
-  return (
-    <LandingPage
-      games={games}
-      allSportsGames={allSportsGames}
-      currentViewSport={currentSport}
-      onChangeSport={handleChangeSport}
-      loading={loading}
-      onBackToMenu={onSignOut}
-      sport={currentSport}
-      betType={betType}
-      onBetTypeChange={onBetTypeChange}
-      apiError={apiError}
-      onManualRefresh={onManualRefresh}
-      lastRefreshTime={lastRefreshTime}
-      onSignOut={onSignOut}
-      isRefreshing={isRefreshing}
-      propBets={propBets}
-      propBetsLoading={propBetsLoading}
-      propBetsError={propBetsError}
-      onNavigateToDashboard={() => navigate('/member/dashboard', { state: { from: 'home' } })}
-      userCredit={userCredit}
-      onRefreshCredit={onRefreshCredit}
-      collapseBettingSlip={collapseBettingSlip}
     />
   );
 }
@@ -3040,16 +2911,10 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
         )
       } />
 
-      {/* Member routes - require authentication */}
+      {/* Member routes - unified container for seamless tab switching */}
+      {/* Both /member/:sport and /member/dashboard use the same container */}
+      {/* This keeps both Home and My Bets views mounted, eliminating loading delays */}
       <Route path="/member/dashboard" element={
-        !authState.user || authState.isAdmin ? (
-          <Navigate to="/login/user" replace />
-        ) : (
-          <MemberDashboardApp />
-        )
-      } />
-
-      <Route path="/member/:sport" element={
         !authState.user || authState.isAdmin ? (
           <Navigate to="/login/user" replace />
         ) : loading && !apiError ? (
@@ -3059,7 +2924,7 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
             </div>
           </div>
         ) : (
-          <MemberSportRoute
+          <MemberContainer
             games={games}
             allSportsGames={allSportsGames}
             betType={betType}
@@ -3079,6 +2944,42 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
             loadAllPropBets={loadAllPropBets}
             userCredit={userCredit}
             onRefreshCredit={refreshUserCredit}
+            LandingPage={LandingPage}
+          />
+        )
+      } />
+
+      <Route path="/member/:sport" element={
+        !authState.user || authState.isAdmin ? (
+          <Navigate to="/login/user" replace />
+        ) : loading && !apiError ? (
+          <div className="gradient-bg" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh' }}>
+            <div className="text-white" style={{ fontSize: '24px' }}>
+              Loading games...
+            </div>
+          </div>
+        ) : (
+          <MemberContainer
+            games={games}
+            allSportsGames={allSportsGames}
+            betType={betType}
+            onBetTypeChange={setBetType}
+            loading={loading}
+            apiError={apiError}
+            onManualRefresh={handleManualRefresh}
+            lastRefreshTime={lastRefreshTime}
+            onSignOut={handleSignOut}
+            isRefreshing={isRefreshing}
+            propBets={propBets}
+            propBetsLoading={propBetsLoading}
+            propBetsError={propBetsError}
+            setCurrentViewSport={setCurrentViewSport}
+            currentViewSportRef={currentViewSportRef}
+            setGames={setGames}
+            loadAllPropBets={loadAllPropBets}
+            userCredit={userCredit}
+            onRefreshCredit={refreshUserCredit}
+            LandingPage={LandingPage}
           />
         )
       } />

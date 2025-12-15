@@ -25,7 +25,8 @@ function BettingSlip({
   MIN_BET,
   MAX_BET,
   userCredit,
-  shouldCollapse // Prop to externally trigger collapse (one-way: true = collapse, false = no action)
+  shouldCollapse, // Prop to externally trigger collapse (one-way: true = collapse, false = no action)
+  submissionSuccess // Ticket number on successful submission for inline notification
 }) {
   // On mobile, start collapsed; on desktop, start expanded
   // Default to expanded for SSR safety, then update on mount
@@ -369,6 +370,31 @@ function BettingSlip({
 
       {isExpanded && (
         <div className="betting-slip-content">
+          {/* Success notification banner */}
+          {submissionSuccess && (
+            <div style={{
+              marginBottom: '12px',
+              padding: '12px',
+              background: 'linear-gradient(135deg, #28a745 0%, #20c997 100%)',
+              borderRadius: '8px',
+              color: 'white',
+              textAlign: 'center',
+              animation: 'slideDown 0.3s ease-out',
+              boxShadow: '0 4px 12px rgba(40, 167, 69, 0.3)'
+            }}>
+              <div style={{ fontSize: '20px', marginBottom: '6px' }}>✅</div>
+              <div style={{ fontSize: '14px', fontWeight: 'bold', marginBottom: '4px' }}>
+                Bet Submitted Successfully!
+              </div>
+              <div style={{ fontSize: '11px', opacity: 0.9 }}>
+                Ticket #{submissionSuccess}
+              </div>
+              <div style={{ fontSize: '10px', opacity: 0.8, marginTop: '4px' }}>
+                Check "My Bets" to view your wager
+              </div>
+            </div>
+          )}
+          
           {/* Tabs */}
           <div className="betting-slip-tabs">
             <button
