@@ -54,10 +54,6 @@ function MemberContainer({
   // Initialize based on route
   const [currentView, setCurrentView] = useState(isDashboardRoute ? 'mybets' : 'home');
   
-  // Track if views have been initialized (for data loading)
-  const homeInitialized = useRef(false);
-  const myBetsInitialized = useRef(false);
-  
   // Sync view state when route changes (e.g., browser back/forward button)
   useEffect(() => {
     const newView = location.pathname === '/member/dashboard' ? 'mybets' : 'home';
@@ -84,12 +80,6 @@ function MemberContainer({
       }
     }
   }, [sport, allSportsGames, propBets, propBetsLoading, currentView, setCurrentViewSport, currentViewSportRef, setGames, loadAllPropBets]);
-  
-  // Mark views as initialized on first render
-  useEffect(() => {
-    homeInitialized.current = true;
-    myBetsInitialized.current = true;
-  }, []);
   
   // Navigate to My Bets
   const handleNavigateToDashboard = () => {
