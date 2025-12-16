@@ -237,6 +237,9 @@ const MIN_BET = parseInt(process.env.REACT_APP_MIN_BET) || 5;
 const MAX_BET = parseInt(process.env.REACT_APP_MAX_BET) || 100;
 const GOOGLE_SHEET_URL = process.env.REACT_APP_GOOGLE_SHEET_URL || 'https://script.google.com/macros/s/AKfycbzPastor8yKkWQxKx1z0p-0ZibwBJHkJCuVvHDqP9YX7Dv1-vwakdR9RU6Y6oNw4T2W2PA/exec';
 
+// Optimistic UI: Delay before removing temporary wager (allows Firebase to populate)
+const OPTIMISTIC_WAGER_CLEANUP_DELAY = 2000; // milliseconds
+
 const logAPIUsage = async (sport, success, fromCache) => {
   try {
     const usageRef = ref(database, 'analytics/apiUsage');
@@ -1455,6 +1458,12 @@ const saveSubmission = async (submission) => {
       });
     }
 
+    // Ensure we have at least one submission before creating optimistic wager
+    if (submissionsToCreate.length === 0) {
+      alert('❌ Error: No valid picks to submit.');
+      return;
+    }
+
     // 3. Create optimistic wager object for immediate display in "My Bets"
     const optimisticWager = {
       id: `optimistic-${ticketNum}`,
@@ -1511,7 +1520,8 @@ const saveSubmission = async (submission) => {
           if (wagerResult.error === 'Wager exceeds credit limit') {
             alert(`⚠️ Credit Limit Exceeded!\n\n${wagerResult.hint}\n\nPlease reduce your wager or contact an administrator.`);
           } else {
-            alert(`❌ Error: Bet could not be submitted. Please try again.\n\n${wagerResult.error || wagerResult.hint || 'Please check your funds or contact support.'}`);
+            const errorMsg = wagerResult.error || wagerResult.hint || 'Please check your funds or contact support.';
+            alert(`❌ Error: Bet could not be submitted. Please try again.\n\n${errorMsg}`);
           }
           return;
         }
@@ -1524,7 +1534,7 @@ const saveSubmission = async (submission) => {
         // Remove optimistic wager after a short delay (real wager will appear from Firebase)
         setTimeout(() => {
           setOptimisticWagers(prev => prev.filter(w => w.id !== optimisticWager.id));
-        }, 2000);
+        }, OPTIMISTIC_WAGER_CLEANUP_DELAY);
       }
     } catch (wagerError) {
       console.error('❌ Wager submission error:', wagerError);
