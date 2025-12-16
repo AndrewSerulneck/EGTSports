@@ -299,8 +299,9 @@ function CreditStatus({ userId, rtdb }) {
 // Current Wagers Component (Pending Wagers) - Mobile-First Design with Collapsible
 // Reads from Firebase Realtime Database /wagers collection
 // Default: Collapsed on mobile for optimal viewport usage
+// Updated to support optimistic wagers for instant feedback
 // ============================================================================
-function CurrentWagers({ userId, rtdb }) {
+function CurrentWagers({ userId, rtdb, optimisticWagers = [] }) {
   const [wagers, setWagers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [isExpanded, setIsExpanded] = useState(false); // Default collapsed for mobile-first
@@ -339,6 +340,22 @@ function CurrentWagers({ userId, rtdb }) {
     return () => unsubscribe();
   }, [userId, rtdb]);
 
+  // Merge optimistic wagers with Firebase wagers
+  const allWagers = React.useMemo(() => {
+    // Filter out optimistic wagers that match user ID
+    const userOptimisticWagers = (optimisticWagers || [])
+      .filter(w => w.uid === userId)
+      .map(w => ({
+        ...w,
+        details: formatWagerDetails(w.wagerData)
+      }));
+    
+    // Combine and sort by createdAt
+    const combined = [...userOptimisticWagers, ...wagers];
+    combined.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+    return combined;
+  }, [optimisticWagers, wagers, userId]);
+
   if (loading) {
     return (
       <div className="bg-white rounded-lg shadow-md p-4 mb-4">
@@ -358,7 +375,7 @@ function CurrentWagers({ userId, rtdb }) {
         className="w-full flex items-center justify-between text-left hover:bg-gray-50 active:bg-gray-100 rounded p-2 transition-colors"
       >
         <h2 className="text-lg font-bold text-gray-800">
-          ⏳ Current Wagers <span className="text-blue-600">({wagers.length})</span>
+          ⏳ Current Wagers <span className="text-blue-600">({allWagers.length})</span>
         </h2>
         <span className="text-2xl text-gray-600">
           {isExpanded ? '▼' : '▶'}
@@ -368,22 +385,35 @@ function CurrentWagers({ userId, rtdb }) {
       {/* Collapsible Content */}
       {isExpanded && (
         <>
-          {wagers.length === 0 ? (
+          {allWagers.length === 0 ? (
             <div className="text-center py-6 mt-2">
               <p className="text-gray-400 text-sm">No pending wagers</p>
               <p className="text-gray-300 text-xs mt-1">Your active bets will appear here</p>
             </div>
           ) : (
             <div className="space-y-3 max-h-96 overflow-y-auto mt-3">
-              {wagers.map((wager) => {
+              {allWagers.map((wager) => {
                 const details = wager.details || { summary: `Ticket #${wager.wagerData?.ticketNumber || 'Unknown'}`, picks: [] };
+                const isOptimistic = wager.isOptimistic === true;
                 return (
                   <div
                     key={wager.id}
-                    className="bg-gradient-to-r from-yellow-50 to-amber-50 border-l-4 border-yellow-400 rounded-r-lg p-3 shadow-sm"
+                    className={`rounded-r-lg p-3 shadow-sm ${
+                      isOptimistic 
+                        ? 'bg-gradient-to-r from-blue-50 to-indigo-50 border-l-4 border-blue-500' 
+                        : 'bg-gradient-to-r from-yellow-50 to-amber-50 border-l-4 border-yellow-400'
+                    }`}
                   >
                     {/* Mobile-first: Stack vertically */}
                     <div className="flex flex-col space-y-2">
+                      {/* Optimistic Badge - if applicable */}
+                      {isOptimistic && (
+                        <div className="flex items-center gap-1 text-xs text-blue-600 font-medium">
+                          <span className="animate-pulse">⚡</span>
+                          <span>Submitting...</span>
+                        </div>
+                      )}
+                      
                       {/* Wager Summary - Prominent */}
                       <p className="text-sm font-semibold text-gray-800 leading-tight">
                         {details.summary}
@@ -887,7 +917,7 @@ const RESOLUTION_COOLDOWN = 60000; // Minimum time between resolution attempts (
 // For production with high concurrency, consider sessionStorage or React Context
 let lastResolutionTime = 0;
 
-function Dashboard({ userId, db, rtdb }) {
+function Dashboard({ userId, db, rtdb, optimisticWagers = [] }) {
   const [isResolvingWagers, setIsResolvingWagers] = useState(false);
   const [resolutionStatus, setResolutionStatus] = useState('');
 
@@ -974,7 +1004,7 @@ function Dashboard({ userId, db, rtdb }) {
         </div>
       )}
       <CreditStatus userId={userId} rtdb={rtdb} />
-      <CurrentWagers userId={userId} rtdb={rtdb} />
+      <CurrentWagers userId={userId} rtdb={rtdb} optimisticWagers={optimisticWagers} />
       <PastWagers userId={userId} rtdb={rtdb} />
     </div>
   );
@@ -1076,7 +1106,7 @@ function FatalErrorScreen({ title, message, onRetry }) {
 // ============================================================================
 // Main App Component
 // ============================================================================
-function MemberDashboardApp({ onNavigateToHome }) {
+function MemberDashboardApp({ onNavigateToHome, optimisticWagers = [] }) {
   const [userId, setUserId] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [loadingError, setLoadingError] = useState(null);
@@ -1241,7 +1271,7 @@ function MemberDashboardApp({ onNavigateToHome }) {
 
       <main className="max-w-3xl mx-auto px-4 py-4 pb-mobile-nav-safe">
         {/* Dashboard with Credit Status, Current and Past Wagers */}
-        <Dashboard userId={userId} db={db} rtdb={rtdb} />
+        <Dashboard userId={userId} db={db} rtdb={rtdb} optimisticWagers={optimisticWagers} />
       </main>
 
       {/* Mobile Bottom Navigation - Always Visible */}
