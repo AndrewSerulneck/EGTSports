@@ -1,4 +1,17 @@
-# Prop Bets Implementation Guide
+# ⚠️ IMPORTANT NOTICE
+
+**Prop Bets are currently disabled** due to API quota limitations. The feature was consuming 98% of the monthly API quota (490/500 calls), leaving insufficient quota for essential game odds.
+
+This feature will be re-enabled after:
+1. API quota resets (monthly)
+2. Implementation of on-demand sport loading (reducing from 5 calls to 1 call per load)
+3. Proper separation of prop bets API from game odds API
+
+For now, all API calls are reserved for moneyline, spread, and totals data for main game betting.
+
+---
+
+# Prop Bets Implementation Guide (Temporarily Disabled)
 
 ## ✅ Complete Step-by-Step Setup Instructions
 

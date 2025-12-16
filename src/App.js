@@ -203,7 +203,7 @@ const PROP_BETS_CACHE_DURATION = 2 * 60 * 60 * 1000;
 
 const CACHE_DURATION = 6 * 60 * 60 * 1000;
 const COLLEGE_BASKETBALL_CACHE_DURATION = 6 * 60 * 60 * 1000;
-const ODDS_API_CACHE_DURATION = 12 * 60 * 60 * 1000;
+const ODDS_API_CACHE_DURATION = 24 * 60 * 60 * 1000; // 24 hours to minimize API usage
 const DATA_REFRESH_INTERVAL = 4 * 60 * 60 * 1000; // 4 hours
 const FIREBASE_LISTENER_SETUP_DELAY = 500; // ms
 
@@ -2002,24 +2002,35 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
   try {
     const sportKey = ODDS_API_SPORT_KEYS[sport];
     if (!sportKey) {
+      console.warn(`⚠️ No Odds API sport key for: ${sport}`);
       return null;
     }
     
+    if (!ODDS_API_KEY) {
+      console.error('❌ ODDS_API_KEY not configured');
+      return null;
+    }
+    
+    // Check cache first
     if (!forceRefresh && oddsAPICache[sport]) {
       const cached = oddsAPICache[sport];
       if (Date.now() - cached.timestamp < ODDS_API_CACHE_DURATION) {
+        console.log(`✅ Using cached Odds API data for ${sport}`);
         return cached.data;
       }
     }
     
+    console.log(`🔥 Making Odds API call for ${sport}...`);
     const url = `${ODDS_API_BASE_URL}/sports/${sportKey}/odds/?apiKey=${ODDS_API_KEY}&regions=us&markets=spreads,totals,h2h&oddsFormat=american`;
     
     const response = await fetch(url);
     
     if (!response.ok) {
+      console.error(`❌ Odds API returned ${response.status} for ${sport}`);
       return null;
     }
     
+    console.log(`✅ Successfully fetched odds from Odds API for ${sport}`);
     const data = await response.json();
     
     const oddsMap = {};
@@ -2076,7 +2087,7 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
 };
 
   const matchOddsToGame = (game, oddsMap) => {
-    if (!oddsMap) return { awaySpread: '', homeSpread: '', total: '' };
+    if (!oddsMap) return { awaySpread: '', homeSpread: '', total: '', awayMoneyline: '', homeMoneyline: '' };
     
     const gameKey = `${game.awayTeam}|${game.homeTeam}`;
     if (oddsMap[gameKey]) {
@@ -2093,7 +2104,7 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
       }
     }
     
-    return { awaySpread: '', homeSpread: '', total: '' };
+    return { awaySpread: '', homeSpread: '', total: '', awayMoneyline: '', homeMoneyline: '' };
   };
 
   const fetchPropBets = async (sportName) => {
@@ -2133,6 +2144,14 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
   };
 
   const loadAllPropBets = async () => {
+    // TEMPORARY: Disable prop bets to preserve API quota
+    console.warn('⚠️ Prop bets temporarily disabled due to API quota limits');
+    setPropBetsLoading(false);
+    setPropBetsError('Prop bets are temporarily disabled to preserve API quota. Contact admin for details.');
+    return;
+    
+    /* eslint-disable no-unreachable */
+    // Original code below (keep for future re-enable)
     setPropBetsLoading(true);
     setPropBetsError(null);
 
@@ -2151,6 +2170,7 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
     } finally {
       setPropBetsLoading(false);
     }
+    /* eslint-enable no-unreachable */
   };
 
   const countMissingOdds = useCallback((games) => {
@@ -2417,7 +2437,21 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
               const finalFormattedGames = formattedGames.map(game => {
                 if (hasCompleteOddsData(game)) return game;
                 
+                // Log when ESPN is missing moneyline data
+                if (!game.awayMoneyline || !game.homeMoneyline) {
+                  console.log(`📞 ESPN missing moneyline for ${game.awayTeam} @ ${game.homeTeam}, fetching from Odds API...`);
+                }
+                
                 const odds = matchOddsToGame(game, oddsMap);
+                
+                // Log when Odds API data is applied for moneyline
+                if (odds.awayMoneyline && !game.awayMoneyline) {
+                  console.log(`✅ Applied Odds API moneyline: ${game.awayTeam} ${odds.awayMoneyline}`);
+                }
+                if (odds.homeMoneyline && !game.homeMoneyline) {
+                  console.log(`✅ Applied Odds API moneyline: ${game.homeTeam} ${odds.homeMoneyline}`);
+                }
+                
                 return {
                   ...game,
                   awaySpread: odds.awaySpread || game.awaySpread,

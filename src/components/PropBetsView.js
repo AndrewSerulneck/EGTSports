@@ -54,7 +54,10 @@ function PropBetsView({
           <h2>🎯 Player Prop Bets</h2>
         </div>
         <div className="error-message">
-          <p>❌ {error}</p>
+          <p>⚠️ {error}</p>
+          <p style={{marginTop: '12px', fontSize: '14px', color: '#666'}}>
+            Prop bets will return once our API quota resets. Check back soon!
+          </p>
         </div>
       </div>
     );
