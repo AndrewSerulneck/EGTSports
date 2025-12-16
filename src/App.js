@@ -1,7 +1,6 @@
-
 import './App.css';
 import React, { useState, useEffect, useCallback, useRef } from "react";
-import { Routes, Route, useNavigate, useParams, Navigate, useLocation } from 'react-router-dom';
+import { Routes, Route, useNavigate, useParams, Navigate } from 'react-router-dom';
 import { initializeApp, getApps } from "firebase/app";
 import { getDatabase, ref, set, onValue, push, get } from "firebase/database";
 import {
@@ -18,12 +17,7 @@ import SubmissionsViewer from './components/SubmissionsViewer';
 import GridBettingLayout from './components/GridBettingLayout';
 import PropBetsView from './components/PropBetsView';
 import BettingSlip from './components/BettingSlip';
-import MemberDashboardApp from './MemberDashboardApp';
 import MemberContainer from './components/MemberContainer';
-
-// Constants for betting slip state management (Issue #1)
-const COLLAPSE_RESET_DELAY = 100; // ms - delay before resetting collapse state
-const COLLAPSE_FLAG_KEY = 'collapseBettingSlipOnReturn'; // sessionStorage key
 
 function SportsMenu({ currentSport, onSelectSport, allSportsGames, onSignOut, onManualRefresh, isRefreshing, onNavigateToDashboard }) {
     const sportOrder = ['NFL', 'College Football', 'NBA', 'College Basketball', 'Major League Baseball', 'NHL'];
@@ -772,9 +766,8 @@ function AdminLandingPage({ onManageUsers, onViewSubmissions, onSignOut }) {
   );
 }
 
-function LandingPage({ games, allSportsGames, currentViewSport, onChangeSport, loading, onBackToMenu, sport, betType, onBetTypeChange, apiError, onManualRefresh, lastRefreshTime, propBets, propBetsLoading, propBetsError, onSignOut, isRefreshing, onNavigateToDashboard, userCredit, onRefreshCredit, collapseBettingSlip }) {
+function LandingPage({ games, allSportsGames, currentViewSport, onChangeSport, loading, onBackToMenu, sport, betType, onBetTypeChange, apiError, onManualRefresh, lastRefreshTime, propBets, propBetsLoading, propBetsError, onSignOut, isRefreshing, onNavigateToDashboard, userCredit, onRefreshCredit, collapseBettingSlip, optimisticWagers, setOptimisticWagers }) {
   const [selectedPicks, setSelectedPicks] = useState({});
-  const [ticketNumber, setTicketNumber] = useState('');
   const [contactInfo, setContactInfo] = useState({ name: '', email: '', betAmount: '' });
   const [individualBetAmounts, setIndividualBetAmounts] = useState({});
   const [submissions, setSubmissions] = useState([]);
@@ -1151,7 +1144,6 @@ const saveSubmission = async (submission) => {
 
     // Generate ticket number
     const newTicketNumber = generateTicketNumber();
-    setTicketNumber(newTicketNumber);
 
     // Proceed to immediate submission (no checkout page)
     await handleWagerSubmission(newTicketNumber);
@@ -1237,6 +1229,15 @@ const saveSubmission = async (submission) => {
         return;
       }
     }
+
+    // OPTIMISTIC UI PATTERN: Immediate UI Updates
+    // 1. Show success notification immediately
+    setSubmissionSuccess(ticketNum);
+    
+    // 2. Clear betting slip immediately
+    setSelectedPicks({});
+    setIndividualBetAmounts({});
+    setContactInfo({ name: '', email: '', betAmount: '' });
 
     // For straight bets: create separate submissions for each pick
     // For parlays: create single submission with all picks
@@ -1454,6 +1455,27 @@ const saveSubmission = async (submission) => {
       });
     }
 
+    // 3. Create optimistic wager object for immediate display in "My Bets"
+    const optimisticWager = {
+      id: `optimistic-${ticketNum}`,
+      ticketNumber: ticketNum,
+      uid: currentUser.uid,
+      createdAt: new Date().toISOString(),
+      status: 'pending',
+      wagerAmount: totalStake,
+      wagerData: {
+        ticketNumber: ticketNum,
+        picks: betType === 'straight' ? submissionsToCreate.map(s => s.picks).flat() : submissionsToCreate[0].picks,
+        betType,
+        straightBetCount: betType === 'straight' ? submissionsToCreate.length : 1,
+        potentialPayout: checkoutCalculations.potentialPayout
+      },
+      isOptimistic: true
+    };
+    
+    // Add optimistic wager to state for instant display
+    setOptimisticWagers(prev => [...prev, optimisticWager]);
+
     // Server-side credit limit enforcement via API (once for total stake)
     try {
       const currentUser = auth.currentUser;
@@ -1479,23 +1501,41 @@ const saveSubmission = async (submission) => {
         const wagerResult = await wagerResponse.json();
 
         if (!wagerResponse.ok || !wagerResult.success) {
+          // FAILURE: Remove optimistic wager and show error
+          setOptimisticWagers(prev => prev.filter(w => w.id !== optimisticWager.id));
+          
+          // Hide success notification
+          setSubmissionSuccess(null);
+          
           // Credit limit exceeded or other error
           if (wagerResult.error === 'Wager exceeds credit limit') {
             alert(`⚠️ Credit Limit Exceeded!\n\n${wagerResult.hint}\n\nPlease reduce your wager or contact an administrator.`);
           } else {
-            alert(`❌ Error: ${wagerResult.error}\n\n${wagerResult.hint || 'Please try again.'}`);
+            alert(`❌ Error: Bet could not be submitted. Please try again.\n\n${wagerResult.error || wagerResult.hint || 'Please check your funds or contact support.'}`);
           }
           return;
         }
 
-        // Refresh credit info after successful wager
+        // SUCCESS: Refresh credit info after successful wager
         if (onRefreshCredit) {
           onRefreshCredit();
         }
+        
+        // Remove optimistic wager after a short delay (real wager will appear from Firebase)
+        setTimeout(() => {
+          setOptimisticWagers(prev => prev.filter(w => w.id !== optimisticWager.id));
+        }, 2000);
       }
     } catch (wagerError) {
       console.error('❌ Wager submission error:', wagerError);
-      alert('❌ Unable to verify credit limit. Please try again or contact support.');
+      
+      // FAILURE: Remove optimistic wager and show error
+      setOptimisticWagers(prev => prev.filter(w => w.id !== optimisticWager.id));
+      
+      // Hide success notification
+      setSubmissionSuccess(null);
+      
+      alert('❌ Error: Bet could not be submitted. Please try again or contact support.');
       return;
     }
 
@@ -1531,14 +1571,6 @@ const saveSubmission = async (submission) => {
     } catch (emailError) {
       console.error('❌ Email error:', emailError);
     }
-    
-    // Set success state with ticket number for inline notification
-    setSubmissionSuccess(ticketNum);
-    
-    // Reset betting slip immediately
-    setSelectedPicks({});
-    setIndividualBetAmounts({});
-    setContactInfo({ name: '', email: '', betAmount: '' });
     
     // Clear success notification after 3 seconds
     setTimeout(() => {
@@ -1952,6 +1984,9 @@ function App() {
   
   // User credit limit tracking
   const [userCredit, setUserCredit] = useState(null);
+  
+  // Optimistic wagers for instant UI feedback
+  const [optimisticWagers, setOptimisticWagers] = useState([]);
   
   // Track auth initialization to prevent navigation race conditions
   const authInitialized = useRef(false);
@@ -2978,6 +3013,8 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
             loadAllPropBets={loadAllPropBets}
             userCredit={userCredit}
             onRefreshCredit={refreshUserCredit}
+            optimisticWagers={optimisticWagers}
+            setOptimisticWagers={setOptimisticWagers}
             LandingPage={LandingPage}
           />
         )
@@ -3013,6 +3050,8 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
             loadAllPropBets={loadAllPropBets}
             userCredit={userCredit}
             onRefreshCredit={refreshUserCredit}
+            optimisticWagers={optimisticWagers}
+            setOptimisticWagers={setOptimisticWagers}
             LandingPage={LandingPage}
           />
         )

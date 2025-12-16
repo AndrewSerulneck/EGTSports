@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import MemberDashboardApp from '../MemberDashboardApp';
 
@@ -40,6 +40,9 @@ function MemberContainer({
   loadAllPropBets,
   userCredit,
   onRefreshCredit,
+  // Optimistic wager state
+  optimisticWagers,
+  setOptimisticWagers,
   // LandingPage component reference
   LandingPage
 }) {
@@ -154,6 +157,8 @@ function MemberContainer({
           userCredit={userCredit}
           onRefreshCredit={onRefreshCredit}
           collapseBettingSlip={collapseBettingSlip}
+          optimisticWagers={optimisticWagers}
+          setOptimisticWagers={setOptimisticWagers}
         />
       </div>
       
@@ -168,6 +173,7 @@ function MemberContainer({
       }}>
         <MemberDashboardApp 
           onNavigateToHome={handleNavigateToHome}
+          optimisticWagers={optimisticWagers}
         />
       </div>
     </div>
