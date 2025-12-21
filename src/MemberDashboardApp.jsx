@@ -195,6 +195,147 @@ const getNotificationsCollectionPath = (userId) =>
   `/artifacts/${appId}/users/${userId}/notifications`;
 
 // ============================================================================
+// Balance Status Component - Mobile-First Design with Dynamic Balance
+// Updated to show current_balance instead of remainingCredit
+// ============================================================================
+function BalanceStatus({ userId, rtdb, auth }) {
+  const [balanceData, setBalanceData] = useState({
+    currentBalance: 0,
+    baseCreditLimit: 0
+  });
+  const [loading, setLoading] = useState(true);
+  const [resetCheckLoading, setResetCheckLoading] = useState(false);
+
+  // Check for on-demand reset when component mounts
+  useEffect(() => {
+    if (!userId || !auth) return;
+
+    const checkReset = async () => {
+      setResetCheckLoading(true);
+      try {
+        const user = auth.currentUser;
+        if (!user) return;
+
+        const idToken = await user.getIdToken();
+        const response = await fetch('/api/checkReset', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${idToken}`
+          },
+          body: JSON.stringify({ userId })
+        });
+
+        if (response.ok) {
+          const result = await response.json();
+          if (result.resetPerformed) {
+            console.log('Balance reset performed:', result.details);
+          }
+        }
+      } catch (error) {
+        console.error('Error checking reset:', error);
+      } finally {
+        setResetCheckLoading(false);
+      }
+    };
+
+    checkReset();
+  }, [userId, auth]);
+
+  useEffect(() => {
+    if (!userId || !rtdb) return;
+
+    const userRef = ref(rtdb, `users/${userId}`);
+    const unsubscribe = onValue(userRef, (snapshot) => {
+      if (snapshot.exists()) {
+        const userData = snapshot.val();
+        const baseCreditLimit = parseFloat(userData.base_credit_limit) || parseFloat(userData.creditLimit) || 100;
+        const currentBalance = parseFloat(userData.current_balance) !== undefined 
+          ? parseFloat(userData.current_balance)
+          : baseCreditLimit; // Default to base limit for new users
+        
+        setBalanceData({
+          currentBalance,
+          baseCreditLimit
+        });
+      }
+      setLoading(false);
+    }, (error) => {
+      console.error("Error fetching balance data:", error);
+      setLoading(false);
+    });
+
+    return () => unsubscribe();
+  }, [userId, rtdb]);
+
+  if (loading || resetCheckLoading) {
+    return (
+      <div className="bg-gradient-to-r from-blue-600 to-blue-700 rounded-xl shadow-lg p-6 mb-4">
+        <div className="flex justify-center items-center h-20">
+          <div className="animate-spin rounded-full h-8 w-8 border-4 border-white border-t-transparent"></div>
+        </div>
+      </div>
+    );
+  }
+
+  const balancePercentage = balanceData.baseCreditLimit > 0 
+    ? (balanceData.currentBalance / balanceData.baseCreditLimit) * 100 
+    : 0;
+  const isLow = balancePercentage < 25;
+  const isMedium = balancePercentage >= 25 && balancePercentage < 50;
+  const canExceedLimit = true; // Balance can exceed base limit from winnings
+
+  return (
+    <div className="bg-gradient-to-r from-blue-600 to-blue-700 rounded-xl shadow-lg p-6 mb-4 text-white">
+      <h2 className="text-2xl font-bold mb-4">💰 Current Balance</h2>
+      
+      {/* Large Balance Display */}
+      <div className="text-center mb-4">
+        <div className="text-5xl font-extrabold tracking-tight mb-2">
+          ${balanceData.currentBalance.toFixed(2)}
+        </div>
+        <div className="text-sm text-blue-100">
+          Base Limit: ${balanceData.baseCreditLimit.toFixed(2)}
+        </div>
+      </div>
+      
+      {/* Progress Bar - only show if balance is within base limit */}
+      {balanceData.currentBalance <= balanceData.baseCreditLimit && (
+        <div className="relative h-3 bg-blue-800 bg-opacity-50 rounded-full overflow-hidden mb-4">
+          <div 
+            className={`h-full transition-all duration-500 ${
+              isLow ? 'bg-red-400' : isMedium ? 'bg-yellow-400' : 'bg-green-400'
+            }`}
+            style={{ width: `${Math.max(0, Math.min(100, balancePercentage))}%` }}
+          />
+        </div>
+      )}
+      
+      {/* Balance Exceeds Limit Badge */}
+      {balanceData.currentBalance > balanceData.baseCreditLimit && (
+        <div className="bg-green-500 bg-opacity-30 border-2 border-green-300 rounded-lg p-3 mb-2">
+          <p className="text-sm font-bold text-center">
+            🎉 Balance exceeds base limit from winnings!
+          </p>
+        </div>
+      )}
+      
+      {/* Warning Messages */}
+      {isLow && balanceData.currentBalance > 0 && balanceData.currentBalance <= balanceData.baseCreditLimit && (
+        <div className="bg-red-500 bg-opacity-30 border-2 border-red-300 rounded-lg p-2">
+          <p className="text-xs font-medium">⚠️ Low balance remaining</p>
+        </div>
+      )}
+      {balanceData.currentBalance <= 0 && (
+        <div className="bg-red-600 border-2 border-red-400 rounded-lg p-3">
+          <p className="text-sm font-bold">🚫 Insufficient balance - Wait for weekly reset or contact admin</p>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ============================================================================
 // Credit Status Component - Mobile-First Design
 // ============================================================================
 function CreditStatus({ userId, rtdb }) {
@@ -903,6 +1044,328 @@ function NotificationBell({ userId, db }) {
 }
 
 // ============================================================================
+// Figures Tab Component - Weekly Performance Summary
+// ============================================================================
+function FiguresTab({ userId, rtdb }) {
+  const [periodFilter, setPeriodFilter] = useState('this_week');
+  const [wagers, setWagers] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [weeklyNet, setWeeklyNet] = useState(0);
+
+  useEffect(() => {
+    if (!userId || !rtdb) return;
+
+    const wagersRef = ref(rtdb, 'wagers');
+    const unsubscribe = onValue(wagersRef, (snapshot) => {
+      const wagersData = [];
+      if (snapshot.exists()) {
+        snapshot.forEach((childSnapshot) => {
+          const wager = childSnapshot.val();
+          const status = wager.status?.toLowerCase();
+          if (wager.uid === userId && (status === 'won' || status === 'lost')) {
+            wagersData.push({
+              id: childSnapshot.key,
+              ...wager
+            });
+          }
+        });
+      }
+      
+      // Filter by selected period
+      const filteredWagers = filterWagersByPeriod(wagersData, periodFilter);
+      setWagers(filteredWagers);
+      
+      // Calculate weekly net
+      const totalWon = filteredWagers
+        .filter(w => w.status?.toLowerCase() === 'won')
+        .reduce((sum, w) => sum + (parseFloat(w.payout) || 0), 0);
+      const totalLost = filteredWagers
+        .filter(w => w.status?.toLowerCase() === 'lost')
+        .reduce((sum, w) => sum + (parseFloat(w.amount) || 0), 0);
+      setWeeklyNet(totalWon - totalLost);
+      
+      setLoading(false);
+    }, (error) => {
+      console.error("Error fetching figures data:", error);
+      setLoading(false);
+    });
+
+    return () => unsubscribe();
+  }, [userId, rtdb, periodFilter]);
+
+  const filterWagersByPeriod = (wagers, period) => {
+    const now = new Date();
+    const startOfWeek = (weekOffset = 0) => {
+      const date = new Date(now);
+      date.setDate(date.getDate() - (date.getDay() || 7) + 1 - (weekOffset * 7));
+      date.setHours(0, 0, 0, 0);
+      return date;
+    };
+    const endOfWeek = (weekOffset = 0) => {
+      const date = new Date(startOfWeek(weekOffset));
+      date.setDate(date.getDate() + 6);
+      date.setHours(23, 59, 59, 999);
+      return date;
+    };
+
+    let start, end;
+    if (period === 'this_week') {
+      start = startOfWeek(0);
+      end = endOfWeek(0);
+    } else if (period === 'last_week') {
+      start = startOfWeek(1);
+      end = endOfWeek(1);
+    } else if (period === 'two_weeks_ago') {
+      start = startOfWeek(2);
+      end = endOfWeek(2);
+    }
+
+    return wagers.filter(w => {
+      const settledDate = new Date(w.settledAt || w.createdAt);
+      return settledDate >= start && settledDate <= end;
+    });
+  };
+
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center h-40">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
+
+  const wonWagers = wagers.filter(w => w.status?.toLowerCase() === 'won');
+  const lostWagers = wagers.filter(w => w.status?.toLowerCase() === 'lost');
+  const totalWon = wonWagers.reduce((sum, w) => sum + (parseFloat(w.payout) || 0), 0);
+  const totalLost = lostWagers.reduce((sum, w) => sum + (parseFloat(w.amount) || 0), 0);
+
+  return (
+    <div className="space-y-4">
+      {/* Period Filter Dropdown */}
+      <div className="bg-white rounded-lg shadow-md p-4">
+        <label className="block text-sm font-medium text-gray-700 mb-2">
+          Select Period
+        </label>
+        <select
+          value={periodFilter}
+          onChange={(e) => setPeriodFilter(e.target.value)}
+          className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+        >
+          <option value="this_week">This Week</option>
+          <option value="last_week">Last Week</option>
+          <option value="two_weeks_ago">2 Weeks Ago</option>
+        </select>
+      </div>
+
+      {/* Performance Summary */}
+      <div className="bg-white rounded-lg shadow-md p-4">
+        <h3 className="text-lg font-bold text-gray-800 mb-3">Performance Summary</h3>
+        <div className="grid grid-cols-2 gap-3 mb-4">
+          <div className="bg-green-50 rounded-lg p-3 text-center">
+            <p className="text-xs text-gray-600">Won Wagers</p>
+            <p className="text-2xl font-bold text-green-600">{wonWagers.length}</p>
+            <p className="text-sm text-green-700">${totalWon.toFixed(2)}</p>
+          </div>
+          <div className="bg-red-50 rounded-lg p-3 text-center">
+            <p className="text-xs text-gray-600">Lost Wagers</p>
+            <p className="text-2xl font-bold text-red-600">{lostWagers.length}</p>
+            <p className="text-sm text-red-700">-${totalLost.toFixed(2)}</p>
+          </div>
+        </div>
+        
+        {/* Weekly Net - Large and Prominent */}
+        <div className={`rounded-lg p-4 text-center ${
+          weeklyNet >= 0 ? 'bg-green-100 border-2 border-green-400' : 'bg-red-100 border-2 border-red-400'
+        }`}>
+          <p className="text-sm font-medium text-gray-700 mb-1">Weekly Net</p>
+          <p className={`text-4xl font-extrabold ${
+            weeklyNet >= 0 ? 'text-green-700' : 'text-red-700'
+          }`}>
+            {weeklyNet >= 0 ? '+' : ''}${weeklyNet.toFixed(2)}
+          </p>
+        </div>
+      </div>
+
+      {/* Wagers List */}
+      {wagers.length === 0 ? (
+        <div className="bg-white rounded-lg shadow-md p-6 text-center">
+          <p className="text-gray-400">No wagers for this period</p>
+        </div>
+      ) : (
+        <div className="bg-white rounded-lg shadow-md p-4">
+          <h3 className="text-sm font-bold text-gray-700 mb-3">Wagers ({wagers.length})</h3>
+          <div className="space-y-2 max-h-96 overflow-y-auto">
+            {wagers.map((wager) => (
+              <div
+                key={wager.id}
+                className={`rounded-lg p-3 border-l-4 ${
+                  wager.status?.toLowerCase() === 'won' 
+                    ? 'bg-green-50 border-green-500' 
+                    : 'bg-red-50 border-red-500'
+                }`}
+              >
+                <div className="flex justify-between items-start">
+                  <div className="flex-1">
+                    <p className="text-xs text-gray-600">
+                      {new Date(wager.settledAt || wager.createdAt).toLocaleDateString()}
+                    </p>
+                    <p className="text-sm font-medium text-gray-900">
+                      {wager.wagerData?.betType || 'Bet'} - ${(wager.amount || 0).toFixed(2)}
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <span className={`text-sm font-bold ${
+                      wager.status?.toLowerCase() === 'won' ? 'text-green-700' : 'text-red-700'
+                    }`}>
+                      {wager.status?.toLowerCase() === 'won' 
+                        ? `+$${(wager.payout || 0).toFixed(2)}` 
+                        : `-$${(wager.amount || 0).toFixed(2)}`}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ============================================================================
+// Transactions Tab Component - Running Account Ledger
+// ============================================================================
+function TransactionsTab({ userId, rtdb }) {
+  const [transactions, setTransactions] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!userId || !rtdb) return;
+
+    const transactionsRef = ref(rtdb, `transactions/${userId}`);
+    const unsubscribe = onValue(transactionsRef, (snapshot) => {
+      const transactionsData = [];
+      if (snapshot.exists()) {
+        snapshot.forEach((childSnapshot) => {
+          transactionsData.push({
+            id: childSnapshot.key,
+            ...childSnapshot.val()
+          });
+        });
+      }
+      // Sort by timestamp descending (newest first)
+      transactionsData.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+      setTransactions(transactionsData);
+      setLoading(false);
+    }, (error) => {
+      console.error("Error fetching transactions:", error);
+      setLoading(false);
+    });
+
+    return () => unsubscribe();
+  }, [userId, rtdb]);
+
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center h-40">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
+
+  if (transactions.length === 0) {
+    return (
+      <div className="bg-white rounded-lg shadow-md p-6 text-center">
+        <p className="text-gray-400">No transactions yet</p>
+        <p className="text-gray-300 text-xs mt-1">Your transaction history will appear here</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="bg-white rounded-lg shadow-md overflow-hidden">
+      <div className="overflow-x-auto">
+        <table className="w-full">
+          <thead className="bg-gray-50 border-b border-gray-200">
+            <tr>
+              <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
+                Date/Time
+              </th>
+              <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
+                Description
+              </th>
+              <th className="px-4 py-3 text-right text-xs font-bold text-gray-700 uppercase tracking-wider">
+                Amount
+              </th>
+              <th className="px-4 py-3 text-right text-xs font-bold text-gray-700 uppercase tracking-wider">
+                Balance
+              </th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-200">
+            {transactions.map((tx) => (
+              <tr key={tx.id} className="hover:bg-gray-50">
+                <td className="px-4 py-3 text-xs text-gray-600 whitespace-nowrap">
+                  {new Date(tx.timestamp).toLocaleString()}
+                </td>
+                <td className="px-4 py-3 text-sm text-gray-900">
+                  {tx.description}
+                </td>
+                <td className={`px-4 py-3 text-sm font-bold text-right whitespace-nowrap ${
+                  tx.amount >= 0 ? 'text-green-600' : 'text-red-600'
+                }`}>
+                  {tx.amount >= 0 ? '+' : ''}${tx.amount.toFixed(2)}
+                </td>
+                <td className="px-4 py-3 text-sm font-bold text-gray-900 text-right whitespace-nowrap">
+                  ${tx.balanceAfter.toFixed(2)}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+// ============================================================================
+// Sub-Navigation Tabs Component - Mobile-First with Red Underline
+// ============================================================================
+function SubNavigationTabs({ activeTab, setActiveTab }) {
+  const tabs = [
+    { id: 'figures', label: 'Figures', icon: '📊' },
+    { id: 'pending', label: 'Pending', icon: '⏳' },
+    { id: 'transactions', label: 'Transactions', icon: '📋' }
+  ];
+
+  return (
+    <div className="bg-white shadow-md mb-4 sticky top-0 z-20">
+      <div className="flex border-b border-gray-200 overflow-x-auto">
+        {tabs.map((tab) => (
+          <button
+            key={tab.id}
+            onClick={() => setActiveTab(tab.id)}
+            className={`flex-1 min-w-max px-4 py-3 text-sm font-semibold transition-colors relative ${
+              activeTab === tab.id
+                ? 'text-gray-900'
+                : 'text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            <span className="flex items-center justify-center gap-2">
+              <span>{tab.icon}</span>
+              <span>{tab.label}</span>
+            </span>
+            {activeTab === tab.id && (
+              <div className="absolute bottom-0 left-0 right-0 h-1 bg-red-500" style={{ backgroundColor: '#ff3131' }}></div>
+            )}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ============================================================================
 // Dashboard Component - Updated to use both Firestore and Realtime Database
 // Triggers on-demand wager resolution when page loads
 // ============================================================================
@@ -917,9 +1380,10 @@ const RESOLUTION_COOLDOWN = 60000; // Minimum time between resolution attempts (
 // For production with high concurrency, consider sessionStorage or React Context
 let lastResolutionTime = 0;
 
-function Dashboard({ userId, db, rtdb, optimisticWagers = [] }) {
+function Dashboard({ userId, db, rtdb, auth, optimisticWagers = [] }) {
   const [isResolvingWagers, setIsResolvingWagers] = useState(false);
   const [resolutionStatus, setResolutionStatus] = useState('');
+  const [activeTab, setActiveTab] = useState('pending'); // Default to Pending tab
 
   useEffect(() => {
     // Trigger on-demand wager resolution when dashboard loads
@@ -1003,9 +1467,18 @@ function Dashboard({ userId, db, rtdb, optimisticWagers = [] }) {
           </p>
         </div>
       )}
-      <CreditStatus userId={userId} rtdb={rtdb} />
-      <CurrentWagers userId={userId} rtdb={rtdb} optimisticWagers={optimisticWagers} />
-      <PastWagers userId={userId} rtdb={rtdb} />
+      
+      {/* Current Balance - Prominent at Top */}
+      <BalanceStatus userId={userId} rtdb={rtdb} auth={auth} />
+      
+      {/* Sub-Navigation Tabs */}
+      <SubNavigationTabs activeTab={activeTab} setActiveTab={setActiveTab} />
+      
+      {/* Tab Content */}
+      {activeTab === 'figures' && <FiguresTab userId={userId} rtdb={rtdb} />}
+      {activeTab === 'pending' && <CurrentWagers userId={userId} rtdb={rtdb} optimisticWagers={optimisticWagers} />}
+      {activeTab === 'transactions' && <TransactionsTab userId={userId} rtdb={rtdb} />}
+    </div>
     </div>
   );
 }
@@ -1270,8 +1743,8 @@ function MemberDashboardApp({ onNavigateToHome, optimisticWagers = [] }) {
       />
 
       <main className="max-w-3xl mx-auto px-4 py-4 pb-mobile-nav-safe">
-        {/* Dashboard with Credit Status, Current and Past Wagers */}
-        <Dashboard userId={userId} db={db} rtdb={rtdb} optimisticWagers={optimisticWagers} />
+        {/* Dashboard with Balance Status, Sub-Navigation, and Tabs */}
+        <Dashboard userId={userId} db={db} rtdb={rtdb} auth={auth} optimisticWagers={optimisticWagers} />
       </main>
 
       {/* Mobile Bottom Navigation - Always Visible */}
