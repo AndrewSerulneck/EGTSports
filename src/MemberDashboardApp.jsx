@@ -283,7 +283,6 @@ function BalanceStatus({ userId, rtdb, auth }) {
     : 0;
   const isLow = balancePercentage < 25;
   const isMedium = balancePercentage >= 25 && balancePercentage < 50;
-  const canExceedLimit = true; // Balance can exceed base limit from winnings
 
   return (
     <div className="bg-gradient-to-r from-blue-600 to-blue-700 rounded-xl shadow-lg p-6 mb-4 text-white">
@@ -336,8 +335,10 @@ function BalanceStatus({ userId, rtdb, auth }) {
 }
 
 // ============================================================================
-// Credit Status Component - Mobile-First Design
+// Credit Status Component - Mobile-First Design (LEGACY - Kept for reference)
+// NOTE: This component is replaced by BalanceStatus but kept for backward compatibility
 // ============================================================================
+// eslint-disable-next-line no-unused-vars
 function CreditStatus({ userId, rtdb }) {
   const [creditData, setCreditData] = useState({
     creditLimit: 0,
@@ -689,7 +690,9 @@ function formatWagerDetails(wagerData) {
 // Past Wagers Component (Won/Lost/Canceled Wagers) - Mobile-First Design with Collapsible
 // Reads from Firebase Realtime Database /wagers collection
 // Default: Collapsed on mobile for optimal viewport usage
+// NOTE: This component is now integrated into FiguresTab but kept for backward compatibility
 // ============================================================================
+// eslint-disable-next-line no-unused-vars
 function PastWagers({ userId, rtdb }) {
   const [wagers, setWagers] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -1478,7 +1481,6 @@ function Dashboard({ userId, db, rtdb, auth, optimisticWagers = [] }) {
       {activeTab === 'figures' && <FiguresTab userId={userId} rtdb={rtdb} />}
       {activeTab === 'pending' && <CurrentWagers userId={userId} rtdb={rtdb} optimisticWagers={optimisticWagers} />}
       {activeTab === 'transactions' && <TransactionsTab userId={userId} rtdb={rtdb} />}
-    </div>
     </div>
   );
 }
