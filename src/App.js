@@ -1813,22 +1813,6 @@ const saveSubmission = async (submission) => {
           betType={betType}
           sport={displaySport}
         />
-        
-        <div className="card">
-          <h3 className="mb-2">Important Rules</h3>
-          <ul style={{marginLeft: '20px', lineHeight: '1.8'}}>
-            <li><strong>Minimum 3 picks for parlays</strong></li>
-            <li><strong>Minimum Bet = $5</strong></li>
-             <li><strong>Maximum Parlay Bet = $100</strong></li>
-             <li><strong>Maximum Single Bet = $250</strong></li>
-            <li>Cross-league parlays are allowed! Feel free to make picks across different sports leagues!</li>
-            <li>Funds must be deposited into the private pool prior to games starting or ticket is not valid</li>
-             <li>A tie counts as a loss</li>
-            <li>Winners are paid the following Tuesday</li>
-             <li>If you have questions or issues, please contact support@EGTSports.ws</li>
-            <li>Each time you participate, your club membership is renewed</li>
-            <li>Only bet what you can afford to lose</li>
-            <li>If you or someone you know has a gambling problem, The National Problem Gambling Helpline can be reached at 1-800-522-4700</li>
           </ul>
           <div style={{background: '#fff3cd', border: '2px solid #ffc107', borderRadius: '8px', padding: '16px', marginTop: '20px', fontSize: '14px', color: '#856404'}}>
             <strong>Legal Disclaimer:</strong> For entertainment only. 21+ only. Private pool among friends. Check local laws. By participating, you acknowledge responsibility for compliance with local laws.
