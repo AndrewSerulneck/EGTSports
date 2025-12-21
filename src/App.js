@@ -1,11 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import './App.css';
-import { Route, Routes, Link, useNavigate } from 'react-router-dom';
+import { Route, Routes, Link } from 'react-router-dom';
 
 // Enhanced Navbar Component
 function Navbar() {
-  const navigate = useNavigate();
-
   return (
     <nav className="navbar navbar-expand-lg navbar-dark bg-dark fixed-top">
       <div className="container-fluid">
