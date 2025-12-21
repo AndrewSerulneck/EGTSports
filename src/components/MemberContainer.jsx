@@ -67,7 +67,7 @@ function MemberContainer({
     if (newView !== currentView) {
       setCurrentView(newView);
     }
-  }, [location.pathname, currentView, isDashboardRoute, isFAQsRoute]);
+  }, [location.pathname, isDashboardRoute, isFAQsRoute, currentView]);
   
   // Handle sport changes in URL when on home view
   useEffect(() => {
