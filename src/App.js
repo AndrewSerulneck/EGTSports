@@ -1490,7 +1490,7 @@ const saveSubmission = async (submission) => {
       const currentUser = auth.currentUser;
       if (currentUser) {
         const idToken = await currentUser.getIdToken();
-        const wagerResponse = await fetch('/api/submitWager', {
+        const wagerResponse = await fetch('/api/wager-manager?action=submit', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',

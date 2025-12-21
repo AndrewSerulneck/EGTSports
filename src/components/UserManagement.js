@@ -87,7 +87,7 @@ function UserManagement({ onBack }) {
 
       // Call the serverless function to create user using Admin SDK
       // This prevents the admin from being logged out
-      const response = await fetch('/api/createUser', {
+      const response = await fetch('/api/user-admin?action=create', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -146,7 +146,7 @@ function UserManagement({ onBack }) {
       
       const idToken = await currentUser.getIdToken();
 
-      const response = await fetch('/api/revokeUser', {
+      const response = await fetch('/api/user-admin?action=revoke', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -250,13 +250,13 @@ function UserManagement({ onBack }) {
       
       const idToken = await currentUser.getIdToken();
 
-      const response = await fetch('/api/resetWager', {
+      const response = await fetch('/api/wager-manager?action=reset', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${idToken}`
         },
-        body: JSON.stringify({ uid, resetAmount: newAmount })
+        body: JSON.stringify({ userId: uid, resetAmount: newAmount })
       });
 
       const result = await response.json();

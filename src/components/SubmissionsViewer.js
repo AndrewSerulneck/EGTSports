@@ -112,7 +112,7 @@ function SubmissionsViewer({ onBack }) {
 
       const idToken = await user.getIdToken();
 
-      const response = await fetch('/api/cancelWager', {
+      const response = await fetch('/api/wager-manager?action=cancel', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

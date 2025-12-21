@@ -217,7 +217,7 @@ function BalanceStatus({ userId, rtdb, auth }) {
         if (!user) return;
 
         const idToken = await user.getIdToken();
-        const response = await fetch('/api/checkReset', {
+        const response = await fetch('/api/system-sync?action=checkReset', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -1409,7 +1409,7 @@ function Dashboard({ userId, db, rtdb, auth, optimisticWagers = [] }) {
         // Step A: Update game scores from external sports APIs
         setResolutionStatus('Updating game scores...');
         console.log('Step A: Calling updateGameScores API');
-        const scoresResponse = await fetch('/api/updateGameScores', {
+        const scoresResponse = await fetch('/api/wager-manager?action=updateScores', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -1427,7 +1427,7 @@ function Dashboard({ userId, db, rtdb, auth, optimisticWagers = [] }) {
         // Step B: Resolve wagers based on completed games
         setResolutionStatus('Resolving wagers...');
         console.log('Step B: Calling resolveWagers API');
-        const wagersResponse = await fetch('/api/resolveWagers', {
+        const wagersResponse = await fetch('/api/wager-manager?action=resolve', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
