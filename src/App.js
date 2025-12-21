@@ -102,19 +102,11 @@ function MobileSportsMenu({ currentSport, onSelectSport, allSportsGames }) {
     );
 }
 
-// Mobile Bottom Navigation Bar - Always visible with Refresh, Home, My Bets, Sign Out
-// Updated order: Refresh (action), Home (tab), My Bets (tab), Sign Out (action)
-function MobileBottomNav({ onManualRefresh, isRefreshing, onSignOut, onNavigateToDashboard, onNavigateHome, currentView }) {
+// Mobile Bottom Navigation Bar - Always visible with Home, My Bets, FAQs, Sign Out
+// Updated: Removed Refresh, added FAQs as main tab
+function MobileBottomNav({ onSignOut, onNavigateToDashboard, onNavigateHome, onNavigateToFAQs, currentView }) {
     return (
         <div className="mobile-bottom-nav">
-            <button 
-                onClick={onManualRefresh} 
-                disabled={isRefreshing} 
-                className="mobile-nav-btn"
-            >
-                <span className="mobile-nav-icon">{isRefreshing ? '⏳' : '🔄'}</span>
-                <span className="mobile-nav-label">{isRefreshing ? 'Refreshing' : 'Refresh'}</span>
-            </button>
             <button 
                 onClick={onNavigateHome}
                 className={`mobile-nav-btn ${currentView === 'home' ? 'mobile-nav-btn-active' : ''}`}
@@ -128,6 +120,13 @@ function MobileBottomNav({ onManualRefresh, isRefreshing, onSignOut, onNavigateT
             >
                 <span className="mobile-nav-icon">🎯</span>
                 <span className="mobile-nav-label">My Bets</span>
+            </button>
+            <button 
+                onClick={onNavigateToFAQs}
+                className={`mobile-nav-btn ${currentView === 'faqs' ? 'mobile-nav-btn-active' : ''}`}
+            >
+                <span className="mobile-nav-icon">📖</span>
+                <span className="mobile-nav-label">FAQs</span>
             </button>
             <button 
                 onClick={onSignOut} 
@@ -769,7 +768,7 @@ function AdminLandingPage({ onManageUsers, onViewSubmissions, onSignOut }) {
   );
 }
 
-function LandingPage({ games, allSportsGames, currentViewSport, onChangeSport, loading, onBackToMenu, sport, betType, onBetTypeChange, apiError, onManualRefresh, lastRefreshTime, propBets, propBetsLoading, propBetsError, onSignOut, isRefreshing, onNavigateToDashboard, userCredit, onRefreshCredit, collapseBettingSlip, optimisticWagers, setOptimisticWagers }) {
+function LandingPage({ games, allSportsGames, currentViewSport, onChangeSport, loading, onBackToMenu, sport, betType, onBetTypeChange, apiError, onManualRefresh, lastRefreshTime, propBets, propBetsLoading, propBetsError, onSignOut, isRefreshing, onNavigateToDashboard, onNavigateToFAQs, userCredit, onRefreshCredit, collapseBettingSlip, optimisticWagers, setOptimisticWagers }) {
   const [selectedPicks, setSelectedPicks] = useState({});
   const [contactInfo, setContactInfo] = useState({ name: '', email: '', betAmount: '' });
   const [individualBetAmounts, setIndividualBetAmounts] = useState({});
@@ -1667,10 +1666,9 @@ const saveSubmission = async (submission) => {
         
         {/* Mobile Bottom Navigation - Always Visible - For No Games State */}
         <MobileBottomNav
-          onManualRefresh={onManualRefresh}
-          isRefreshing={isRefreshing}
           onSignOut={onSignOut}
           onNavigateToDashboard={onNavigateToDashboard}
+          onNavigateToFAQs={onNavigateToFAQs}
           onNavigateHome={() => {
             // Navigate to home (betting grid) - already on this page, no action needed
           }}
@@ -1711,10 +1709,9 @@ const saveSubmission = async (submission) => {
         
         {/* Mobile Bottom Navigation - Always Visible - For Prop Bets View */}
         <MobileBottomNav
-          onManualRefresh={onManualRefresh}
-          isRefreshing={isRefreshing}
           onSignOut={onSignOut}
           onNavigateToDashboard={onNavigateToDashboard}
+          onNavigateToFAQs={onNavigateToFAQs}
           onNavigateHome={() => {
             // Navigate to home (betting grid) - already on this page, no action needed
           }}
@@ -1749,10 +1746,9 @@ const saveSubmission = async (submission) => {
         
         {/* Mobile Bottom Navigation - Always Visible - For Loading State */}
         <MobileBottomNav
-          onManualRefresh={onManualRefresh}
-          isRefreshing={isRefreshing}
           onSignOut={onSignOut}
           onNavigateToDashboard={onNavigateToDashboard}
+          onNavigateToFAQs={onNavigateToFAQs}
           onNavigateHome={() => {
             // Navigate to home (betting grid) - already on this page, no action needed
           }}
@@ -1861,10 +1857,9 @@ const saveSubmission = async (submission) => {
       
       {/* Mobile Bottom Navigation - Always Visible */}
       <MobileBottomNav
-        onManualRefresh={onManualRefresh}
-        isRefreshing={isRefreshing}
         onSignOut={onSignOut}
         onNavigateToDashboard={onNavigateToDashboard}
+        onNavigateToFAQs={onNavigateToFAQs}
         onNavigateHome={() => {
           // Navigate to home (betting grid) - this is the default view
           // Since we're already on this page, we just ensure the view is set correctly
@@ -2991,8 +2986,39 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
       } />
 
       {/* Member routes - unified container for seamless tab switching */}
-      {/* Both /member/:sport and /member/dashboard use the same container */}
-      {/* This keeps both Home and My Bets views mounted, eliminating loading delays */}
+      {/* Home (/member/:sport), My Bets (/member/dashboard), and FAQs (/member/faqs) use the same container */}
+      {/* This keeps all views mounted, eliminating loading delays */}
+      <Route path="/member/faqs" element={
+        !authState.user || authState.isAdmin ? (
+          <Navigate to="/login/user" replace />
+        ) : (
+          <MemberContainer
+            games={games}
+            allSportsGames={allSportsGames}
+            betType={betType}
+            onBetTypeChange={setBetType}
+            loading={loading}
+            apiError={apiError}
+            onManualRefresh={handleManualRefresh}
+            lastRefreshTime={lastRefreshTime}
+            onSignOut={handleSignOut}
+            isRefreshing={isRefreshing}
+            propBets={propBets}
+            propBetsLoading={propBetsLoading}
+            propBetsError={propBetsError}
+            setCurrentViewSport={setCurrentViewSport}
+            currentViewSportRef={currentViewSportRef}
+            setGames={setGames}
+            loadAllPropBets={loadAllPropBets}
+            userCredit={userCredit}
+            onRefreshCredit={refreshUserCredit}
+            optimisticWagers={optimisticWagers}
+            setOptimisticWagers={setOptimisticWagers}
+            LandingPage={LandingPage}
+          />
+        )
+      } />
+      
       <Route path="/member/dashboard" element={
         !authState.user || authState.isAdmin ? (
           <Navigate to="/login/user" replace />

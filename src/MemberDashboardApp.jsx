@@ -1329,146 +1329,13 @@ function TransactionsTab({ userId, rtdb }) {
 }
 
 // ============================================================================
-// FAQs/Member Guide Component - Accordion-style guide with Important Rules and Parlay Payouts
-// ============================================================================
-function FAQsGuideTab() {
-  const [expandedSection, setExpandedSection] = useState(null);
-
-  const toggleSection = (sectionId) => {
-    setExpandedSection(expandedSection === sectionId ? null : sectionId);
-  };
-
-  // Parlay payout multipliers
-  const parlayPayouts = [
-    { legs: 3, payout: '8 to 1' },
-    { legs: 4, payout: '15 to 1' },
-    { legs: 5, payout: '25 to 1' },
-    { legs: 6, payout: '50 to 1' },
-    { legs: 7, payout: '100 to 1' },
-    { legs: 8, payout: '150 to 1' },
-    { legs: 9, payout: '200 to 1' },
-    { legs: 10, payout: '250 to 1' }
-  ];
-
-  return (
-    <div className="space-y-3">
-      {/* Section 1: Important Rules */}
-      <div className="bg-white rounded-lg shadow-md overflow-hidden">
-        <button
-          onClick={() => toggleSection('rules')}
-          className="w-full px-4 py-4 flex items-center justify-between text-left hover:bg-gray-50 transition-colors"
-        >
-          <span className="font-bold text-gray-800 text-lg">
-            📋 Important Rules
-          </span>
-          <span className="text-2xl text-gray-600">
-            {expandedSection === 'rules' ? '▼' : '▶'}
-          </span>
-        </button>
-        {expandedSection === 'rules' && (
-          <div className="px-4 pb-4 text-sm text-gray-700 space-y-3 border-t border-gray-200 pt-4">
-            <div className="space-y-2">
-              <h3 className="font-bold text-gray-900">General Betting Rules:</h3>
-              <ul className="list-disc list-inside space-y-1 pl-2">
-                <li>All wagers must be placed before the game starts</li>
-                <li>Minimum bet: $5.00 per wager</li>
-                <li>Maximum bet: $100.00 per wager</li>
-                <li>All bets are action once submitted</li>
-                <li>Balances reset every Wednesday at midnight</li>
-              </ul>
-            </div>
-            <div className="space-y-2">
-              <h3 className="font-bold text-gray-900">Parlay Rules:</h3>
-              <ul className="list-disc list-inside space-y-1 pl-2">
-                <li>Minimum 3 legs required for parlay bets</li>
-                <li>Maximum 10 legs allowed per parlay</li>
-                <li>ALL picks must win for parlay to pay out</li>
-                <li>If any pick loses, entire parlay loses</li>
-                <li>No teasers or alternate lines allowed</li>
-              </ul>
-            </div>
-            <div className="space-y-2">
-              <h3 className="font-bold text-gray-900">Straight Bet Rules:</h3>
-              <ul className="list-disc list-inside space-y-1 pl-2">
-                <li>One pick per straight bet</li>
-                <li>Payouts based on American odds</li>
-                <li>Each straight bet is independent</li>
-              </ul>
-            </div>
-            <div className="space-y-2">
-              <h3 className="font-bold text-gray-900">Settlement:</h3>
-              <ul className="list-disc list-inside space-y-1 pl-2">
-                <li>Bets are settled after game completion</li>
-                <li>Check "Current Wagers" tab for wager status</li>
-                <li>Winnings are automatically added to your balance</li>
-                <li>Contact admin for any discrepancies</li>
-              </ul>
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* Section 2: Parlay Payout Odds */}
-      <div className="bg-white rounded-lg shadow-md overflow-hidden">
-        <button
-          onClick={() => toggleSection('payouts')}
-          className="w-full px-4 py-4 flex items-center justify-between text-left hover:bg-gray-50 transition-colors"
-        >
-          <span className="font-bold text-gray-800 text-lg">
-            💰 Parlay Payout Odds
-          </span>
-          <span className="text-2xl text-gray-600">
-            {expandedSection === 'payouts' ? '▼' : '▶'}
-          </span>
-        </button>
-        {expandedSection === 'payouts' && (
-          <div className="px-4 pb-4 border-t border-gray-200 pt-4">
-            <p className="text-sm text-gray-600 mb-4">
-              Parlay payouts multiply your stake based on the number of legs. All picks must win for payout.
-            </p>
-            <div className="overflow-x-auto">
-              <table className="w-full border-collapse">
-                <thead>
-                  <tr className="bg-blue-600 text-white">
-                    <th className="px-4 py-3 text-left font-bold text-sm">Number of Legs</th>
-                    <th className="px-4 py-3 text-left font-bold text-sm">Payout</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-200">
-                  {parlayPayouts.map((item) => (
-                    <tr key={item.legs} className="hover:bg-gray-50">
-                      <td className="px-4 py-3 text-sm font-medium text-gray-900">
-                        {item.legs} Legs
-                      </td>
-                      <td className="px-4 py-3 text-sm font-bold text-green-600">
-                        {item.payout}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-            <div className="mt-4 bg-blue-50 rounded-lg p-3">
-              <p className="text-xs text-gray-700">
-                <strong>Example:</strong> A $10 bet on a 5-leg parlay pays $250 if all picks win (25 × $10).
-              </p>
-            </div>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
-
-// ============================================================================
 // Sub-Navigation Tabs Component - Mobile-First with Red Underline
 // ============================================================================
 function SubNavigationTabs({ activeTab, setActiveTab }) {
   const tabs = [
     { id: 'figures', label: 'Figures', icon: '📊' },
     { id: 'pending', label: 'Current Wagers', icon: '⏳' },
-    { id: 'transactions', label: 'Transactions', icon: '📋' },
-    { id: 'faqs', label: 'FAQs', icon: '📖' }
+    { id: 'transactions', label: 'Transactions', icon: '📋' }
   ];
 
   return (
@@ -1619,7 +1486,6 @@ function Dashboard({ userId, db, rtdb, auth, optimisticWagers = [], initialTab =
       {activeTab === 'figures' && <FiguresTab userId={userId} rtdb={rtdb} />}
       {activeTab === 'pending' && <CurrentWagers userId={userId} rtdb={rtdb} optimisticWagers={optimisticWagers} />}
       {activeTab === 'transactions' && <TransactionsTab userId={userId} rtdb={rtdb} />}
-      {activeTab === 'faqs' && <FAQsGuideTab />}
     </div>
   );
 }
@@ -1720,7 +1586,7 @@ function FatalErrorScreen({ title, message, onRetry }) {
 // ============================================================================
 // Main App Component
 // ============================================================================
-function MemberDashboardApp({ onNavigateToHome, optimisticWagers = [] }) {
+function MemberDashboardApp({ onNavigateToHome, onNavigateToFAQs, optimisticWagers = [] }) {
   const [userId, setUserId] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [loadingError, setLoadingError] = useState(null);
@@ -1900,23 +1766,10 @@ function MemberDashboardApp({ onNavigateToHome, optimisticWagers = [] }) {
       {/* Mobile Bottom Navigation - Always Visible */}
       <div className="mobile-bottom-nav">
         <button 
-          onClick={() => setCurrentTab('faqs')}
-          className={`mobile-nav-btn ${currentTab === 'faqs' ? 'mobile-nav-btn-active' : ''}`}
-          title="View FAQs and Member Guide"
-        >
-          <span className="mobile-nav-icon">📖</span>
-          <span className="mobile-nav-label">FAQs</span>
-        </button>
-        <button 
           onClick={() => {
-            // Use prop if provided, otherwise use default navigation
             if (onNavigateToHome) {
               onNavigateToHome();
             } else {
-              // NOTE: Using window.location.href is intentional here
-              // This component doesn't have access to React Router context
-              // See documentation at top of file for details
-              // Issue #1: Set flag to collapse betting slip when returning to Home
               sessionStorage.setItem(COLLAPSE_FLAG_KEY, 'true');
               window.location.href = '/member/NFL';
             }
@@ -1928,23 +1781,28 @@ function MemberDashboardApp({ onNavigateToHome, optimisticWagers = [] }) {
           <span className="mobile-nav-label">Home</span>
         </button>
         <button 
-          className={`mobile-nav-btn ${currentTab === 'pending' ? 'mobile-nav-btn-active' : ''}`}
+          className="mobile-nav-btn mobile-nav-btn-active"
           title="My Bets - Current page"
-          onClick={() => setCurrentTab('pending')}
         >
           <span className="mobile-nav-icon">🎯</span>
           <span className="mobile-nav-label">My Bets</span>
         </button>
         <button 
-          onClick={async () => {
-            // NOTE: Sign out should be handled by the parent App component
-            // which has proper auth context and state management
-            // For now, redirecting to root will trigger the auth check
-            // and the user will be sent to login if not authenticated
-            // TODO: If this component ever gains access to auth context,
-            // call auth.signOut() before redirecting
-            window.location.href = '/';
+          onClick={() => {
+            if (onNavigateToFAQs) {
+              onNavigateToFAQs();
+            } else {
+              window.location.href = '/member/faqs';
+            }
           }}
+          className="mobile-nav-btn"
+          title="View FAQs and Member Guide"
+        >
+          <span className="mobile-nav-icon">📖</span>
+          <span className="mobile-nav-label">FAQs</span>
+        </button>
+        <button 
+          onClick={() => window.location.href = '/'}
           className="mobile-nav-btn"
           title="Sign out"
         >

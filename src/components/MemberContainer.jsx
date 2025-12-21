@@ -1,13 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import MemberDashboardApp from '../MemberDashboardApp';
+import FAQsGuide from './FAQsGuide';
 
 /**
- * MemberContainer - Unified container for Home (Betting Grid) and My Bets (Dashboard)
+ * MemberContainer - Unified container for Home (Betting Grid), My Bets (Dashboard), and FAQs
  * 
  * MOBILE-FIRST DESIGN: Performance Optimization
  * 
- * Both views are ALWAYS MOUNTED in the DOM to eliminate loading delays when switching tabs.
+ * All views are ALWAYS MOUNTED in the DOM to eliminate loading delays when switching tabs.
  * CSS display property (display: none / display: block) is used to show/hide views.
  * 
  * This prevents component unmount/remount, preserving state and eliminating the ~300-500ms
@@ -50,20 +51,23 @@ function MemberContainer({
   const { sport } = useParams();
   const location = useLocation();
   
-  // Determine if we're on the dashboard route
+  // Determine current route
   const isDashboardRoute = location.pathname === '/member/dashboard';
+  const isFAQsRoute = location.pathname === '/member/faqs';
   
-  // Current view state: 'home' or 'mybets'
+  // Current view state: 'home', 'mybets', or 'faqs'
   // Initialize based on route
-  const [currentView, setCurrentView] = useState(isDashboardRoute ? 'mybets' : 'home');
+  const [currentView, setCurrentView] = useState(
+    isFAQsRoute ? 'faqs' : isDashboardRoute ? 'mybets' : 'home'
+  );
   
   // Sync view state when route changes (e.g., browser back/forward button)
   useEffect(() => {
-    const newView = location.pathname === '/member/dashboard' ? 'mybets' : 'home';
+    const newView = isFAQsRoute ? 'faqs' : isDashboardRoute ? 'mybets' : 'home';
     if (newView !== currentView) {
       setCurrentView(newView);
     }
-  }, [location.pathname, currentView]);
+  }, [location.pathname, currentView, isDashboardRoute, isFAQsRoute]);
   
   // Handle sport changes in URL when on home view
   useEffect(() => {
@@ -87,14 +91,20 @@ function MemberContainer({
   // Navigate to My Bets
   const handleNavigateToDashboard = () => {
     setCurrentView('mybets');
-    navigate('/member/dashboard', { replace: false, state: { from: 'home' } });
+    navigate('/member/dashboard', { replace: false, state: { from: currentView } });
   };
   
   // Navigate back to Home
   const handleNavigateToHome = () => {
     setCurrentView('home');
     const targetSport = sport || currentViewSportRef.current || 'NFL';
-    navigate(`/member/${targetSport}`, { replace: false, state: { from: 'dashboard' } });
+    navigate(`/member/${targetSport}`, { replace: false, state: { from: currentView } });
+  };
+  
+  // Navigate to FAQs
+  const handleNavigateToFAQs = () => {
+    setCurrentView('faqs');
+    navigate('/member/faqs', { replace: false, state: { from: currentView } });
   };
   
   // Handle sport changes from within the home view
@@ -154,6 +164,7 @@ function MemberContainer({
           propBetsLoading={propBetsLoading}
           propBetsError={propBetsError}
           onNavigateToDashboard={handleNavigateToDashboard}
+          onNavigateToFAQs={handleNavigateToFAQs}
           userCredit={userCredit}
           onRefreshCredit={onRefreshCredit}
           collapseBettingSlip={collapseBettingSlip}
@@ -173,7 +184,23 @@ function MemberContainer({
       }}>
         <MemberDashboardApp 
           onNavigateToHome={handleNavigateToHome}
+          onNavigateToFAQs={handleNavigateToFAQs}
           optimisticWagers={optimisticWagers}
+        />
+      </div>
+      
+      {/* 
+        FAQs VIEW (Member Guide)
+        Always mounted, visibility controlled by CSS 
+      */}
+      <div style={{ 
+        display: currentView === 'faqs' ? 'block' : 'none',
+        width: '100%',
+        minHeight: '100vh'
+      }}>
+        <FAQsGuide 
+          onNavigateToHome={handleNavigateToHome}
+          onNavigateToMyBets={handleNavigateToDashboard}
         />
       </div>
     </div>
