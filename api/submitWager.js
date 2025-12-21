@@ -131,15 +131,15 @@ module.exports = async (req, res) => {
       }
 
       const userData = userSnapshot.val();
+      
+      // New dynamic balance system
+      const baseCreditLimit = parseFloat(userData.base_credit_limit) || parseFloat(userData.creditLimit) || 100;
+      const currentBalance = userData.current_balance !== undefined 
+        ? parseFloat(userData.current_balance) 
+        : baseCreditLimit; // Fallback for legacy users
       const currentTotalWagered = parseFloat(userData.totalWagered) || 0;
       const creditLimit = parseFloat(userData.creditLimit) || 100;
       const userStatus = userData.status;
-      
-      // New dynamic balance system
-      const currentBalance = parseFloat(userData.current_balance) !== undefined 
-        ? parseFloat(userData.current_balance) 
-        : creditLimit - currentTotalWagered; // Fallback for legacy users
-      const baseCreditLimit = parseFloat(userData.base_credit_limit) || creditLimit;
 
       // Check if user is revoked
       if (userStatus === 'revoked') {

@@ -57,15 +57,25 @@ if (admin) {
 
 /**
  * Calculate the most recent Wednesday at 12:01 AM EST
+ * Note: This implementation uses a simplified EST offset and does not account for DST.
+ * For production, consider using a timezone library like moment-timezone or date-fns-tz.
  * @returns {Date} The most recent Wednesday 12:01 AM EST
  */
 function getMostRecentWednesdayReset() {
   // Get current time in EST (UTC-5 or UTC-4 depending on DST)
   const now = new Date();
   
-  // Convert to EST/EDT - using America/New_York timezone
-  // We'll calculate in UTC and adjust
-  const estOffset = -5; // Standard EST offset (adjust for EDT if needed)
+  // Simple DST detection for US Eastern Time
+  // DST starts second Sunday in March, ends first Sunday in November
+  const year = now.getUTCFullYear();
+  const marchSecondSunday = new Date(Date.UTC(year, 2, 1, 7, 0, 0)); // March 1 at 2am EST
+  marchSecondSunday.setUTCDate(1 + (7 - marchSecondSunday.getUTCDay()) + 7); // Second Sunday
+  const novemberFirstSunday = new Date(Date.UTC(year, 10, 1, 6, 0, 0)); // November 1 at 2am EDT
+  novemberFirstSunday.setUTCDate(1 + (7 - novemberFirstSunday.getUTCDay())); // First Sunday
+  
+  const isDST = now >= marchSecondSunday && now < novemberFirstSunday;
+  const estOffset = isDST ? -4 : -5; // EDT is -4, EST is -5
+  
   const estNow = new Date(now.getTime() + (estOffset * 60 * 60 * 1000));
   
   // Get current day of week (0 = Sunday, 3 = Wednesday)
@@ -84,7 +94,7 @@ function getMostRecentWednesdayReset() {
   // If today is Wednesday but before 12:01 AM, use last week's Wednesday
   const currentHour = estNow.getUTCHours();
   const currentMinute = estNow.getUTCMinutes();
-  if (currentDay === 3 && (currentHour < 0 || (currentHour === 0 && currentMinute < 1))) {
+  if (currentDay === 3 && (currentHour === 0 && currentMinute < 1)) {
     daysSinceWednesday += 7;
   }
   

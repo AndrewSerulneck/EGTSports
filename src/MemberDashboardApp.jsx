@@ -250,7 +250,7 @@ function BalanceStatus({ userId, rtdb, auth }) {
       if (snapshot.exists()) {
         const userData = snapshot.val();
         const baseCreditLimit = parseFloat(userData.base_credit_limit) || parseFloat(userData.creditLimit) || 100;
-        const currentBalance = parseFloat(userData.current_balance) !== undefined 
+        const currentBalance = userData.current_balance !== undefined 
           ? parseFloat(userData.current_balance)
           : baseCreditLimit; // Default to base limit for new users
         
@@ -1359,7 +1359,7 @@ function SubNavigationTabs({ activeTab, setActiveTab }) {
               <span>{tab.label}</span>
             </span>
             {activeTab === tab.id && (
-              <div className="absolute bottom-0 left-0 right-0 h-1 bg-red-500" style={{ backgroundColor: '#ff3131' }}></div>
+              <div className="absolute bottom-0 left-0 right-0 h-1" style={{ backgroundColor: '#ff3131' }}></div>
             )}
           </button>
         ))}
