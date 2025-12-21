@@ -17,7 +17,7 @@
   ],
   "crons": [
     {
-      "path": "/api/weeklyReset",
+      "path": "/api/system-sync?action=weeklyReset",
       "schedule": "0 0 * * 2"
     }
   ]
