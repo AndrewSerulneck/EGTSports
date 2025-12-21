@@ -1811,6 +1811,7 @@ const saveSubmission = async (submission) => {
           selectedPicks={selectedPicks}
           onSelectPick={handleGridPickSelection}
           betType={betType}
+          sport={displaySport}
         />
         
         <div className="card">

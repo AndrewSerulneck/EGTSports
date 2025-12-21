@@ -72,6 +72,16 @@
   font-weight: 600;
 }
 
+.period-indicator {
+  background: #007bff;
+  color: white;
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+}
+
 /* Game Info - Teams Display */
 .game-info {
   padding: 14px;
