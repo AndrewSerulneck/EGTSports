@@ -324,6 +324,46 @@ async function resolveWager(wagerId, wagerData, db) {
 
     await db.ref(`wagers/${wagerId}`).update(updates);
 
+    // Update user's current_balance if wager won or pushed
+    if (payout > 0 && wagerData.uid) {
+      const userId = wagerData.uid;
+      const userRef = db.ref(`users/${userId}`);
+      const userSnapshot = await userRef.once('value');
+      
+      if (userSnapshot.exists()) {
+        const userData = userSnapshot.val();
+        const currentBalance = parseFloat(userData.current_balance) || 0;
+        const newBalance = currentBalance + payout;
+        
+        // Update balance
+        await userRef.update({
+          current_balance: newBalance
+        });
+        
+        // Create transaction record
+        const transactionRef = db.ref(`transactions/${userId}`).push();
+        let description = '';
+        if (wagerStatus === 'won') {
+          description = `Wager Won - ${betType} (+$${payout.toFixed(2)})`;
+        } else if (wagerStatus === 'push') {
+          description = `Wager Pushed - Stake Returned (+$${payout.toFixed(2)})`;
+        }
+        
+        await transactionRef.set({
+          timestamp: new Date().toISOString(),
+          description: description,
+          amount: payout,
+          balanceBefore: currentBalance,
+          balanceAfter: newBalance,
+          type: wagerStatus === 'won' ? 'win' : 'push',
+          wagerId: wagerId,
+          createdAt: new Date().toISOString()
+        });
+        
+        console.log(`✅ User ${userId} balance updated: ${currentBalance} -> ${newBalance}`);
+      }
+    }
+
     console.log(`✅ Wager ${wagerId} resolved as ${wagerStatus}`);
     return { success: true, status: wagerStatus, payout: payout };
 

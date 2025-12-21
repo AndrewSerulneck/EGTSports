@@ -134,6 +134,12 @@ module.exports = async (req, res) => {
       const currentTotalWagered = parseFloat(userData.totalWagered) || 0;
       const creditLimit = parseFloat(userData.creditLimit) || 100;
       const userStatus = userData.status;
+      
+      // New dynamic balance system
+      const currentBalance = parseFloat(userData.current_balance) !== undefined 
+        ? parseFloat(userData.current_balance) 
+        : creditLimit - currentTotalWagered; // Fallback for legacy users
+      const baseCreditLimit = parseFloat(userData.base_credit_limit) || creditLimit;
 
       // Check if user is revoked
       if (userStatus === 'revoked') {
@@ -144,30 +150,34 @@ module.exports = async (req, res) => {
         });
       }
 
-      // Enforce credit limit: newWager + totalWagered <= creditLimit
-      const newTotalWagered = currentTotalWagered + amount;
-      const remainingCredit = creditLimit - currentTotalWagered;
-
-      if (newTotalWagered > creditLimit) {
+      // NEW LOGIC: Check if wager amount exceeds current_balance
+      if (amount > currentBalance) {
         return res.status(400).json({ 
           success: false, 
-          error: 'Wager exceeds credit limit',
+          error: 'Insufficient balance',
           details: {
             wagerAmount: amount,
-            currentTotalWagered: currentTotalWagered,
-            creditLimit: creditLimit,
-            remainingCredit: remainingCredit
+            currentBalance: currentBalance,
+            baseCreditLimit: baseCreditLimit
           },
-          hint: `You have $${remainingCredit.toFixed(2)} remaining credit. Your wager of $${amount.toFixed(2)} exceeds this limit.`
+          hint: `Your current balance is $${currentBalance.toFixed(2)}. Your wager of $${amount.toFixed(2)} exceeds this amount.`
         });
       }
 
-      // Update the user's total wagered amount
-      await admin.database().ref(`users/${uid}/totalWagered`).set(newTotalWagered);
+      // Calculate new balance
+      const newBalance = currentBalance - amount;
+      const newTotalWagered = currentTotalWagered + amount;
+
+      // Update the user's balance and total wagered
+      await admin.database().ref(`users/${uid}`).update({
+        current_balance: newBalance,
+        totalWagered: newTotalWagered
+      });
 
       // Optionally store the wager details in a wagers collection
       if (wagerData) {
         const wagerRef = admin.database().ref('wagers').push();
+        const wagerId = wagerRef.key;
         await wagerRef.set({
           uid: uid,
           email: userData.email,
@@ -177,19 +187,31 @@ module.exports = async (req, res) => {
           createdAt: new Date().toISOString(),
           status: 'pending'
         });
+        
+        // Create a transaction record
+        const transactionRef = admin.database().ref(`transactions/${uid}`).push();
+        await transactionRef.set({
+          timestamp: new Date().toISOString(),
+          description: `Wager Placed - ${wagerData.betType || 'Bet'} ($${amount.toFixed(2)})`,
+          amount: -amount,
+          balanceBefore: currentBalance,
+          balanceAfter: newBalance,
+          type: 'wager',
+          wagerId: wagerId,
+          createdAt: new Date().toISOString()
+        });
       }
 
-      console.log(`Wager submitted: User ${uid} wagered $${amount}. New total: $${newTotalWagered}/${creditLimit}`);
+      console.log(`Wager submitted: User ${uid} wagered $${amount}. New balance: $${newBalance.toFixed(2)}`);
 
       return res.status(200).json({
         success: true,
         message: 'Wager submitted successfully',
         details: {
           wagerAmount: amount,
-          previousTotalWagered: currentTotalWagered,
-          newTotalWagered: newTotalWagered,
-          creditLimit: creditLimit,
-          remainingCredit: creditLimit - newTotalWagered
+          previousBalance: currentBalance,
+          newBalance: newBalance,
+          baseCreditLimit: baseCreditLimit
         }
       });
 
