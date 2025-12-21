@@ -1399,7 +1399,7 @@ function FAQsGuideTab() {
               <h3 className="font-bold text-gray-900">Settlement:</h3>
               <ul className="list-disc list-inside space-y-1 pl-2">
                 <li>Bets are settled after game completion</li>
-                <li>Check "My Bets" tab for wager status</li>
+                <li>Check "Current Wagers" tab for wager status</li>
                 <li>Winnings are automatically added to your balance</li>
                 <li>Contact admin for any discrepancies</li>
               </ul>

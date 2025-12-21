@@ -103,11 +103,11 @@ function GridBettingLayout({
             periodLabel = 'WHOLE GAME';
           } else if (periodId === 'first_half') {
             periodLabel = '1ST HALF';
-            // Note: Period-specific odds would be filtered here when available from API
-            // For now, we show the same games with a note that period odds are coming soon
+            // TODO: Filter period-specific odds when API provides 1H data
+            // For now, show same games with "Coming Soon" placeholder
           } else if (periodId === 'first_quarter') {
             periodLabel = '1ST QUARTER';
-            // Note: Period-specific odds would be filtered here when available from API
+            // TODO: Filter period-specific odds when API provides 1Q data
           }
           
           return (
@@ -218,7 +218,7 @@ function GridBettingLayout({
                               disabled={game.isFinal || !game.total}
                               aria-label={`Over ${formatOdds(game.total)}`}
                             >
-                              <span className="btn-team">O</span>
+                              <span className="btn-team">Over</span>
                               <span className="btn-odds">{formatOdds(game.total)}</span>
                             </button>
                             <button
@@ -227,7 +227,7 @@ function GridBettingLayout({
                               disabled={game.isFinal || !game.total}
                               aria-label={`Under ${formatOdds(game.total)}`}
                             >
-                              <span className="btn-team">U</span>
+                              <span className="btn-team">Under</span>
                               <span className="btn-odds">{formatOdds(game.total)}</span>
                             </button>
                           </div>
