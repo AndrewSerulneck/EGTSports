@@ -283,10 +283,30 @@ function BalanceStatus({ userId, rtdb, auth }) {
     : 0;
   const isLow = balancePercentage < 25;
   const isMedium = balancePercentage >= 25 && balancePercentage < 50;
+  
+  // Determine if user is "up on the week" (above base limit) or "down on the week" (below base limit)
+  const isUpOnWeek = balanceData.currentBalance > balanceData.baseCreditLimit;
+  const isDownOnWeek = balanceData.currentBalance < balanceData.baseCreditLimit;
 
   return (
     <div className="bg-gradient-to-r from-blue-600 to-blue-700 rounded-xl shadow-lg p-6 mb-4 text-white">
       <h2 className="text-2xl font-bold mb-4">💰 Current Balance</h2>
+      
+      {/* Colloquial Performance-Based Feedback */}
+      {isUpOnWeek && (
+        <div className="bg-green-500 bg-opacity-40 border-2 border-green-300 rounded-lg p-4 mb-4 text-center">
+          <p className="text-lg font-bold text-white">
+            Congratulations! You're up on the week! 💰
+          </p>
+        </div>
+      )}
+      {isDownOnWeek && (
+        <div className="bg-blue-800 bg-opacity-40 border-2 border-blue-300 rounded-lg p-4 mb-4 text-center">
+          <p className="text-lg font-bold text-white">
+            Tough week, but the board is wide open. Let's get it back! 🎯
+          </p>
+        </div>
+      )}
       
       {/* Large Balance Display */}
       <div className="text-center mb-4">
@@ -307,15 +327,6 @@ function BalanceStatus({ userId, rtdb, auth }) {
             }`}
             style={{ width: `${Math.max(0, Math.min(100, balancePercentage))}%` }}
           />
-        </div>
-      )}
-      
-      {/* Balance Exceeds Limit Badge */}
-      {balanceData.currentBalance > balanceData.baseCreditLimit && (
-        <div className="bg-green-500 bg-opacity-30 border-2 border-green-300 rounded-lg p-3 mb-2">
-          <p className="text-sm font-bold text-center">
-            🎉 Balance exceeds base limit from winnings!
-          </p>
         </div>
       )}
       
@@ -438,15 +449,14 @@ function CreditStatus({ userId, rtdb }) {
 }
 
 // ============================================================================
-// Current Wagers Component (Pending Wagers) - Mobile-First Design with Collapsible
+// Current Wagers Component (Pending Wagers) - Mobile-First Design
 // Reads from Firebase Realtime Database /wagers collection
-// Default: Collapsed on mobile for optimal viewport usage
+// Auto-displays all wagers (no collapsible behavior)
 // Updated to support optimistic wagers for instant feedback
 // ============================================================================
 function CurrentWagers({ userId, rtdb, optimisticWagers = [] }) {
   const [wagers, setWagers] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [isExpanded, setIsExpanded] = useState(false); // Default collapsed for mobile-first
 
   useEffect(() => {
     if (!userId || !rtdb) return;
@@ -511,117 +521,104 @@ function CurrentWagers({ userId, rtdb, optimisticWagers = [] }) {
 
   return (
     <div className="bg-white rounded-lg shadow-md p-4 mb-4">
-      {/* Collapsible Header - Click to expand/collapse */}
-      <button
-        onClick={() => setIsExpanded(!isExpanded)}
-        className="w-full flex items-center justify-between text-left hover:bg-gray-50 active:bg-gray-100 rounded p-2 transition-colors"
-      >
-        <h2 className="text-lg font-bold text-gray-800">
-          ⏳ Current Wagers <span className="text-blue-600">({allWagers.length})</span>
-        </h2>
-        <span className="text-2xl text-gray-600">
-          {isExpanded ? '▼' : '▶'}
-        </span>
-      </button>
+      {/* Header - Always visible, no collapse */}
+      <h2 className="text-lg font-bold text-gray-800 mb-3">
+        ⏳ Current Wagers <span className="text-blue-600">({allWagers.length})</span>
+      </h2>
       
-      {/* Collapsible Content */}
-      {isExpanded && (
-        <>
-          {allWagers.length === 0 ? (
-            <div className="text-center py-6 mt-2">
-              <p className="text-gray-400 text-sm">No pending wagers</p>
-              <p className="text-gray-300 text-xs mt-1">Your active bets will appear here</p>
-            </div>
-          ) : (
-            <div className="space-y-3 max-h-96 overflow-y-auto mt-3">
-              {allWagers.map((wager) => {
-                const details = wager.details || { summary: `Ticket #${wager.wagerData?.ticketNumber || 'Unknown'}`, picks: [] };
-                const isOptimistic = wager.isOptimistic === true;
-                return (
-                  <div
-                    key={wager.id}
-                    className={`rounded-r-lg p-3 shadow-sm ${
-                      isOptimistic 
-                        ? 'bg-gradient-to-r from-blue-50 to-indigo-50 border-l-4 border-blue-500' 
-                        : 'bg-gradient-to-r from-yellow-50 to-amber-50 border-l-4 border-yellow-400'
-                    }`}
-                  >
-                    {/* Mobile-first: Stack vertically */}
-                    <div className="flex flex-col space-y-2">
-                      {/* Optimistic Badge - if applicable */}
-                      {isOptimistic && (
-                        <div className="flex items-center gap-1 text-xs text-blue-600 font-medium">
-                          <span className="animate-pulse">⚡</span>
-                          <span>Submitting...</span>
-                        </div>
-                      )}
-                      
-                      {/* Wager Summary - Prominent */}
-                      <p className="text-sm font-semibold text-gray-800 leading-tight">
-                        {details.summary}
-                      </p>
-                      
-                      {/* Full Pick Details */}
-                      {details.picks && details.picks.length > 0 && (
-                        <div className="bg-white bg-opacity-60 rounded p-2 space-y-1">
-                          {details.picks.map((pick, idx) => (
-                            <div key={idx} className="text-xs">
-                              <div className="font-medium text-gray-900">{pick.description}</div>
-                              <div className="text-gray-600">{pick.gameName}</div>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                      
-                      {/* Bet Type Badge */}
-                      {wager.wagerData?.betType && (
-                        <span className="inline-block w-fit px-2 py-0.5 text-xs font-medium bg-blue-100 text-blue-700 rounded">
-                          {wager.wagerData.betType === 'parlay' ? '🎯 Parlay' : '📊 Straight'}
-                        </span>
-                      )}
-                      
-                      {/* Financial Details */}
-                      {wager.wagerData && (
-                        <div className="bg-blue-50 rounded p-2 space-y-1 text-xs">
-                          <div className="flex justify-between">
-                            <span className="text-gray-600">Total Stake:</span>
-                            <span className="font-bold text-gray-900">${(wager.amount || wager.wagerData.betAmount || 0).toFixed(2)}</span>
-                          </div>
-                          {wager.wagerData.potentialPayout && (
-                            <>
-                              <div className="flex justify-between">
-                                <span className="text-gray-600">Potential Payout:</span>
-                                <span className="font-bold text-green-700">${wager.wagerData.potentialPayout.toFixed(2)}</span>
-                              </div>
-                              <div className="flex justify-between">
-                                <span className="text-gray-600">Potential Profit:</span>
-                                <span className="font-bold text-blue-700">${(wager.wagerData.potentialPayout - (wager.amount || wager.wagerData.betAmount || 0)).toFixed(2)}</span>
-                              </div>
-                            </>
-                          )}
-                        </div>
-                      )}
-                      
-                      {/* Status Row - Simplified since financial details are shown above */}
-                      <div className="flex items-center justify-end">
-                        <span className="inline-flex items-center px-2.5 py-1 text-xs font-bold bg-yellow-400 text-yellow-900 rounded-full shadow-sm">
-                          ⏳ PENDING
-                        </span>
-                      </div>
-                      
-                      {/* Date - Smaller */}
-                      <p className="text-xs text-gray-500">
-                        {wager.createdAt
-                          ? new Date(wager.createdAt).toLocaleString()
-                          : "Just now"}
-                      </p>
+      {/* Wagers List - Always displayed */}
+      {allWagers.length === 0 ? (
+        <div className="text-center py-6">
+          <p className="text-gray-400 text-sm">No pending wagers</p>
+          <p className="text-gray-300 text-xs mt-1">Your active bets will appear here</p>
+        </div>
+      ) : (
+        <div className="space-y-3 max-h-96 overflow-y-auto">{allWagers.map((wager) => {
+            const details = wager.details || { summary: `Ticket #${wager.wagerData?.ticketNumber || 'Unknown'}`, picks: [] };
+            const isOptimistic = wager.isOptimistic === true;
+            return (
+              <div
+                key={wager.id}
+                className={`rounded-r-lg p-3 shadow-sm ${
+                  isOptimistic 
+                    ? 'bg-gradient-to-r from-blue-50 to-indigo-50 border-l-4 border-blue-500' 
+                    : 'bg-gradient-to-r from-yellow-50 to-amber-50 border-l-4 border-yellow-400'
+                }`}
+              >
+                {/* Mobile-first: Stack vertically */}
+                <div className="flex flex-col space-y-2">
+                  {/* Optimistic Badge - if applicable */}
+                  {isOptimistic && (
+                    <div className="flex items-center gap-1 text-xs text-blue-600 font-medium">
+                      <span className="animate-pulse">⚡</span>
+                      <span>Submitting...</span>
                     </div>
+                  )}
+                  
+                  {/* Wager Summary - Prominent */}
+                  <p className="text-sm font-semibold text-gray-800 leading-tight">
+                    {details.summary}
+                  </p>
+                  
+                  {/* Full Pick Details */}
+                  {details.picks && details.picks.length > 0 && (
+                    <div className="bg-white bg-opacity-60 rounded p-2 space-y-1">
+                      {details.picks.map((pick, idx) => (
+                        <div key={idx} className="text-xs">
+                          <div className="font-medium text-gray-900">{pick.description}</div>
+                          <div className="text-gray-600">{pick.gameName}</div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  
+                  {/* Bet Type Badge */}
+                  {wager.wagerData?.betType && (
+                    <span className="inline-block w-fit px-2 py-0.5 text-xs font-medium bg-blue-100 text-blue-700 rounded">
+                      {wager.wagerData.betType === 'parlay' ? '🎯 Parlay' : '📊 Straight'}
+                    </span>
+                  )}
+                  
+                  {/* Financial Details */}
+                  {wager.wagerData && (
+                    <div className="bg-blue-50 rounded p-2 space-y-1 text-xs">
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Total Stake:</span>
+                        <span className="font-bold text-gray-900">${(wager.amount || wager.wagerData.betAmount || 0).toFixed(2)}</span>
+                      </div>
+                      {wager.wagerData.potentialPayout && (
+                        <>
+                          <div className="flex justify-between">
+                            <span className="text-gray-600">Potential Payout:</span>
+                            <span className="font-bold text-green-700">${wager.wagerData.potentialPayout.toFixed(2)}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-gray-600">Potential Profit:</span>
+                            <span className="font-bold text-blue-700">${(wager.wagerData.potentialPayout - (wager.amount || wager.wagerData.betAmount || 0)).toFixed(2)}</span>
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  )}
+                  
+                  {/* Status Row - Simplified since financial details are shown above */}
+                  <div className="flex items-center justify-end">
+                    <span className="inline-flex items-center px-2.5 py-1 text-xs font-bold bg-yellow-400 text-yellow-900 rounded-full shadow-sm">
+                      ⏳ PENDING
+                    </span>
                   </div>
-                );
-              })}
-            </div>
-          )}
-        </>
+                  
+                  {/* Date - Smaller */}
+                  <p className="text-xs text-gray-500">
+                    {wager.createdAt
+                      ? new Date(wager.createdAt).toLocaleString()
+                      : "Just now"}
+                  </p>
+                </div>
+              </div>
+            );
+          })}
+        </div>
       )}
     </div>
   );
@@ -1337,7 +1334,7 @@ function TransactionsTab({ userId, rtdb }) {
 function SubNavigationTabs({ activeTab, setActiveTab }) {
   const tabs = [
     { id: 'figures', label: 'Figures', icon: '📊' },
-    { id: 'pending', label: 'Pending', icon: '⏳' },
+    { id: 'pending', label: 'Current Wagers', icon: '⏳' },
     { id: 'transactions', label: 'Transactions', icon: '📋' }
   ];
 
@@ -1383,10 +1380,18 @@ const RESOLUTION_COOLDOWN = 60000; // Minimum time between resolution attempts (
 // For production with high concurrency, consider sessionStorage or React Context
 let lastResolutionTime = 0;
 
-function Dashboard({ userId, db, rtdb, auth, optimisticWagers = [] }) {
+function Dashboard({ userId, db, rtdb, auth, optimisticWagers = [], initialTab = 'pending', onTabChange }) {
   const [isResolvingWagers, setIsResolvingWagers] = useState(false);
   const [resolutionStatus, setResolutionStatus] = useState('');
-  const [activeTab, setActiveTab] = useState('pending'); // Default to Pending tab
+  const [activeTab, setActiveTab] = useState(initialTab); // Use initialTab prop
+  
+  // Call parent callback when tab changes
+  const handleTabChange = (tabId) => {
+    setActiveTab(tabId);
+    if (onTabChange) {
+      onTabChange(tabId);
+    }
+  };
 
   useEffect(() => {
     // Trigger on-demand wager resolution when dashboard loads
@@ -1475,7 +1480,7 @@ function Dashboard({ userId, db, rtdb, auth, optimisticWagers = [] }) {
       <BalanceStatus userId={userId} rtdb={rtdb} auth={auth} />
       
       {/* Sub-Navigation Tabs */}
-      <SubNavigationTabs activeTab={activeTab} setActiveTab={setActiveTab} />
+      <SubNavigationTabs activeTab={activeTab} setActiveTab={handleTabChange} />
       
       {/* Tab Content */}
       {activeTab === 'figures' && <FiguresTab userId={userId} rtdb={rtdb} />}
@@ -1581,11 +1586,12 @@ function FatalErrorScreen({ title, message, onRetry }) {
 // ============================================================================
 // Main App Component
 // ============================================================================
-function MemberDashboardApp({ onNavigateToHome, optimisticWagers = [] }) {
+function MemberDashboardApp({ onNavigateToHome, onNavigateToFAQs, optimisticWagers = [] }) {
   const [userId, setUserId] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [loadingError, setLoadingError] = useState(null);
   const [isAuthReady, setIsAuthReady] = useState(false);
+  const [currentTab, setCurrentTab] = useState('pending'); // Track current tab for bottom nav
 
   // Check for Firebase initialization errors on mount
   useEffect(() => {
@@ -1746,35 +1752,24 @@ function MemberDashboardApp({ onNavigateToHome, optimisticWagers = [] }) {
 
       <main className="max-w-3xl mx-auto px-4 py-4 pb-mobile-nav-safe">
         {/* Dashboard with Balance Status, Sub-Navigation, and Tabs */}
-        <Dashboard userId={userId} db={db} rtdb={rtdb} auth={auth} optimisticWagers={optimisticWagers} />
+        <Dashboard 
+          userId={userId} 
+          db={db} 
+          rtdb={rtdb} 
+          auth={auth} 
+          optimisticWagers={optimisticWagers}
+          initialTab={currentTab}
+          onTabChange={setCurrentTab}
+        />
       </main>
 
       {/* Mobile Bottom Navigation - Always Visible */}
       <div className="mobile-bottom-nav">
         <button 
           onClick={() => {
-            // NOTE: Using window.location.reload() is intentional here
-            // This is a standalone component without access to parent state
-            // Reloading triggers the Dashboard's useEffect which calls the resolution APIs
-            // Alternative: Implement a custom event system or shared state management
-            window.location.reload();
-          }}
-          className="mobile-nav-btn"
-          title="Refresh game scores and wager status"
-        >
-          <span className="mobile-nav-icon">🔄</span>
-          <span className="mobile-nav-label">Refresh</span>
-        </button>
-        <button 
-          onClick={() => {
-            // Use prop if provided, otherwise use default navigation
             if (onNavigateToHome) {
               onNavigateToHome();
             } else {
-              // NOTE: Using window.location.href is intentional here
-              // This component doesn't have access to React Router context
-              // See documentation at top of file for details
-              // Issue #1: Set flag to collapse betting slip when returning to Home
               sessionStorage.setItem(COLLAPSE_FLAG_KEY, 'true');
               window.location.href = '/member/NFL';
             }
@@ -1793,15 +1788,21 @@ function MemberDashboardApp({ onNavigateToHome, optimisticWagers = [] }) {
           <span className="mobile-nav-label">My Bets</span>
         </button>
         <button 
-          onClick={async () => {
-            // NOTE: Sign out should be handled by the parent App component
-            // which has proper auth context and state management
-            // For now, redirecting to root will trigger the auth check
-            // and the user will be sent to login if not authenticated
-            // TODO: If this component ever gains access to auth context,
-            // call auth.signOut() before redirecting
-            window.location.href = '/';
+          onClick={() => {
+            if (onNavigateToFAQs) {
+              onNavigateToFAQs();
+            } else {
+              window.location.href = '/member/faqs';
+            }
           }}
+          className="mobile-nav-btn"
+          title="View FAQs and Member Guide"
+        >
+          <span className="mobile-nav-icon">📖</span>
+          <span className="mobile-nav-label">FAQs</span>
+        </button>
+        <button 
+          onClick={() => window.location.href = '/'}
           className="mobile-nav-btn"
           title="Sign out"
         >
