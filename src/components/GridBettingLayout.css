@@ -318,3 +318,124 @@
     margin-bottom: 4px;
   }
 }
+
+/* Period Selector Styles */
+.period-selector {
+  margin-bottom: 20px;
+  padding: 12px;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.sport-type-selection .period-buttons {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.period-btn {
+  flex: 1;
+  min-width: 100px;
+  padding: 12px 20px;
+  border: 2px solid #dee2e6;
+  border-radius: 8px;
+  background: white;
+  color: #495057;
+  font-weight: 600;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-align: center;
+}
+
+.period-btn:hover {
+  border-color: #007bff;
+  background: #f8f9fa;
+}
+
+.period-btn.active {
+  background: #007bff;
+  color: white;
+  border-color: #007bff;
+  box-shadow: 0 2px 8px rgba(0, 123, 255, 0.3);
+}
+
+.period-label-mobile {
+  display: none;
+}
+
+/* Period Section */
+.period-section {
+  margin-bottom: 24px;
+}
+
+.period-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+  padding: 12px 16px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.period-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: white;
+  margin: 0;
+  letter-spacing: 1px;
+}
+
+.period-coming-soon {
+  display: flex;
+  align-items: center;
+}
+
+.badge {
+  padding: 4px 12px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.badge-info {
+  background: #17a2b8;
+  color: white;
+}
+
+.games-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.period-odds-placeholder {
+  width: 100%;
+  padding: 20px;
+  text-align: center;
+}
+
+/* Mobile adjustments for period selector */
+@media (max-width: 768px) {
+  .period-label-desktop {
+    display: none;
+  }
+  
+  .period-label-mobile {
+    display: inline;
+  }
+  
+  .period-btn {
+    min-width: 80px;
+    padding: 10px 16px;
+    font-size: 13px;
+  }
+  
+  .period-title {
+    font-size: 16px;
+  }
+}
