@@ -141,15 +141,18 @@ function GridBettingLayout({
     
     const periodLabel = getPeriodLabel(selectedPeriod);
     const showPeriodHeader = selectedPeriod !== 'whole_game';
+    const isComingSoon = selectedPeriod !== 'whole_game'; // For now, only whole game has odds
     
     return (
       <>
         {showPeriodHeader && (
           <div className="period-header">
             <h3 className="period-title">{periodLabel}</h3>
-            <div className="period-coming-soon">
-              <span className="badge badge-info">Coming Soon</span>
-            </div>
+            {isComingSoon && (
+              <div className="period-coming-soon">
+                <span className="badge badge-info">Coming Soon</span>
+              </div>
+            )}
           </div>
         )}
         
@@ -290,7 +293,7 @@ function GridBettingLayout({
         selectedPeriod={selectedPeriod} 
         onPeriodSelect={handlePeriodSelect}
         sport={sport}
-        availablePeriods={[]} // TODO: Pass available periods from API when wager-manager provides period data
+        availablePeriods={[]} // TODO: Pass available periods from API
       />
       
       {/* Render games for selected period */}
