@@ -20,7 +20,7 @@ import BettingSlip from './components/BettingSlip';
 import MemberContainer from './components/MemberContainer';
 
 function SportsMenu({ currentSport, onSelectSport, allSportsGames, onSignOut, onManualRefresh, isRefreshing, onNavigateToDashboard }) {
-    const sportOrder = ['NFL', 'College Football', 'NBA', 'College Basketball', 'Major League Baseball', 'NHL', 'World Cup'];
+    const sportOrder = ['NFL', 'College Football', 'NBA', 'College Basketball', 'Major League Baseball', 'NHL', 'World Cup', 'MLS', 'Boxing', 'UFC'];
     
     const sortedSports = Object.keys(allSportsGames).filter(sport => sportOrder.includes(sport)).sort((a, b) => sportOrder.indexOf(a) - sportOrder.indexOf(b));
 
@@ -74,7 +74,7 @@ function SportsMenu({ currentSport, onSelectSport, allSportsGames, onSignOut, on
 
 // Mobile Sports Scroll Bar - Only shows sports (My Bets moved to bottom nav)
 function MobileSportsMenu({ currentSport, onSelectSport, allSportsGames }) {
-    const sportOrder = ['NFL', 'College Football', 'NBA', 'College Basketball', 'Major League Baseball', 'NHL', 'World Cup'];
+    const sportOrder = ['NFL', 'College Football', 'NBA', 'College Basketball', 'Major League Baseball', 'NHL', 'World Cup', 'MLS', 'Boxing', 'UFC'];
     const sortedSports = Object.keys(allSportsGames).filter(sport => sportOrder.includes(sport)).sort((a, b) => sportOrder.indexOf(a) - sportOrder.indexOf(b));
     const showPropBets = sortedSports.some(sport => ['NFL', 'NBA', 'College Football', 'College Basketball', 'NHL'].includes(sport));
 
@@ -147,7 +147,10 @@ const ESPN_API_ENDPOINTS = {
   'College Basketball': 'https://site.api.espn.com/apis/site/v2/sports/basketball/mens-college-basketball/scoreboard',
   'Major League Baseball': 'https://site.api.espn.com/apis/site/v2/sports/baseball/mlb/scoreboard',
   'NHL': 'https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard',
-  'World Cup': 'https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/scoreboard'
+  'World Cup': 'https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/scoreboard',
+  'MLS': 'https://site.api.espn.com/apis/site/v2/sports/soccer/usa.1/scoreboard',
+  'Boxing': 'https://site.api.espn.com/apis/site/v2/sports/boxing/boxing/scoreboard',
+  'UFC': 'https://site.api.espn.com/apis/site/v2/sports/mma/ufc/scoreboard'
 };
 
 // Helper function to get sport display name with emoji
@@ -159,7 +162,10 @@ const getSportDisplayName = (sport) => {
     'College Basketball': 'CBB 🏀',
     'Major League Baseball': 'MLB ⚾',
     'NHL': 'NHL 🏒',
-    'World Cup': 'World Cup ⚽'
+    'World Cup': 'World Cup ⚽',
+    'MLS': 'MLS ⚽',
+    'Boxing': 'Boxing 🥊',
+    'UFC': 'UFC 🥊'
   };
   return sportNames[sport] || sport;
 };
@@ -192,7 +198,10 @@ const ODDS_API_SPORT_KEYS = {
   'College Basketball': 'basketball_ncaab',
   'Major League Baseball': 'baseball_mlb',
   'NHL': 'icehockey_nhl',
-  'World Cup': 'soccer_fifa_world_cup'
+  'World Cup': 'soccer_fifa_world_cup',
+  'MLS': 'soccer_usa_mls',
+  'Boxing': 'boxing_boxing',
+  'UFC': 'mma_mixed_martial_arts'
 };
 
 const PROP_BETS_CACHE_DURATION = 2 * 60 * 60 * 1000;
@@ -668,7 +677,10 @@ function AdminLandingPage({ onManageUsers, onViewSubmissions, onSignOut }) {
     { name: 'College Basketball', available: true },
     { name: 'Major League Baseball', available: true },
     { name: 'NHL', available: true },
-    { name: 'World Cup', available: true }
+    { name: 'World Cup', available: true },
+    { name: 'MLS', available: true },
+    { name: 'Boxing', available: true },
+    { name: 'UFC', available: true }
   ];
 
   return (
@@ -2316,7 +2328,7 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
   }, [setGames, setIsSyncing, setRecentlyUpdated]);
 
   const loadAllSports = useCallback(async (initialSport, forceRefresh = false) => {
-    const allSports = ['NFL', 'NBA', 'College Football', 'College Basketball', 'Major League Baseball', 'NHL', 'World Cup'];
+    const allSports = ['NFL', 'NBA', 'College Football', 'College Basketball', 'Major League Baseball', 'NHL', 'World Cup', 'MLS', 'Boxing', 'UFC'];
     const sportsData = {};
     
     setLoading(true);
