@@ -134,6 +134,8 @@ function GridBettingLayout({
       return pick.spread === value;
     } else if (pickType === 'total') {
       return pick.total === value;
+    } else if (pickType === 'distance') {
+      return pick.distance === value;
     }
     return false;
   };
@@ -200,9 +202,10 @@ function GridBettingLayout({
         <div className="games-grid">
           {games.map((game) => {
             // Handle fighter name mapping for combat sports (Red Corner = Top, Blue Corner = Bottom)
+            // If away team is Red Corner, swap the display order
             const isRedCorner = game.awayTeam && (game.awayTeam.includes('Red Corner') || game.awayTeam.includes('Red'));
-            const fighterTop = isRedCorner ? game.awayTeam : game.awayTeam;
-            const fighterBottom = isRedCorner ? game.homeTeam : game.homeTeam;
+            const fighterTop = isRedCorner ? game.awayTeam : game.homeTeam;
+            const fighterBottom = isRedCorner ? game.homeTeam : game.awayTeam;
             
             return (
               <div key={game.id} className={`game-grid-card ${game.isFinal ? 'final' : ''} ${isSoccer ? 'soccer-layout' : ''} ${isCombat ? 'combat-layout' : ''}`}>
