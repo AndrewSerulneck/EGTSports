@@ -56,10 +56,13 @@ function PeriodSelector({ selectedPeriod, onPeriodSelect, sport, availablePeriod
     return acc;
   }, {});
 
+  // Sort row keys once during grouping
+  const sortedRows = Object.keys(groupedPeriods).sort((a, b) => Number(a) - Number(b));
+
   return (
     <div className="period-selector sport-type-selection">
       <div className="period-buttons-pyramid">
-        {Object.keys(groupedPeriods).sort().map((row) => (
+        {sortedRows.map((row) => (
           <div key={row} className={`period-row period-row-${row}`}>
             {groupedPeriods[row].map((period) => (
               <button
@@ -87,6 +90,10 @@ function PeriodSelector({ selectedPeriod, onPeriodSelect, sport, availablePeriod
  * Mobile-first design with three bet types (Moneyline, Spread, O/U) displayed horizontally
  * Now supports single-select period filtering with sport-specific logic
  */
+
+// Default odds for unavailable markets
+const DEFAULT_DRAW_ODDS = '+250';
+
 function GridBettingLayout({ 
   games, 
   selectedPicks, 
@@ -239,7 +246,7 @@ function GridBettingLayout({
                           aria-label={`Draw ${formatOdds(game.drawMoneyline)}`}
                         >
                           <span className="btn-team">Draw</span>
-                          <span className="btn-odds">{formatOdds(game.drawMoneyline || '+250')}</span>
+                          <span className="btn-odds">{formatOdds(game.drawMoneyline || DEFAULT_DRAW_ODDS)}</span>
                         </button>
                         <button
                           className={`bet-btn ${isSelected(game.id, 'winner', 'away') ? 'selected' : ''} ${game.isFinal ? 'disabled' : ''}`}
