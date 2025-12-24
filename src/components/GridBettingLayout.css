@@ -449,3 +449,130 @@
     font-size: 16px;
   }
 }
+
+/* ===== Pyramid Period Layout Styles ===== */
+
+/* Container for pyramid layout */
+.period-buttons-pyramid {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+}
+
+/* Period rows for pyramid structure */
+.period-row {
+  display: flex;
+  gap: 8px;
+  width: 100%;
+}
+
+/* Row 1: Full width (100%) */
+.period-row-1 {
+  justify-content: stretch;
+}
+
+.period-row-1 .period-btn {
+  flex: 1;
+}
+
+/* Row 2: Split (50% or 33.3%) */
+.period-row-2 {
+  justify-content: space-between;
+}
+
+.period-row-2 .period-btn {
+  flex: 1;
+}
+
+/* Row 3: Quarters (25% each) */
+.period-row-3 {
+  justify-content: space-between;
+}
+
+.period-row-3 .period-btn {
+  flex: 1;
+}
+
+/* Helper label styles */
+.period-helper {
+  display: block;
+  font-size: 9px;
+  color: #6c757d;
+  margin-top: 2px;
+  font-weight: 400;
+  letter-spacing: 0.3px;
+}
+
+.period-btn.active .period-helper {
+  color: rgba(255, 255, 255, 0.85);
+}
+
+/* Soccer 3-Way Market Styles */
+.bet-options-3way {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 6px;
+}
+
+.bet-buttons-row.soccer-3way {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.bet-type-group.soccer-moneyline {
+  flex: 1;
+  width: 100%;
+}
+
+.game-grid-card.soccer-layout .bet-type-label {
+  text-align: center;
+  font-size: 11px;
+  margin-bottom: 8px;
+}
+
+/* Mobile adjustments for pyramid and helper labels */
+@media (max-width: 768px) {
+  .period-helper {
+    font-size: 8px;
+  }
+  
+  .period-btn {
+    padding: 10px 8px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 52px;
+  }
+  
+  /* Adjust 3-way soccer for mobile */
+  .bet-options-3way .bet-btn {
+    padding: 10px 6px;
+  }
+  
+  .bet-options-3way .btn-team {
+    font-size: 10px;
+  }
+  
+  .bet-options-3way .btn-odds {
+    font-size: 11px;
+  }
+}
+
+/* Desktop adjustments */
+@media (min-width: 768px) {
+  .period-helper {
+    font-size: 10px;
+  }
+  
+  .period-btn {
+    padding: 12px 16px;
+  }
+  
+  /* Better spacing for 3-way on desktop */
+  .bet-options-3way {
+    gap: 10px;
+  }
+}

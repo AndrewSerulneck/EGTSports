@@ -3,56 +3,79 @@ import './GridBettingLayout.css';
 
 /**
  * PeriodSelector Component - Single-select toggle for game periods
- * Sport-specific periods: NFL/NBA/NCAAB show quarters/halves, NHL shows periods
- * Only one period can be active at a time
+ * Sport-specific periods with mobile-first "Pyramid" layout
+ * Includes helper labels for clarity on rules
  */
 function PeriodSelector({ selectedPeriod, onPeriodSelect, sport, availablePeriods = [] }) {
-  // Define period options based on sport
+  // Define period options based on sport with helper labels
   const getPeriodOptions = () => {
+    const isSoccer = sport === 'World Cup' || sport === 'Soccer';
+    
     if (sport === 'NHL') {
+      // NHL: 2 Rows
       return [
-        { id: 'whole_game', label: 'Whole Game', shortLabel: 'Full' },
-        { id: 'first_period', label: '1st Period', shortLabel: '1P' },
-        { id: 'second_period', label: '2nd Period', shortLabel: '2P' },
-        { id: 'third_period', label: '3rd Period', shortLabel: '3P' }
+        { id: 'whole_game', label: 'Full Game', shortLabel: 'Full', helper: 'Inc. OT/SO', row: 1 },
+        { id: 'first_period', label: '1st Per', shortLabel: '1P', helper: 'Reg. Only', row: 2 },
+        { id: 'second_period', label: '2nd Per', shortLabel: '2P', helper: 'Reg. Only', row: 2 },
+        { id: 'third_period', label: '3rd Per', shortLabel: '3P', helper: 'Reg. Only', row: 2 }
+      ];
+    } else if (isSoccer) {
+      // Soccer/World Cup: 2 Rows
+      return [
+        { id: 'whole_game', label: 'Full Game', shortLabel: 'Full', helper: '90 Mins Only', row: 1 },
+        { id: 'first_half', label: '1st Half', shortLabel: '1H', helper: 'Reg. Only', row: 2 },
+        { id: 'second_half', label: '2nd Half', shortLabel: '2H', helper: 'Reg. Only', row: 2 }
       ];
     } else {
-      // Default for NFL, NBA, College Football, College Basketball, MLB
+      // NFL/NBA/NCAA: 3 Rows
       return [
-        { id: 'whole_game', label: 'Whole Game', shortLabel: 'Full' },
-        { id: 'first_half', label: '1st Half', shortLabel: '1H' },
-        { id: 'second_half', label: '2nd Half', shortLabel: '2H' },
-        { id: 'first_quarter', label: '1st Quarter', shortLabel: '1Q' },
-        { id: 'second_quarter', label: '2nd Quarter', shortLabel: '2Q' },
-        { id: 'third_quarter', label: '3rd Quarter', shortLabel: '3Q' },
-        { id: 'fourth_quarter', label: '4th Quarter', shortLabel: '4Q' }
+        { id: 'whole_game', label: 'Full Game', shortLabel: 'Full', helper: 'Inc. Overtime', row: 1 },
+        { id: 'first_half', label: '1st Half', shortLabel: '1H', helper: 'Reg. Only', row: 2 },
+        { id: 'second_half', label: '2nd Half', shortLabel: '2H', helper: 'Reg. Only', row: 2 },
+        { id: 'first_quarter', label: '1st Qtr', shortLabel: '1Q', helper: 'Reg. Only', row: 3 },
+        { id: 'second_quarter', label: '2nd Qtr', shortLabel: '2Q', helper: 'Reg. Only', row: 3 },
+        { id: 'third_quarter', label: '3rd Qtr', shortLabel: '3Q', helper: 'Reg. Only', row: 3 },
+        { id: 'fourth_quarter', label: '4th Qtr', shortLabel: '4Q', helper: 'Reg. Only', row: 3 }
       ];
     }
   };
 
   const periods = getPeriodOptions();
   
-  // Filter periods based on availability (hide if not available in API data)
+  // Filter periods based on availability
   const visiblePeriods = periods.filter(period => {
-    // Whole game is always visible
     if (period.id === 'whole_game') return true;
-    // Show period if it's in the availablePeriods list or if list is empty (show all)
     return availablePeriods.length === 0 || availablePeriods.includes(period.id);
   });
 
+  // Group periods by row for mobile pyramid layout
+  const groupedPeriods = visiblePeriods.reduce((acc, period) => {
+    const row = period.row || 1;
+    if (!acc[row]) acc[row] = [];
+    acc[row].push(period);
+    return acc;
+  }, {});
+
   return (
     <div className="period-selector sport-type-selection">
-      <div className="period-buttons">
-        {visiblePeriods.map((period) => (
-          <button
-            key={period.id}
-            onClick={() => onPeriodSelect(period.id)}
-            className={`period-btn ${selectedPeriod === period.id ? 'active' : ''}`}
-            title={period.label}
-          >
-            <span className="period-label-desktop">{period.label}</span>
-            <span className="period-label-mobile">{period.shortLabel}</span>
-          </button>
+      <div className="period-buttons-pyramid">
+        {Object.keys(groupedPeriods).sort().map((row) => (
+          <div key={row} className={`period-row period-row-${row}`}>
+            {groupedPeriods[row].map((period) => (
+              <button
+                key={period.id}
+                onClick={() => onPeriodSelect(period.id)}
+                className={`period-btn ${selectedPeriod === period.id ? 'active' : ''}`}
+                title={period.label}
+              >
+                <span className="period-label-desktop">{period.label}</span>
+                <span className="period-label-mobile">{period.shortLabel}</span>
+                {period.helper && (
+                  <span className="period-helper">{period.helper}</span>
+                )}
+              </button>
+            ))}
+          </div>
         ))}
       </div>
     </div>
@@ -142,6 +165,7 @@ function GridBettingLayout({
     const periodLabel = getPeriodLabel(selectedPeriod);
     const showPeriodHeader = selectedPeriod !== 'whole_game';
     const isComingSoon = selectedPeriod !== 'whole_game'; // For now, only whole game has odds
+    const isSoccer = sport === 'World Cup' || sport === 'Soccer';
     
     return (
       <>
@@ -158,7 +182,7 @@ function GridBettingLayout({
         
         <div className="games-grid">
           {games.map((game) => (
-            <div key={game.id} className={`game-grid-card ${game.isFinal ? 'final' : ''}`}>
+            <div key={game.id} className={`game-grid-card ${game.isFinal ? 'final' : ''} ${isSoccer ? 'soccer-layout' : ''}`}>
               {/* Game Header */}
               <div className="game-grid-header">
                 <div className="game-date-time">
@@ -193,31 +217,69 @@ function GridBettingLayout({
               {/* Horizontal Bet Buttons */}
               {selectedPeriod === 'whole_game' ? (
                 // Show normal betting options for whole game
-                <div className="bet-buttons-row">
-                  {/* Moneyline */}
-                  <div className="bet-type-group">
-                    <div className="bet-type-label">Moneyline</div>
-                    <div className="bet-options">
-                      <button
-                        className={`bet-btn ${isSelected(game.id, 'winner', 'away') ? 'selected' : ''} ${game.isFinal ? 'disabled' : ''}`}
-                        onClick={() => !game.isFinal && onSelectPick(game.id, 'winner', 'away')}
-                        disabled={game.isFinal || !game.awayMoneyline}
-                        aria-label={`${game.awayTeam} moneyline ${formatOdds(game.awayMoneyline)}`}
-                      >
-                        <span className="btn-team">{getShortTeamName(game.awayTeam)}</span>
-                        <span className="btn-odds">{formatOdds(game.awayMoneyline)}</span>
-                      </button>
-                      <button
-                        className={`bet-btn ${isSelected(game.id, 'winner', 'home') ? 'selected' : ''} ${game.isFinal ? 'disabled' : ''}`}
-                        onClick={() => !game.isFinal && onSelectPick(game.id, 'winner', 'home')}
-                        disabled={game.isFinal || !game.homeMoneyline}
-                        aria-label={`${game.homeTeam} moneyline ${formatOdds(game.homeMoneyline)}`}
-                      >
-                        <span className="btn-team">{getShortTeamName(game.homeTeam)}</span>
-                        <span className="btn-odds">{formatOdds(game.homeMoneyline)}</span>
-                      </button>
+                <div className={`bet-buttons-row ${isSoccer ? 'soccer-3way' : ''}`}>
+                  {/* Soccer 3-Way Market (Home | Draw | Away) */}
+                  {isSoccer && (
+                    <div className="bet-type-group soccer-moneyline">
+                      <div className="bet-type-label">Match Result</div>
+                      <div className="bet-options bet-options-3way">
+                        <button
+                          className={`bet-btn ${isSelected(game.id, 'winner', 'home') ? 'selected' : ''} ${game.isFinal ? 'disabled' : ''}`}
+                          onClick={() => !game.isFinal && onSelectPick(game.id, 'winner', 'home')}
+                          disabled={game.isFinal || !game.homeMoneyline}
+                          aria-label={`${game.homeTeam} win ${formatOdds(game.homeMoneyline)}`}
+                        >
+                          <span className="btn-team">{getShortTeamName(game.homeTeam)}</span>
+                          <span className="btn-odds">{formatOdds(game.homeMoneyline)}</span>
+                        </button>
+                        <button
+                          className={`bet-btn ${isSelected(game.id, 'winner', 'draw') ? 'selected' : ''} ${game.isFinal ? 'disabled' : ''}`}
+                          onClick={() => !game.isFinal && onSelectPick(game.id, 'winner', 'draw')}
+                          disabled={game.isFinal || !game.drawMoneyline}
+                          aria-label={`Draw ${formatOdds(game.drawMoneyline)}`}
+                        >
+                          <span className="btn-team">Draw</span>
+                          <span className="btn-odds">{formatOdds(game.drawMoneyline || '+250')}</span>
+                        </button>
+                        <button
+                          className={`bet-btn ${isSelected(game.id, 'winner', 'away') ? 'selected' : ''} ${game.isFinal ? 'disabled' : ''}`}
+                          onClick={() => !game.isFinal && onSelectPick(game.id, 'winner', 'away')}
+                          disabled={game.isFinal || !game.awayMoneyline}
+                          aria-label={`${game.awayTeam} win ${formatOdds(game.awayMoneyline)}`}
+                        >
+                          <span className="btn-team">{getShortTeamName(game.awayTeam)}</span>
+                          <span className="btn-odds">{formatOdds(game.awayMoneyline)}</span>
+                        </button>
+                      </div>
                     </div>
-                  </div>
+                  )}
+                  
+                  {/* Standard Moneyline (Non-Soccer) */}
+                  {!isSoccer && (
+                    <div className="bet-type-group">
+                      <div className="bet-type-label">Moneyline</div>
+                      <div className="bet-options">
+                        <button
+                          className={`bet-btn ${isSelected(game.id, 'winner', 'away') ? 'selected' : ''} ${game.isFinal ? 'disabled' : ''}`}
+                          onClick={() => !game.isFinal && onSelectPick(game.id, 'winner', 'away')}
+                          disabled={game.isFinal || !game.awayMoneyline}
+                          aria-label={`${game.awayTeam} moneyline ${formatOdds(game.awayMoneyline)}`}
+                        >
+                          <span className="btn-team">{getShortTeamName(game.awayTeam)}</span>
+                          <span className="btn-odds">{formatOdds(game.awayMoneyline)}</span>
+                        </button>
+                        <button
+                          className={`bet-btn ${isSelected(game.id, 'winner', 'home') ? 'selected' : ''} ${game.isFinal ? 'disabled' : ''}`}
+                          onClick={() => !game.isFinal && onSelectPick(game.id, 'winner', 'home')}
+                          disabled={game.isFinal || !game.homeMoneyline}
+                          aria-label={`${game.homeTeam} moneyline ${formatOdds(game.homeMoneyline)}`}
+                        >
+                          <span className="btn-team">{getShortTeamName(game.homeTeam)}</span>
+                          <span className="btn-odds">{formatOdds(game.homeMoneyline)}</span>
+                        </button>
+                      </div>
+                    </div>
+                  )}
 
                   {/* Spread */}
                   <div className="bet-type-group">

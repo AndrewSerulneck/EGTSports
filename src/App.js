@@ -20,7 +20,7 @@ import BettingSlip from './components/BettingSlip';
 import MemberContainer from './components/MemberContainer';
 
 function SportsMenu({ currentSport, onSelectSport, allSportsGames, onSignOut, onManualRefresh, isRefreshing, onNavigateToDashboard }) {
-    const sportOrder = ['NFL', 'College Football', 'NBA', 'College Basketball', 'Major League Baseball', 'NHL'];
+    const sportOrder = ['NFL', 'College Football', 'NBA', 'College Basketball', 'Major League Baseball', 'NHL', 'World Cup'];
     
     const sortedSports = Object.keys(allSportsGames).filter(sport => sportOrder.includes(sport)).sort((a, b) => sportOrder.indexOf(a) - sportOrder.indexOf(b));
 
@@ -74,7 +74,7 @@ function SportsMenu({ currentSport, onSelectSport, allSportsGames, onSignOut, on
 
 // Mobile Sports Scroll Bar - Only shows sports (My Bets moved to bottom nav)
 function MobileSportsMenu({ currentSport, onSelectSport, allSportsGames }) {
-    const sportOrder = ['NFL', 'College Football', 'NBA', 'College Basketball', 'Major League Baseball', 'NHL'];
+    const sportOrder = ['NFL', 'College Football', 'NBA', 'College Basketball', 'Major League Baseball', 'NHL', 'World Cup'];
     const sortedSports = Object.keys(allSportsGames).filter(sport => sportOrder.includes(sport)).sort((a, b) => sportOrder.indexOf(a) - sportOrder.indexOf(b));
     const showPropBets = sortedSports.some(sport => ['NFL', 'NBA', 'College Football', 'College Basketball', 'NHL'].includes(sport));
 
@@ -146,7 +146,8 @@ const ESPN_API_ENDPOINTS = {
   'College Football': 'https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard',
   'College Basketball': 'https://site.api.espn.com/apis/site/v2/sports/basketball/mens-college-basketball/scoreboard',
   'Major League Baseball': 'https://site.api.espn.com/apis/site/v2/sports/baseball/mlb/scoreboard',
-  'NHL': 'https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard'
+  'NHL': 'https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard',
+  'World Cup': 'https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/scoreboard'
 };
 
 // Helper function to get sport display name with emoji
@@ -157,7 +158,8 @@ const getSportDisplayName = (sport) => {
     'NBA': 'NBA 🏀',
     'College Basketball': 'CBB 🏀',
     'Major League Baseball': 'MLB ⚾',
-    'NHL': 'NHL 🏒'
+    'NHL': 'NHL 🏒',
+    'World Cup': 'World Cup ⚽'
   };
   return sportNames[sport] || sport;
 };
@@ -189,7 +191,8 @@ const ODDS_API_SPORT_KEYS = {
   'College Football': 'americanfootball_ncaaf',
   'College Basketball': 'basketball_ncaab',
   'Major League Baseball': 'baseball_mlb',
-  'NHL': 'icehockey_nhl'
+  'NHL': 'icehockey_nhl',
+  'World Cup': 'soccer_fifa_world_cup'
 };
 
 const PROP_BETS_CACHE_DURATION = 2 * 60 * 60 * 1000;
@@ -664,7 +667,8 @@ function AdminLandingPage({ onManageUsers, onViewSubmissions, onSignOut }) {
     { name: 'College Football', available: true },
     { name: 'College Basketball', available: true },
     { name: 'Major League Baseball', available: true },
-    { name: 'NHL', available: true }
+    { name: 'NHL', available: true },
+    { name: 'World Cup', available: true }
   ];
 
   return (
@@ -2312,7 +2316,7 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
   }, [setGames, setIsSyncing, setRecentlyUpdated]);
 
   const loadAllSports = useCallback(async (initialSport, forceRefresh = false) => {
-    const allSports = ['NFL', 'NBA', 'College Football', 'College Basketball', 'Major League Baseball', 'NHL'];
+    const allSports = ['NFL', 'NBA', 'College Football', 'College Basketball', 'Major League Baseball', 'NHL', 'World Cup'];
     const sportsData = {};
     
     setLoading(true);
