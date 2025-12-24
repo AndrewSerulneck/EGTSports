@@ -58,11 +58,10 @@ function FAQsGuide({ onNavigateToHome, onNavigateToMyBets }) {
                 <div className="space-y-2">
                   <h3 className="font-bold text-gray-900">General Betting Rules:</h3>
                   <ul className="list-disc list-inside space-y-1 pl-2">
-                    <li>All wagers must be placed before the game starts</li>
+                    <li>All wagers must be placed before the game or period starts</li>
                     <li>Minimum bet: $5.00 per wager</li>
-                    <li>Maximum bet: $100.00 per wager</li>
-                    <li>All bets are action once submitted</li>
-                    <li>Balances reset every Wednesday at midnight</li>
+                    <li>Maximum single bet: $250 per wager</li>
+                    <li>Maximum parlay bet: $100 per wager</li>                    
                   </ul>
                 </div>
                 <div className="space-y-2">
@@ -79,7 +78,6 @@ function FAQsGuide({ onNavigateToHome, onNavigateToMyBets }) {
                   <h3 className="font-bold text-gray-900">Straight Bet Rules:</h3>
                   <ul className="list-disc list-inside space-y-1 pl-2">
                     <li>One pick per straight bet</li>
-                    <li>Payouts based on American odds</li>
                     <li>Each straight bet is independent</li>
                   </ul>
                 </div>
@@ -89,6 +87,8 @@ function FAQsGuide({ onNavigateToHome, onNavigateToMyBets }) {
                     <li>Bets are settled after game completion</li>
                     <li>Check "Current Wagers" tab for wager status</li>
                     <li>Winnings are automatically added to your balance</li>
+                    <li>Balances reset every Wednesday at 12:01am EST</li>
+                    <li>Winnings are distributed on Tuesday evenings </li>
                     <li>Contact admin for any discrepancies</li>
                   </ul>
                 </div>
