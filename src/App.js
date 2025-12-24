@@ -20,7 +20,7 @@ import BettingSlip from './components/BettingSlip';
 import MemberContainer from './components/MemberContainer';
 
 function SportsMenu({ currentSport, onSelectSport, allSportsGames, onSignOut, onManualRefresh, isRefreshing, onNavigateToDashboard }) {
-    const sportOrder = ['NFL', 'College Football', 'NBA', 'College Basketball', 'Major League Baseball', 'NHL'];
+    const sportOrder = ['NFL', 'College Football', 'NBA', 'College Basketball', 'Major League Baseball', 'NHL', 'World Cup', 'MLS', 'Boxing', 'UFC'];
     
     const sortedSports = Object.keys(allSportsGames).filter(sport => sportOrder.includes(sport)).sort((a, b) => sportOrder.indexOf(a) - sportOrder.indexOf(b));
 
@@ -74,7 +74,7 @@ function SportsMenu({ currentSport, onSelectSport, allSportsGames, onSignOut, on
 
 // Mobile Sports Scroll Bar - Only shows sports (My Bets moved to bottom nav)
 function MobileSportsMenu({ currentSport, onSelectSport, allSportsGames }) {
-    const sportOrder = ['NFL', 'College Football', 'NBA', 'College Basketball', 'Major League Baseball', 'NHL'];
+    const sportOrder = ['NFL', 'College Football', 'NBA', 'College Basketball', 'Major League Baseball', 'NHL', 'World Cup', 'MLS', 'Boxing', 'UFC'];
     const sortedSports = Object.keys(allSportsGames).filter(sport => sportOrder.includes(sport)).sort((a, b) => sportOrder.indexOf(a) - sportOrder.indexOf(b));
     const showPropBets = sortedSports.some(sport => ['NFL', 'NBA', 'College Football', 'College Basketball', 'NHL'].includes(sport));
 
@@ -146,7 +146,11 @@ const ESPN_API_ENDPOINTS = {
   'College Football': 'https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard',
   'College Basketball': 'https://site.api.espn.com/apis/site/v2/sports/basketball/mens-college-basketball/scoreboard',
   'Major League Baseball': 'https://site.api.espn.com/apis/site/v2/sports/baseball/mlb/scoreboard',
-  'NHL': 'https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard'
+  'NHL': 'https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard',
+  'World Cup': 'https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/scoreboard',
+  'MLS': 'https://site.api.espn.com/apis/site/v2/sports/soccer/usa.1/scoreboard',
+  'Boxing': 'https://site.api.espn.com/apis/site/v2/sports/boxing/boxing/scoreboard',
+  'UFC': 'https://site.api.espn.com/apis/site/v2/sports/mma/ufc/scoreboard'
 };
 
 // Helper function to get sport display name with emoji
@@ -157,7 +161,11 @@ const getSportDisplayName = (sport) => {
     'NBA': 'NBA 🏀',
     'College Basketball': 'CBB 🏀',
     'Major League Baseball': 'MLB ⚾',
-    'NHL': 'NHL 🏒'
+    'NHL': 'NHL 🏒',
+    'World Cup': 'World Cup ⚽',
+    'MLS': 'MLS ⚽',
+    'Boxing': 'Boxing 🥊',
+    'UFC': 'UFC 🥊'
   };
   return sportNames[sport] || sport;
 };
@@ -189,7 +197,11 @@ const ODDS_API_SPORT_KEYS = {
   'College Football': 'americanfootball_ncaaf',
   'College Basketball': 'basketball_ncaab',
   'Major League Baseball': 'baseball_mlb',
-  'NHL': 'icehockey_nhl'
+  'NHL': 'icehockey_nhl',
+  'World Cup': 'soccer_fifa_world_cup',
+  'MLS': 'soccer_usa_mls',
+  'Boxing': 'boxing_boxing',
+  'UFC': 'mma_mixed_martial_arts'
 };
 
 const PROP_BETS_CACHE_DURATION = 2 * 60 * 60 * 1000;
@@ -664,7 +676,11 @@ function AdminLandingPage({ onManageUsers, onViewSubmissions, onSignOut }) {
     { name: 'College Football', available: true },
     { name: 'College Basketball', available: true },
     { name: 'Major League Baseball', available: true },
-    { name: 'NHL', available: true }
+    { name: 'NHL', available: true },
+    { name: 'World Cup', available: true },
+    { name: 'MLS', available: true },
+    { name: 'Boxing', available: true },
+    { name: 'UFC', available: true }
   ];
 
   return (
@@ -1780,32 +1796,6 @@ const saveSubmission = async (submission) => {
         />
       
       <div className={`container main-content ${allSportsGames && Object.keys(allSportsGames).length > 0 ? 'with-sidebar' : ''}`}>
-        <div className="text-center text-white mb-4">
-          
-          {betType === 'parlay' && (
-            <div className="card">
-              <h2 className="text-center mb-2" style={{color: '#000'}}>Parlay Payout Odds</h2>
-              <div className="payout-grid">
-                {[
-                  {picks: 3, payout: '8 to 1'}, 
-                  {picks: 4, payout: '15 to 1'}, 
-                  {picks: 5, payout: '25 to 1'}, 
-                  {picks: 6, payout: '50 to 1'}, 
-                  {picks: 7, payout: '100 to 1'}, 
-                  {picks: 8, payout: '150 to 1'}, 
-                  {picks: 9, payout: '200 to 1'}, 
-                  {picks: 10, payout: '250 to 1'}
-                ].map(item => (
-                  <div key={item.picks} className="payout-item">
-                    <div className="payout-text">{item.picks} for {item.picks} pays</div>
-                    <div className="payout-value">{item.payout}</div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
-        
         <GridBettingLayout
           games={games}
           selectedPicks={selectedPicks}
@@ -1813,27 +1803,6 @@ const saveSubmission = async (submission) => {
           betType={betType}
           sport={displaySport}
         />
-        
-        <div className="card">
-          <h3 className="mb-2">Important Rules</h3>
-          <ul style={{marginLeft: '20px', lineHeight: '1.8'}}>
-            <li><strong>Minimum 3 picks for parlays</strong></li>
-            <li><strong>Minimum Bet = $5</strong></li>
-             <li><strong>Maximum Parlay Bet = $100</strong></li>
-             <li><strong>Maximum Single Bet = $250</strong></li>
-            <li>Cross-league parlays are allowed! Feel free to make picks across different sports leagues!</li>
-            <li>Funds must be deposited into the private pool prior to games starting or ticket is not valid</li>
-             <li>A tie counts as a loss</li>
-            <li>Winners are paid the following Tuesday</li>
-             <li>If you have questions or issues, please contact support@EGTSports.ws</li>
-            <li>Each time you participate, your club membership is renewed</li>
-            <li>Only bet what you can afford to lose</li>
-            <li>If you or someone you know has a gambling problem, The National Problem Gambling Helpline can be reached at 1-800-522-4700</li>
-          </ul>
-          <div style={{background: '#fff3cd', border: '2px solid #ffc107', borderRadius: '8px', padding: '16px', marginTop: '20px', fontSize: '14px', color: '#856404'}}>
-            <strong>Legal Disclaimer:</strong> For entertainment only. 21+ only. Private pool among friends. Check local laws. By participating, you acknowledge responsibility for compliance with local laws.
-          </div>
-        </div>
       </div>
       
       <BettingSlip
@@ -2359,7 +2328,7 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
   }, [setGames, setIsSyncing, setRecentlyUpdated]);
 
   const loadAllSports = useCallback(async (initialSport, forceRefresh = false) => {
-    const allSports = ['NFL', 'NBA', 'College Football', 'College Basketball', 'Major League Baseball', 'NHL'];
+    const allSports = ['NFL', 'NBA', 'College Football', 'College Basketball', 'Major League Baseball', 'NHL', 'World Cup', 'MLS', 'Boxing', 'UFC'];
     const sportsData = {};
     
     setLoading(true);

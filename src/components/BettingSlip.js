@@ -28,17 +28,17 @@ function BettingSlip({
   shouldCollapse, // Prop to externally trigger collapse (one-way: true = collapse, false = no action)
   submissionSuccess // Ticket number on successful submission for inline notification
 }) {
-  // On mobile, start collapsed; on desktop, start expanded
-  // Default to expanded for SSR safety, then update on mount
-  const [isExpanded, setIsExpanded] = useState(true);
+  // Start collapsed by default (both mobile and desktop) per requirements
+  // User can manually expand if needed
+  const [isExpanded, setIsExpanded] = useState(false);
   const [activeTab, setActiveTab] = useState(betType === 'straight' ? 'single' : 'parlay');
   const [isMobile, setIsMobile] = useState(false);
 
-  // Detect mobile on mount and set initial expanded state
+  // Detect mobile on mount
   useEffect(() => {
     const checkMobile = typeof window !== 'undefined' && window.innerWidth <= MOBILE_BREAKPOINT;
     setIsMobile(checkMobile);
-    setIsExpanded(!checkMobile);
+    // Keep collapsed on initial load
   }, []);
 
   // Handle external collapse control (for Issue 1: always minimize when navigating to Home)
@@ -49,24 +49,19 @@ function BettingSlip({
     }
   }, [shouldCollapse]);
 
-  // Update expanded state on window resize
+  // Update mobile state on window resize
   useEffect(() => {
     if (typeof window === 'undefined') return;
     
     const handleResize = () => {
       const checkMobile = window.innerWidth <= MOBILE_BREAKPOINT;
       setIsMobile(checkMobile);
-      // If transitioning from mobile to desktop, expand the slip
-      if (!checkMobile && !isExpanded) {
-        setIsExpanded(true);
-      }
-      // If on mobile and expanded, optionally collapse (maintain user choice)
-      // We don't auto-collapse on mobile to respect user preference
+      // Don't auto-expand on desktop - let user control
     };
     
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
-  }, [isExpanded]);
+  }, []);
 
   // Sync activeTab when betType changes externally
   useEffect(() => {
