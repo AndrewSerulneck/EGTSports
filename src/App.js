@@ -2412,8 +2412,10 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
         console.log(`  ❌ No totals market found`);
       }
       
-      // 7. Extract moneylines (h2h) from outcomes array
+      // 7. Extract moneylines (h2h) from outcomes array with DEEP DIAGNOSTICS
       // CRITICAL: Soccer has 3 outcomes (Home, Away, Draw), Combat/Traditional have 2
+      const gameName = `${awayTeam} @ ${homeTeam}`;
+      
       if (h2hMarket?.outcomes && h2hMarket.outcomes.length >= 2) {
         console.log(`  💰 Moneyline (h2h) market found with ${h2hMarket.outcomes.length} outcomes`);
         console.log(`    Raw outcomes:`, h2hMarket.outcomes.map(o => ({ name: o.name, price: o.price })));
@@ -2443,12 +2445,16 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
             homeMoneyline = homeOutcome.price > 0 ? `+${homeOutcome.price}` : String(homeOutcome.price);
             const matchType = homeOutcome.name === homeTeam ? 'exact' : 'fuzzy';
             console.log(`    ✓ ${homeTeam} matched with "${homeOutcome.name}" (${matchType}): ${homeMoneyline}`);
+            if (matchType === 'fuzzy') {
+              console.log(`    ✅ Successfully matched API name '${homeOutcome.name}' to Local name '${homeTeam}'`);
+            }
           } else {
             console.warn(`    ⚠️ ${homeTeam} outcome missing valid 'price' field: ${homeOutcome.price}`);
           }
         } else {
-          console.warn(`    ⚠️ No h2h outcome found for home team: ${homeTeam}`);
-          console.warn(`       Available outcome names: ${h2hMarket.outcomes.map(o => `"${o.name}"`).join(', ')}`);
+          console.error(`    🔍 REASON 3 (Matching Failure): [${gameName}]: h2h exists, but couldn't match home team outcome.`);
+          console.error(`       API says outcomes: [${h2hMarket.outcomes.map(o => o.name).join(', ')}]`);
+          console.error(`       Local says Home: "${homeTeam}"`);
         }
         
         if (awayOutcome) {
@@ -2456,12 +2462,16 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
             awayMoneyline = awayOutcome.price > 0 ? `+${awayOutcome.price}` : String(awayOutcome.price);
             const matchType = awayOutcome.name === awayTeam ? 'exact' : 'fuzzy';
             console.log(`    ✓ ${awayTeam} matched with "${awayOutcome.name}" (${matchType}): ${awayMoneyline}`);
+            if (matchType === 'fuzzy') {
+              console.log(`    ✅ Successfully matched API name '${awayOutcome.name}' to Local name '${awayTeam}'`);
+            }
           } else {
             console.warn(`    ⚠️ ${awayTeam} outcome missing valid 'price' field: ${awayOutcome.price}`);
           }
         } else {
-          console.warn(`    ⚠️ No h2h outcome found for away team: ${awayTeam}`);
-          console.warn(`       Available outcome names: ${h2hMarket.outcomes.map(o => `"${o.name}"`).join(', ')}`);
+          console.error(`    🔍 REASON 3 (Matching Failure): [${gameName}]: h2h exists, but couldn't match away team outcome.`);
+          console.error(`       API says outcomes: [${h2hMarket.outcomes.map(o => o.name).join(', ')}]`);
+          console.error(`       Local says Away: "${awayTeam}"`);
         }
         
         // 8. SOCCER ONLY: Extract Draw outcome for 3-way market
@@ -2487,13 +2497,21 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
           }
         }
       } else {
-        console.log(`  ❌ No moneyline (h2h) market found`);
-        console.log(`  📋 Available markets in this bookmaker:`, bookmaker.markets.map(m => m.key).join(', '));
-        console.log(`  🔍 THIS IS THE LIKELY ISSUE: The h2h market is not present in the API response`);
-        console.log(`     Possible causes:`);
-        console.log(`     1. API key doesn't have access to moneyline markets`);
-        console.log(`     2. Bookmaker doesn't offer moneyline for this game`);
-        console.log(`     3. Region restriction (check if 'regions=us' is correct)`);
+        // REASON 1: No h2h market found at all
+        const availableMarkets = bookmaker.markets.map(m => m.key);
+        console.error(`  ❌ REASON 1 (No Market): [${gameName}]: No 'h2h' key found in bookmaker "${bookmaker.title}".`);
+        console.error(`     Available markets: [${availableMarkets.join(', ')}]`);
+        
+        // Check if other bookmakers have h2h market (REASON 2)
+        const bookmakersWith_h2h = game.bookmakers.filter(bm => 
+          bm.markets && bm.markets.some(m => m.key === 'h2h')
+        );
+        
+        if (bookmakersWith_h2h.length > 0 && !bookmakersWith_h2h.includes(bookmaker)) {
+          console.warn(`  ⚠️ REASON 2 (Bookmaker Gap): [${gameName}]: Found 'h2h' in ${bookmakersWith_h2h.length} other bookmaker(s), but not in the one checked first.`);
+          console.warn(`     Bookmakers with h2h: [${bookmakersWith_h2h.map(bm => bm.title).join(', ')}]`);
+          console.warn(`     Note: Smart selection already prioritizes h2h bookmakers, so this shouldn't happen often.`);
+        }
       }
       
       // 9a. COMBAT SPORTS ONLY: Extract method of victory (h2h_method)
