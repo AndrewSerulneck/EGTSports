@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import './PropBetsView.css';
 
 /**
@@ -68,7 +68,7 @@ function PropBetsView({
   }, [selectedSport]);
 
   // Fetch prop bets for selected game and category
-  const fetchPropBets = async (game, category) => {
+  const fetchPropBets = useCallback(async (game, category) => {
     if (!game || !category) return;
 
     setLoading(true);
@@ -106,23 +106,23 @@ function PropBetsView({
     } finally {
       setLoading(false);
     }
-  };
+  }, [selectedSport, authToken]);
 
   // Handle game selection
-  const handleGameSelect = (game) => {
+  const handleGameSelect = useCallback((game) => {
     setSelectedGame(game);
     setSelectedCategory(null);
     setPropBets([]);
     setError(null);
-  };
+  }, []);
 
   // Handle category selection
-  const handleCategorySelect = (categoryKey) => {
+  const handleCategorySelect = useCallback((categoryKey) => {
     setSelectedCategory(categoryKey);
     if (selectedGame) {
       fetchPropBets(selectedGame, categoryKey);
     }
-  };
+  }, [selectedGame, fetchPropBets]);
 
   // Check if a prop bet is selected
   const isPropBetSelected = (propId) => {

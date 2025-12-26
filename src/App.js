@@ -2413,7 +2413,6 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
 };
 
   // Helper function to extract mascot from team name (last word)
-  // Helper function to extract mascot from team name (last word)
   const extractMascot = useCallback((teamName) => {
     if (!teamName) return '';
     

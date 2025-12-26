@@ -1198,6 +1198,33 @@ async function handleGetEventPropBets(req, res) {
 
     const data = await response.json();
     
+    // Validate response structure
+    if (!data || typeof data !== 'object') {
+      console.error(`❌ Invalid response structure from Odds API`);
+      return res.status(500).json({
+        success: false,
+        error: 'Invalid response from odds provider'
+      });
+    }
+    
+    // Check for API error in response
+    if (data.error) {
+      console.error(`❌ Odds API returned error: ${data.error}`);
+      return res.status(400).json({
+        success: false,
+        error: data.error || 'Failed to fetch prop bets'
+      });
+    }
+    
+    // Validate required fields
+    if (!data.away_team || !data.home_team) {
+      console.warn(`⚠️ Missing team information in API response for eventId: ${eventId}`);
+      return res.status(404).json({
+        success: false,
+        error: 'Event not found or invalid event data'
+      });
+    }
+    
     console.log(`✅ Successfully fetched event props for ${sport}`);
     
     // Transform the data for frontend
