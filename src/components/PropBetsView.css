@@ -2,6 +2,8 @@
   padding: 20px;
   max-width: 1400px;
   margin: 0 auto;
+  background: #1a202c;
+  min-height: 100vh;
 }
 
 .prop-bets-header {
@@ -27,6 +29,11 @@
   color: #999;
   margin: 0;
   font-style: italic;
+}
+
+/* Sport Tabs Section */
+.sport-tabs-section {
+  margin-bottom: 30px;
 }
 
 /* Sport Tabs */
@@ -241,7 +248,7 @@
 /* Section Titles */
 .section-title {
   font-size: 20px;
-  color: #333;
+  color: #CBD5E0;
   font-weight: 700;
   margin-bottom: 16px;
   padding-left: 4px;

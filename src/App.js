@@ -79,25 +79,27 @@ function MobileSportsMenu({ currentSport, onSelectSport, allSportsGames }) {
     const showPropBets = sortedSports.some(sport => ['NFL', 'NBA', 'College Football', 'College Basketball', 'NHL'].includes(sport));
 
     return (
-        <div className="mobile-sports-menu">
-            {sortedSports.map(sport => (
-                <button
-                    key={sport}
-                    className={`mobile-menu-button ${currentSport === sport ? 'active' : ''}`}
-                    onClick={() => onSelectSport(sport)}
-                >
-                    {getSportDisplayName(sport)}
-                </button>
-            ))}
-            {showPropBets && (
-                <button
-                    key="prop-bets"
-                    className={`mobile-menu-button ${currentSport === 'Prop Bets' ? 'active' : ''}`}
-                    onClick={() => onSelectSport('Prop Bets')}
-                >
-                    Prop Bets
-                </button>
-            )}
+        <div className="mobile-sports-menu-wrapper">
+            <div className="mobile-sports-menu">
+                {sortedSports.map(sport => (
+                    <button
+                        key={sport}
+                        className={`mobile-menu-button ${currentSport === sport ? 'active' : ''}`}
+                        onClick={() => onSelectSport(sport)}
+                    >
+                        {getSportDisplayName(sport)}
+                    </button>
+                ))}
+                {showPropBets && (
+                    <button
+                        key="prop-bets"
+                        className={`mobile-menu-button ${currentSport === 'Prop Bets' ? 'active' : ''}`}
+                        onClick={() => onSelectSport('Prop Bets')}
+                    >
+                        Prop Bets
+                    </button>
+                )}
+            </div>
         </div>
     );
 }
