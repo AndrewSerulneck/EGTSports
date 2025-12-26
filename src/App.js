@@ -2170,12 +2170,12 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
       const totalMarket = bookmaker.markets.find(m => m.key === 'totals');
       const h2hMarket = bookmaker.markets.find(m => m.key === 'h2h');
       
-      let homeSpread = 'N/A';
-      let awaySpread = 'N/A';
-      let total = 'N/A';
-      let homeMoneyline = 'N/A';
-      let awayMoneyline = 'N/A';
-      let drawMoneyline = isSoccer ? 'N/A' : undefined;
+      let homeSpread = '-';
+      let awaySpread = '-';
+      let total = '-';
+      let homeMoneyline = '-';
+      let awayMoneyline = '-';
+      let drawMoneyline = isSoccer ? '-' : undefined;
       
       // 5. Extract spreads from outcomes array
       if (spreadMarket?.outcomes && spreadMarket.outcomes.length >= 2) {
@@ -2222,7 +2222,7 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
         if (overOutcome) {
           if (overOutcome.point !== undefined && overOutcome.point !== null && !isNaN(overOutcome.point)) {
             total = String(overOutcome.point);
-            console.log(`    ✓ Total: ${total} (Over: ${overOutcome.price}, Under: ${underOutcome?.price || 'N/A'})`);
+            console.log(`    ✓ Total: ${total} (Over: ${overOutcome.price}, Under: ${underOutcome?.price || '-'})`);
           } else {
             console.warn(`    ⚠️ Over outcome missing valid 'point' field`);
           }
@@ -2375,18 +2375,18 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
       
       // Summary log with value validation
       console.log(`  ✅ Final odds stored with key: "${gameKey}"`);
-      console.log(`     Away Spread: ${awaySpread === 'N/A' ? '❌ N/A' : '✓ ' + awaySpread}`);
-      console.log(`     Home Spread: ${homeSpread === 'N/A' ? '❌ N/A' : '✓ ' + homeSpread}`);
-      console.log(`     Total: ${total === 'N/A' ? '❌ N/A' : '✓ ' + total}`);
-      console.log(`     Away ML: ${awayMoneyline === 'N/A' ? '❌ N/A' : '✓ ' + awayMoneyline}`);
-      console.log(`     Home ML: ${homeMoneyline === 'N/A' ? '❌ N/A' : '✓ ' + homeMoneyline}`);
+      console.log(`     Away Spread: ${awaySpread === '-' ? '❌ Missing' : '✓ ' + awaySpread}`);
+      console.log(`     Home Spread: ${homeSpread === '-' ? '❌ Missing' : '✓ ' + homeSpread}`);
+      console.log(`     Total: ${total === '-' ? '❌ Missing' : '✓ ' + total}`);
+      console.log(`     Away ML: ${awayMoneyline === '-' ? '❌ Missing' : '✓ ' + awayMoneyline}`);
+      console.log(`     Home ML: ${homeMoneyline === '-' ? '❌ Missing' : '✓ ' + homeMoneyline}`);
       if (isSoccer) {
-        console.log(`     Draw ML: ${drawMoneyline === 'N/A' ? '❌ N/A' : '✓ ' + drawMoneyline}`);
+        console.log(`     Draw ML: ${drawMoneyline === '-' ? '❌ Missing' : '✓ ' + drawMoneyline}`);
       }
       if (isCombat) {
-        console.log(`     🥊 Method of Victory: ${methodOfVictory ? '✓ Available' : 'N/A'}`);
-        console.log(`     🥊 Round Betting: ${roundBetting ? '✓ Available' : 'N/A'}`);
-        console.log(`     🥊 Go Distance: ${goDistance ? '✓ Available' : 'N/A'}`);
+        console.log(`     🥊 Method of Victory: ${methodOfVictory ? '✓ Available' : '-'}`);
+        console.log(`     🥊 Round Betting: ${roundBetting ? '✓ Available' : '-'}`);
+        console.log(`     🥊 Go Distance: ${goDistance ? '✓ Available' : '-'}`);
       }
     });
     
@@ -2470,13 +2470,13 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
   }, [extractMascot]);
 
   const matchOddsToGame = useCallback((game, oddsMap) => {
-    // Default fallback with N/A values
+    // Default fallback with dash for missing odds
     const defaultOdds = { 
-      awaySpread: 'N/A', 
-      homeSpread: 'N/A', 
-      total: 'N/A', 
-      awayMoneyline: 'N/A', 
-      homeMoneyline: 'N/A',
+      awaySpread: '-', 
+      homeSpread: '-', 
+      total: '-', 
+      awayMoneyline: '-', 
+      homeMoneyline: '-',
       drawMoneyline: undefined // Will be set for soccer
     };
     
