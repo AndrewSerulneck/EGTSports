@@ -212,7 +212,6 @@
   font-weight: 600;
   color: #495057;
   white-space: nowrap;
-  word-wrap: break-word;
   hyphens: auto;
   max-width: 100%;
   overflow-wrap: break-word;
@@ -246,16 +245,11 @@
   margin: 0;
 }
 
-/* Mobile breakpoint - vertical stacking for maximum space */
+/* Mobile breakpoint - compact layout for maximum space */
 @media (max-width: 767px) {
   .bet-btn {
-    flex-direction: column;
     gap: 3px;
     padding: 8px 6px;
-  }
-  
-  .btn-team {
-    margin-bottom: 2px;
   }
   
   .bet-options {
