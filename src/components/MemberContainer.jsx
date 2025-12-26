@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import MemberDashboardApp from '../MemberDashboardApp';
 import FAQsGuide from './FAQsGuide';
@@ -70,6 +70,14 @@ function MemberContainer({
   }, [location.pathname, isDashboardRoute, isFAQsRoute, currentView]);
   
   // Handle sport changes in URL when on home view
+  // NOTE: loadAllPropBets is now wrapped in useCallback with stable reference,
+  // so it's safe to include but we'll use ref to avoid re-triggering
+  const loadAllPropBetsRef = useRef(loadAllPropBets);
+  
+  useEffect(() => {
+    loadAllPropBetsRef.current = loadAllPropBets;
+  }, [loadAllPropBets]);
+  
   useEffect(() => {
     if (currentView === 'home' && sport) {
       if (sport === 'prop-bets') {
@@ -77,7 +85,7 @@ function MemberContainer({
         currentViewSportRef.current = 'Prop Bets';
         setGames([]);
         if (Object.keys(propBets).length === 0 && !propBetsLoading) {
-          loadAllPropBets();
+          loadAllPropBetsRef.current();
         }
       } else {
         const gamesForSport = allSportsGames[sport] || [];
@@ -86,7 +94,8 @@ function MemberContainer({
         setGames(gamesForSport);
       }
     }
-  }, [sport, allSportsGames, propBets, propBetsLoading, currentView, setCurrentViewSport, currentViewSportRef, setGames, loadAllPropBets]);
+  }, [sport, allSportsGames, propBets, propBetsLoading, currentView, setCurrentViewSport, currentViewSportRef, setGames]);
+  // NOTE: loadAllPropBets intentionally excluded from deps - we use ref to avoid infinite loops
   
   // Navigate to My Bets
   const handleNavigateToDashboard = () => {

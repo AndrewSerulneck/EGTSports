@@ -1273,9 +1273,12 @@ async function handleGetEventPropBets(req, res) {
   } catch (error) {
     console.error('Error getting event prop bets:', error);
     
-    return res.status(500).json({ 
+    // Return graceful error with empty odds array instead of 500
+    return res.status(200).json({ 
       success: false, 
-      error: error.message || 'Failed to get event prop bets'
+      error: error.message || 'Failed to get event prop bets',
+      propBets: [], // Return empty array for graceful degradation
+      rate_limit: error.message?.includes('rate limit') || error.message?.includes('429')
     });
   }
 }

@@ -149,7 +149,7 @@ const ESPN_API_ENDPOINTS = {
   'NHL': 'https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard',
   'World Cup': 'https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/scoreboard',
   'MLS': 'https://site.api.espn.com/apis/site/v2/sports/soccer/usa.1/scoreboard',
-  'Boxing': 'https://site.api.espn.com/apis/site/v2/sports/boxing/boxing/scoreboard',
+  'Boxing': 'https://site.api.espn.com/apis/site/v2/sports/boxing/scoreboard',
   'UFC': 'https://site.api.espn.com/apis/site/v2/sports/mma/ufc/scoreboard'
 };
 
@@ -2528,7 +2528,7 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
     return defaultOdds;
   }, [extractMascot, teamsMatch]);
 
-  const fetchPropBets = async (sportName) => {
+  const fetchPropBets = useCallback(async (sportName) => {
     const cacheKey = sportName;
     const cachedData = propBetsCache.current[cacheKey];
     if (cachedData && (Date.now() - cachedData.timestamp < PROP_BETS_CACHE_DURATION)) {
@@ -2562,10 +2562,11 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
       console.error(`❌ Error fetching prop bets for ${sportName}:`, error);
       return [];
     }
-  };
+  }, []);
 
-  const loadAllPropBets = async () => {
+  const loadAllPropBets = useCallback(async () => {
     // TEMPORARY: Disable prop bets to preserve API quota
+    // This function is now stable and won't cause infinite loops
     console.warn('⚠️ Prop bets temporarily disabled due to API quota limits');
     setPropBetsLoading(false);
     setPropBetsError('Prop bets are temporarily disabled to preserve API quota. Contact admin for details.');
@@ -2592,7 +2593,7 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
       setPropBetsLoading(false);
     }
     /* eslint-enable no-unreachable */
-  };
+  }, [fetchPropBets]);
 
   const countMissingOdds = useCallback((games) => {
     return games.filter(game => !hasCompleteOddsData(game)).length;
