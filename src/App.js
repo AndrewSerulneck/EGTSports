@@ -2029,6 +2029,61 @@ function App() {
     return hasSpread || hasMoneyline;
   };
   
+  // Helper function to extract mascot from team name (last word)
+  const extractMascotFromName = (teamName) => {
+    if (!teamName) return '';
+    
+    const cleaned = teamName
+      .replace(/[^a-zA-Z0-9\s]/g, '') // Remove special chars
+      .replace(/\s+/g, ' ')            // Normalize spaces
+      .trim()
+      .toLowerCase();
+    
+    const words = cleaned.split(' ');
+    const mascot = words[words.length - 1];
+    
+    return mascot;
+  };
+  
+  // Helper function for robust team name matching (The "Mascot Rule")
+  const teamsMatchHelper = (team1, team2) => {
+    if (!team1 || !team2) return false;
+    
+    // Exact match (case-insensitive)
+    if (team1.toLowerCase() === team2.toLowerCase()) {
+      return true;
+    }
+    
+    // Extract mascots (last word of team name)
+    const mascot1 = extractMascotFromName(team1);
+    const mascot2 = extractMascotFromName(team2);
+    
+    // Special cases: "Sox" (Red Sox, White Sox) - need city name too
+    const specialCaseMascots = ['sox', 'knicks', 'bulls', 'heat', 'magic', 'jazz', 'thunder'];
+    
+    if (specialCaseMascots.includes(mascot1) || specialCaseMascots.includes(mascot2)) {
+      // For special cases, check if both mascots match AND city is contained
+      if (mascot1 === mascot2) {
+        const clean1 = team1.toLowerCase();
+        const clean2 = team2.toLowerCase();
+        // Check if either contains the other (handles "LA" vs "Los Angeles")
+        return clean1.includes(clean2) || clean2.includes(clean1);
+      }
+      return false;
+    }
+    
+    // Standard mascot matching
+    if (mascot1 === mascot2 && mascot1.length > 0) {
+      return true;
+    }
+    
+    // Fallback: Check if one name contains the other (handles "Lakers" vs "Los Angeles Lakers")
+    const clean1 = team1.toLowerCase().replace(/[^a-z0-9]/g, '');
+    const clean2 = team2.toLowerCase().replace(/[^a-z0-9]/g, '');
+    
+    return clean1.includes(clean2) || clean2.includes(clean1);
+  };
+  
 const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
   try {
     // CRITICAL: Check hard stop first - prevent any API calls if quota exhausted
@@ -2258,9 +2313,19 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
         return;
       }
       
-      // 2. Select first available bookmaker (e.g., DraftKings, FanDuel)
-      const bookmaker = game.bookmakers[0];
-      console.log(`  📊 Using bookmaker: ${bookmaker.title}`);
+      // 2. Select bookmaker with h2h market, or fall back to first available
+      // IMPROVED: Try to find a bookmaker that has the h2h market
+      let bookmaker = game.bookmakers.find(bm => 
+        bm.markets && bm.markets.some(m => m.key === 'h2h')
+      );
+      
+      // Fallback to first bookmaker if none have h2h
+      if (!bookmaker) {
+        bookmaker = game.bookmakers[0];
+        console.log(`  📊 No bookmaker with h2h market found, using: ${bookmaker.title}`);
+      } else {
+        console.log(`  📊 Using bookmaker with h2h market: ${bookmaker.title}`);
+      }
       
       // 3. Get markets array from bookmaker
       if (!bookmaker.markets || bookmaker.markets.length === 0) {
@@ -2352,32 +2417,51 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
       if (h2hMarket?.outcomes && h2hMarket.outcomes.length >= 2) {
         console.log(`  💰 Moneyline (h2h) market found with ${h2hMarket.outcomes.length} outcomes`);
         console.log(`    Raw outcomes:`, h2hMarket.outcomes.map(o => ({ name: o.name, price: o.price })));
+        console.log(`    🔍 Attempting to match against:`);
+        console.log(`       Home team from API: "${homeTeam}"`);
+        console.log(`       Away team from API: "${awayTeam}"`);
         
-        // MANDATORY: Match by name comparison, not by array index
-        const homeOutcome = h2hMarket.outcomes.find(o => o.name === homeTeam);
-        const awayOutcome = h2hMarket.outcomes.find(o => o.name === awayTeam);
+        // IMPROVED: Use fuzzy matching with teamsMatchHelper for more robust name matching
+        // This helps when API returns "LA Lakers" vs ESPN "Los Angeles Lakers"
+        const homeOutcome = h2hMarket.outcomes.find(o => {
+          // Try exact match first
+          if (o.name === homeTeam) return true;
+          // Fall back to mascot-based fuzzy matching
+          return teamsMatchHelper(o.name, homeTeam);
+        });
+        
+        const awayOutcome = h2hMarket.outcomes.find(o => {
+          // Try exact match first
+          if (o.name === awayTeam) return true;
+          // Fall back to mascot-based fuzzy matching
+          return teamsMatchHelper(o.name, awayTeam);
+        });
         
         if (homeOutcome) {
           // Validate price exists and is a number
           if (homeOutcome.price !== undefined && homeOutcome.price !== null && !isNaN(homeOutcome.price)) {
             homeMoneyline = homeOutcome.price > 0 ? `+${homeOutcome.price}` : String(homeOutcome.price);
-            console.log(`    ✓ ${homeTeam}: ${homeMoneyline}`);
+            const matchType = homeOutcome.name === homeTeam ? 'exact' : 'fuzzy';
+            console.log(`    ✓ ${homeTeam} matched with "${homeOutcome.name}" (${matchType}): ${homeMoneyline}`);
           } else {
             console.warn(`    ⚠️ ${homeTeam} outcome missing valid 'price' field: ${homeOutcome.price}`);
           }
         } else {
           console.warn(`    ⚠️ No h2h outcome found for home team: ${homeTeam}`);
+          console.warn(`       Available outcome names: ${h2hMarket.outcomes.map(o => `"${o.name}"`).join(', ')}`);
         }
         
         if (awayOutcome) {
           if (awayOutcome.price !== undefined && awayOutcome.price !== null && !isNaN(awayOutcome.price)) {
             awayMoneyline = awayOutcome.price > 0 ? `+${awayOutcome.price}` : String(awayOutcome.price);
-            console.log(`    ✓ ${awayTeam}: ${awayMoneyline}`);
+            const matchType = awayOutcome.name === awayTeam ? 'exact' : 'fuzzy';
+            console.log(`    ✓ ${awayTeam} matched with "${awayOutcome.name}" (${matchType}): ${awayMoneyline}`);
           } else {
             console.warn(`    ⚠️ ${awayTeam} outcome missing valid 'price' field: ${awayOutcome.price}`);
           }
         } else {
           console.warn(`    ⚠️ No h2h outcome found for away team: ${awayTeam}`);
+          console.warn(`       Available outcome names: ${h2hMarket.outcomes.map(o => `"${o.name}"`).join(', ')}`);
         }
         
         // 8. SOCCER ONLY: Extract Draw outcome for 3-way market
@@ -2404,6 +2488,12 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
         }
       } else {
         console.log(`  ❌ No moneyline (h2h) market found`);
+        console.log(`  📋 Available markets in this bookmaker:`, bookmaker.markets.map(m => m.key).join(', '));
+        console.log(`  🔍 THIS IS THE LIKELY ISSUE: The h2h market is not present in the API response`);
+        console.log(`     Possible causes:`);
+        console.log(`     1. API key doesn't have access to moneyline markets`);
+        console.log(`     2. Bookmaker doesn't offer moneyline for this game`);
+        console.log(`     3. Region restriction (check if 'regions=us' is correct)`);
       }
       
       // 9a. COMBAT SPORTS ONLY: Extract method of victory (h2h_method)
