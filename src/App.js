@@ -2040,13 +2040,30 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
       }
     }
     
-    // Build API URL
-    const url = `${ODDS_API_BASE_URL}/sports/${sportKey}/odds/?apiKey=${ODDS_API_KEY}&regions=us&markets=spreads,totals,h2h&oddsFormat=american`;
+    // Build API URL with markets based on sport type
+    // CRITICAL: Use correct market keys per copilot-instructions.md
+    const isSoccer = sport === 'World Cup' || sport === 'MLS';
+    const isCombat = sport === 'Boxing' || sport === 'UFC';
+    
+    let markets;
+    if (isCombat) {
+      // Combat Sports: h2h (moneyline), h2h_method (method of victory), h2h_round, h2h_go_distance
+      markets = 'h2h,h2h_method,h2h_round,h2h_go_distance';
+    } else if (isSoccer) {
+      // Soccer: h2h (3-way including Draw), spreads (if available), totals
+      markets = 'h2h,spreads,totals';
+    } else {
+      // US Sports: h2h (moneyline), spreads, totals
+      markets = 'h2h,spreads,totals';
+    }
+    
+    const url = `${ODDS_API_BASE_URL}/sports/${sportKey}/odds/?apiKey=${ODDS_API_KEY}&regions=us&markets=${markets}&oddsFormat=american`;
     
     // DEBUG: Log URL with masked API key for security
     const maskedUrl = url.replace(ODDS_API_KEY, '***KEY_HIDDEN***');
     console.log(`🔥 Making Odds API call for ${sport}...`);
     console.log(`📡 URL: ${maskedUrl}`);
+    console.log(`📋 Markets requested: ${markets}`);
     
     const response = await fetch(url);
     
@@ -2277,6 +2294,63 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
         console.log(`  ❌ No moneyline (h2h) market found`);
       }
       
+      // 9a. COMBAT SPORTS ONLY: Extract method of victory (h2h_method)
+      let methodOfVictory = undefined;
+      if (isCombat) {
+        const methodMarket = bookmaker.markets.find(m => m.key === 'h2h_method');
+        if (methodMarket?.outcomes && methodMarket.outcomes.length > 0) {
+          console.log(`  🥊 Method of Victory market found with ${methodMarket.outcomes.length} outcomes`);
+          methodOfVictory = {};
+          methodMarket.outcomes.forEach(outcome => {
+            // outcome.name format examples: "Fighter Name - KO/TKO", "Fighter Name - Decision"
+            const methodPrice = outcome.price > 0 ? `+${outcome.price}` : String(outcome.price);
+            methodOfVictory[outcome.name] = methodPrice;
+            console.log(`    ✓ ${outcome.name}: ${methodPrice}`);
+          });
+        } else {
+          console.log(`  ℹ️ No h2h_method market available for this fight`);
+        }
+      }
+      
+      // 9b. COMBAT SPORTS ONLY: Extract round betting (h2h_round)
+      let roundBetting = undefined;
+      if (isCombat) {
+        const roundMarket = bookmaker.markets.find(m => m.key === 'h2h_round');
+        if (roundMarket?.outcomes && roundMarket.outcomes.length > 0) {
+          console.log(`  🥊 Round Betting market found with ${roundMarket.outcomes.length} outcomes`);
+          roundBetting = {};
+          roundMarket.outcomes.forEach(outcome => {
+            const roundPrice = outcome.price > 0 ? `+${outcome.price}` : String(outcome.price);
+            roundBetting[outcome.name] = roundPrice;
+            console.log(`    ✓ ${outcome.name}: ${roundPrice}`);
+          });
+        } else {
+          console.log(`  ℹ️ No h2h_round market available for this fight`);
+        }
+      }
+      
+      // 9c. COMBAT SPORTS ONLY: Extract go distance (h2h_go_distance)
+      let goDistance = undefined;
+      if (isCombat) {
+        const distanceMarket = bookmaker.markets.find(m => m.key === 'h2h_go_distance');
+        if (distanceMarket?.outcomes && distanceMarket.outcomes.length >= 2) {
+          console.log(`  🥊 Go Distance market found with ${distanceMarket.outcomes.length} outcomes`);
+          const yesOutcome = distanceMarket.outcomes.find(o => o.name === 'Yes');
+          const noOutcome = distanceMarket.outcomes.find(o => o.name === 'No');
+          goDistance = {};
+          if (yesOutcome) {
+            goDistance.Yes = yesOutcome.price > 0 ? `+${yesOutcome.price}` : String(yesOutcome.price);
+            console.log(`    ✓ Yes (Goes Distance): ${goDistance.Yes}`);
+          }
+          if (noOutcome) {
+            goDistance.No = noOutcome.price > 0 ? `+${noOutcome.price}` : String(noOutcome.price);
+            console.log(`    ✓ No (Ends Early): ${goDistance.No}`);
+          }
+        } else {
+          console.log(`  ℹ️ No h2h_go_distance market available for this fight`);
+        }
+      }
+      
       // 10. Assemble final odds object for this game
       const gameKey = `${awayTeam}|${homeTeam}`;
       const oddsData = { 
@@ -2292,6 +2366,13 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
         oddsData.drawMoneyline = drawMoneyline;
       }
       
+      // Add combat sports markets
+      if (isCombat) {
+        if (methodOfVictory) oddsData.methodOfVictory = methodOfVictory;
+        if (roundBetting) oddsData.roundBetting = roundBetting;
+        if (goDistance) oddsData.goDistance = goDistance;
+      }
+      
       oddsMap[gameKey] = oddsData;
       
       // Summary log with value validation
@@ -2303,6 +2384,11 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
       console.log(`     Home ML: ${homeMoneyline === 'N/A' ? '❌ N/A' : '✓ ' + homeMoneyline}`);
       if (isSoccer) {
         console.log(`     Draw ML: ${drawMoneyline === 'N/A' ? '❌ N/A' : '✓ ' + drawMoneyline}`);
+      }
+      if (isCombat) {
+        console.log(`     🥊 Method of Victory: ${methodOfVictory ? '✓ Available' : 'N/A'}`);
+        console.log(`     🥊 Round Betting: ${roundBetting ? '✓ Available' : 'N/A'}`);
+        console.log(`     🥊 Go Distance: ${goDistance ? '✓ Available' : 'N/A'}`);
       }
     });
     
