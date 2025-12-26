@@ -75,8 +75,13 @@ function PropBetsView({
     setError(null);
 
     try {
-      // Use ESPN ID as eventId (may need mapping in some cases)
-      const eventId = game.espnId;
+      // Use The Odds API event ID if available, fallback to ESPN ID
+      // The Odds API event IDs are stored when odds are fetched
+      const eventId = game.oddsApiEventId || game.espnId;
+      
+      if (!eventId) {
+        throw new Error('No event ID available for this game');
+      }
       
       const response = await fetch(
         `/api/wager-manager?action=getEventPropBets&eventId=${eventId}&sport=${selectedSport}&categories=${category}`,

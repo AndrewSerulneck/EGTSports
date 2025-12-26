@@ -2356,7 +2356,8 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
         homeSpread, 
         total, 
         awayMoneyline, 
-        homeMoneyline
+        homeMoneyline,
+        oddsApiEventId: game.id // Store The Odds API event ID for prop betting
       };
       
       // Add draw moneyline only for soccer
@@ -2879,7 +2880,8 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
                   homeSpread: odds.homeSpread || game.homeSpread,
                   total: odds.total || game.total,
                   awayMoneyline: odds.awayMoneyline || game.awayMoneyline,
-                  homeMoneyline: odds.homeMoneyline || game.homeMoneyline
+                  homeMoneyline: odds.homeMoneyline || game.homeMoneyline,
+                  oddsApiEventId: odds.oddsApiEventId // Add Odds API event ID for prop betting
                 };
                 
                 // Add drawMoneyline for soccer sports
