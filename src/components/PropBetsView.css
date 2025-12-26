@@ -13,7 +13,7 @@
 
 .prop-bets-header h2 {
   font-size: 32px;
-  color: #667eea;
+  color: #e2e8f0; /* High contrast light color against dark background */
   margin-bottom: 10px;
   font-weight: 700;
 }
@@ -245,10 +245,10 @@
   font-size: 18px;
 }
 
-/* Section Titles */
+/* Section Titles - High Contrast Light Color */
 .section-title {
   font-size: 20px;
-  color: #CBD5E0;
+  color: #e2e8f0; /* Increased from #CBD5E0 for maximum contrast */
   font-weight: 700;
   margin-bottom: 16px;
   padding-left: 4px;

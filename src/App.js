@@ -2070,9 +2070,11 @@ function App() {
       return true;
     }
     
-    // Extract mascots (last word of team name)
+    // Extract mascots (last word of team name) and cities (first word)
     const mascot1 = extractMascotFromName(team1);
     const mascot2 = extractMascotFromName(team2);
+    const city1 = extractCityFromName(team1);
+    const city2 = extractCityFromName(team2);
     
     // Special cases: "Sox" (Red Sox, White Sox) - need city name too
     const specialCaseMascots = ['sox', 'knicks', 'bulls', 'heat', 'magic', 'jazz', 'thunder'];
@@ -2094,26 +2096,33 @@ function App() {
     }
     
     // ENHANCED: City-only name matching (e.g., "Philadelphia" matches "Philadelphia 76ers")
-    // This handles cases where API provides only the city name
-    const city1 = extractCityFromName(team1);
-    const city2 = extractCityFromName(team2);
-    
-    // If one team is just a city name (single word) and the other has a mascot
+    // PRIORITY: Try city matching before generic contains
     const words1 = team1.trim().split(/\s+/);
     const words2 = team2.trim().split(/\s+/);
     
-    if (words1.length === 1 || words2.length === 1) {
-      // One is a single word (likely just city), try city matching
-      if (city1 === city2 && city1.length > 0) {
+    // If one team is single word (likely just city) OR both have matching cities
+    if ((words1.length === 1 || words2.length === 1) && city1 === city2 && city1.length > 2) {
+      console.log(`    🏙️ City match found: "${city1}" matches both "${team1}" and "${team2}"`);
+      return true;
+    }
+    
+    // ENHANCED: Handle partial city matches (e.g., "Southern Illinois" vs "Southern Illinois Salukis")
+    // Match if one name is completely contained within the other (minimum 5 chars for safety)
+    const clean1 = team1.toLowerCase().replace(/[^a-z0-9\s]/g, '');
+    const clean2 = team2.toLowerCase().replace(/[^a-z0-9\s]/g, '');
+    
+    if (clean1.length >= 5 && clean2.length >= 5) {
+      if (clean1.includes(clean2) || clean2.includes(clean1)) {
+        console.log(`    📝 Partial name match: "${team1}" contains/contained-by "${team2}"`);
         return true;
       }
     }
     
-    // Fallback: Check if one name contains the other (handles "Lakers" vs "Los Angeles Lakers")
-    const clean1 = team1.toLowerCase().replace(/[^a-z0-9]/g, '');
-    const clean2 = team2.toLowerCase().replace(/[^a-z0-9]/g, '');
+    // Last resort: Check if cleaned names are substrings (no spaces)
+    const cleanNoSpace1 = team1.toLowerCase().replace(/[^a-z0-9]/g, '');
+    const cleanNoSpace2 = team2.toLowerCase().replace(/[^a-z0-9]/g, '');
     
-    return clean1.includes(clean2) || clean2.includes(clean1);
+    return cleanNoSpace1.includes(cleanNoSpace2) || cleanNoSpace2.includes(cleanNoSpace1);
   };
   
 const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {

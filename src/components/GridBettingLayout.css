@@ -208,8 +208,8 @@
 }
 
 .btn-team {
-  font-size: 1.1rem; /* Increased from clamp(0.65rem, 1.5vw, 0.9rem) */
-  font-weight: bold; /* Changed from 600 */
+  font-size: 1.15rem; /* Increased to maximum readable size */
+  font-weight: bold;
   color: #495057;
   white-space: nowrap;
   hyphens: auto;
@@ -220,8 +220,8 @@
 }
 
 .btn-odds {
-  font-size: 1.1rem; /* Increased from clamp(0.75rem, 1.8vw, 1rem) */
-  font-weight: bold; /* Changed from 700 to match */
+  font-size: 1.15rem; /* Increased to maximum readable size */
+  font-weight: bold;
   color: #333;
   white-space: nowrap; /* Prevents minus sign from separating */
 }
