@@ -209,9 +209,6 @@
   font-weight: 600;
   color: #495057;
   white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  max-width: 50%;
 }
 
 .btn-odds {

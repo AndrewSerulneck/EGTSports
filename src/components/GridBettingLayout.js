@@ -140,6 +140,15 @@ function GridBettingLayout({
     return false;
   };
 
+  // Helper to extract team mascot from full team name
+  const extractMascot = (teamName) => {
+    if (!teamName) return '';
+    const words = teamName.toLowerCase().trim().split(' ');
+    // Return the last word (mascot), capitalize first letter
+    const mascot = words[words.length - 1];
+    return mascot.charAt(0).toUpperCase() + mascot.slice(1);
+  };
+
   // Helper to format odds - replace N/A with dash
   const formatOdds = (odds) => {
     if (!odds || odds === '' || odds === 'undefined') return '-';
@@ -348,7 +357,7 @@ function GridBettingLayout({
                               disabled={game.isFinal || !isValidOdds(game.homeMoneyline)}
                               aria-label={`${game.homeTeam} win ${formatOdds(game.homeMoneyline)}`}
                             >
-                              <span className="btn-team">Home</span>
+                              <span className="btn-team">{extractMascot(game.homeTeam)}</span>
                               <span className="btn-odds">{formatOdds(game.homeMoneyline)}</span>
                             </button>
                             <button
@@ -366,7 +375,7 @@ function GridBettingLayout({
                               disabled={game.isFinal || !isValidOdds(game.awayMoneyline)}
                               aria-label={`${game.awayTeam} win ${formatOdds(game.awayMoneyline)}`}
                             >
-                              <span className="btn-team">Away</span>
+                              <span className="btn-team">{extractMascot(game.awayTeam)}</span>
                               <span className="btn-odds">{formatOdds(game.awayMoneyline)}</span>
                             </button>
                           </div>
@@ -384,7 +393,7 @@ function GridBettingLayout({
                               disabled={game.isFinal || !isValidOdds(game.awayMoneyline)}
                               aria-label={`${game.awayTeam} moneyline ${formatOdds(game.awayMoneyline)}`}
                             >
-                              <span className="btn-team">Away</span>
+                              <span className="btn-team">{extractMascot(game.awayTeam)}</span>
                               <span className="btn-odds">{formatOdds(game.awayMoneyline)}</span>
                             </button>
                             <button
@@ -393,7 +402,7 @@ function GridBettingLayout({
                               disabled={game.isFinal || !isValidOdds(game.homeMoneyline)}
                               aria-label={`${game.homeTeam} moneyline ${formatOdds(game.homeMoneyline)}`}
                             >
-                              <span className="btn-team">Home</span>
+                              <span className="btn-team">{extractMascot(game.homeTeam)}</span>
                               <span className="btn-odds">{formatOdds(game.homeMoneyline)}</span>
                             </button>
                           </div>
@@ -411,7 +420,7 @@ function GridBettingLayout({
                               disabled={game.isFinal || !isValidOdds(game.awaySpread)}
                               aria-label={`${game.awayTeam} spread ${formatOdds(game.awaySpread)}`}
                             >
-                              <span className="btn-team">Away</span>
+                              <span className="btn-team">{extractMascot(game.awayTeam)}</span>
                               <span className="btn-odds">{formatOdds(game.awaySpread)}</span>
                             </button>
                             <button
@@ -420,7 +429,7 @@ function GridBettingLayout({
                               disabled={game.isFinal || !isValidOdds(game.homeSpread)}
                               aria-label={`${game.homeTeam} spread ${formatOdds(game.homeSpread)}`}
                             >
-                              <span className="btn-team">Home</span>
+                              <span className="btn-team">{extractMascot(game.homeTeam)}</span>
                               <span className="btn-odds">{formatOdds(game.homeSpread)}</span>
                             </button>
                           </div>
