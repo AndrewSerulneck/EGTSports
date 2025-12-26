@@ -187,9 +187,17 @@ const getESPNDateRangeURLs = (baseURL) => {
 };
 
 // The Odds API Configuration
-const ODDS_API_KEY = process.env.REACT_APP_ODDS_API_KEY;
+// CRITICAL: Must match .env variable name exactly
+const ODDS_API_KEY = process.env.REACT_APP_THE_ODDS_API_KEY;
 const ODDS_API_BASE_URL = 'https://api.the-odds-api.com/v4';
 const USE_ODDS_API_FALLBACK = true;
+
+// Debug: Log API key status at startup (DO NOT log actual key)
+console.log('🔑 The Odds API Key Status:', ODDS_API_KEY ? '✅ LOADED' : '❌ MISSING');
+if (!ODDS_API_KEY) {
+  console.error('❌ CRITICAL: REACT_APP_THE_ODDS_API_KEY is not defined in .env file');
+  console.error('Please add: REACT_APP_THE_ODDS_API_KEY=your_api_key_here');
+}
 
 const ODDS_API_SPORT_KEYS = {
   'NFL': 'americanfootball_nfl',
@@ -2016,8 +2024,10 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
       return null;
     }
     
-    if (!ODDS_API_KEY) {
-      console.error('❌ ODDS_API_KEY not configured');
+    // CRITICAL: Validate environment variable
+    if (!ODDS_API_KEY || ODDS_API_KEY === 'undefined') {
+      console.error('❌ Error: REACT_APP_THE_ODDS_API_KEY is not defined in .env');
+      console.error('Please add REACT_APP_THE_ODDS_API_KEY to your .env file');
       return null;
     }
     
@@ -2030,57 +2040,276 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
       }
     }
     
-    console.log(`🔥 Making Odds API call for ${sport}...`);
+    // Build API URL
     const url = `${ODDS_API_BASE_URL}/sports/${sportKey}/odds/?apiKey=${ODDS_API_KEY}&regions=us&markets=spreads,totals,h2h&oddsFormat=american`;
+    
+    // DEBUG: Log URL with masked API key for security
+    const maskedUrl = url.replace(ODDS_API_KEY, '***KEY_HIDDEN***');
+    console.log(`🔥 Making Odds API call for ${sport}...`);
+    console.log(`📡 URL: ${maskedUrl}`);
     
     const response = await fetch(url);
     
+    // DEBUG: Log response status
+    console.log(`📊 Response Status: ${response.status} ${response.statusText}`);
+    
     if (!response.ok) {
-      console.error(`❌ Odds API returned ${response.status} for ${sport}`);
+      // Detailed error logging based on status code
+      if (response.status === 401) {
+        console.error(`❌ 401 UNAUTHORIZED: Invalid API key for The Odds API`);
+        console.error('Check that REACT_APP_THE_ODDS_API_KEY is correct in .env');
+      } else if (response.status === 429) {
+        console.error(`❌ 429 RATE LIMIT: Too many requests to The Odds API`);
+        console.error('You may have exceeded your monthly quota or requests per second');
+      } else if (response.status === 404) {
+        console.error(`❌ 404 NOT FOUND: Sport key "${sportKey}" may be invalid`);
+      } else {
+        console.error(`❌ Odds API returned ${response.status}: ${response.statusText}`);
+      }
+      
+      // Try to get error message from response body
+      try {
+        const errorBody = await response.text();
+        console.error(`Response body: ${errorBody}`);
+      } catch (e) {
+        // Ignore if can't read body
+      }
+      
       return null;
     }
     
     console.log(`✅ Successfully fetched odds from Odds API for ${sport}`);
     const data = await response.json();
     
+    // DEBUG: Log how many games returned
+    console.log(`📈 Received ${data.length} games for ${sport}`);
+    
+    // CRITICAL LOGGING: Show all teams from API response
+    console.log(`📡 API Results for this league (${sport}):`);
+    data.forEach((event, idx) => {
+      console.log(`   ${idx + 1}. ${event.away_team} @ ${event.home_team}`);
+    });
+    console.log('');
+    
+    // VALIDATION LOG: Deep inspection of first event structure
+    if (data.length > 0 && data[0].bookmakers && data[0].bookmakers.length > 0) {
+      console.log('\n🔍 VALIDATION: Deep structure of first event bookmaker:');
+      console.dir(data[0].bookmakers[0], { depth: null });
+      console.log('\n');
+    }
+    
+    // Identify sport type for proper parsing
+    const isSoccer = sport === 'World Cup' || sport === 'MLS';
+    const isCombat = sport === 'Boxing' || sport === 'UFC';
+    
+    console.log(`🏷️ Sport type - Soccer: ${isSoccer}, Combat: ${isCombat}`);
+    
     const oddsMap = {};
     
-    data.forEach(game => {
+    data.forEach((game, gameIndex) => {
       const homeTeam = game.home_team;
       const awayTeam = game.away_team;
       
-      const spreadMarket = game.bookmakers?.[0]?.markets?.find(m => m.key === 'spreads');
-      const totalMarket = game.bookmakers?.[0]?.markets?.find(m => m.key === 'totals');
-      const h2hMarket = game.bookmakers?.[0]?.markets?.find(m => m.key === 'h2h');
+      console.log(`\n🎮 Game ${gameIndex + 1}: ${awayTeam} @ ${homeTeam}`);
       
-      let homeSpread = '';
-      let awaySpread = '';
-      let total = '';
-      let homeMoneyline = '';
-      let awayMoneyline = '';
+      // THE ODDS API v4 DATA DRILL-DOWN PATH:
+      // 1. Check if bookmakers array exists
+      if (!game.bookmakers || game.bookmakers.length === 0) {
+        console.warn(`  ⚠️ No bookmakers data available`);
+        // Store empty odds with fallback values
+        const gameKey = `${awayTeam}|${homeTeam}`;
+        oddsMap[gameKey] = { 
+          awaySpread: 'OFF', 
+          homeSpread: 'OFF', 
+          total: 'OFF', 
+          awayMoneyline: 'OFF', 
+          homeMoneyline: 'OFF',
+          drawMoneyline: isSoccer ? 'OFF' : undefined
+        };
+        return;
+      }
       
-      if (spreadMarket?.outcomes) {
+      // 2. Select first available bookmaker (e.g., DraftKings, FanDuel)
+      const bookmaker = game.bookmakers[0];
+      console.log(`  📊 Using bookmaker: ${bookmaker.title}`);
+      
+      // 3. Get markets array from bookmaker
+      if (!bookmaker.markets || bookmaker.markets.length === 0) {
+        console.warn(`  ⚠️ No markets data in bookmaker`);
+        const gameKey = `${awayTeam}|${homeTeam}`;
+        oddsMap[gameKey] = { 
+          awaySpread: 'OFF', 
+          homeSpread: 'OFF', 
+          total: 'OFF', 
+          awayMoneyline: 'OFF', 
+          homeMoneyline: 'OFF',
+          drawMoneyline: isSoccer ? 'OFF' : undefined
+        };
+        return;
+      }
+      
+      console.log(`  📋 Available markets: ${bookmaker.markets.map(m => m.key).join(', ')}`);
+      
+      // 4. Find specific markets by key
+      const spreadMarket = bookmaker.markets.find(m => m.key === 'spreads');
+      const totalMarket = bookmaker.markets.find(m => m.key === 'totals');
+      const h2hMarket = bookmaker.markets.find(m => m.key === 'h2h');
+      
+      let homeSpread = 'N/A';
+      let awaySpread = 'N/A';
+      let total = 'N/A';
+      let homeMoneyline = 'N/A';
+      let awayMoneyline = 'N/A';
+      let drawMoneyline = isSoccer ? 'N/A' : undefined;
+      
+      // 5. Extract spreads from outcomes array
+      if (spreadMarket?.outcomes && spreadMarket.outcomes.length >= 2) {
+        console.log(`  📐 Spreads market found with ${spreadMarket.outcomes.length} outcomes`);
+        
+        // MANDATORY: Match by team name, not by array index
         const homeOutcome = spreadMarket.outcomes.find(o => o.name === homeTeam);
         const awayOutcome = spreadMarket.outcomes.find(o => o.name === awayTeam);
         
-        if (homeOutcome) homeSpread = homeOutcome.point > 0 ? `+${homeOutcome.point}` : String(homeOutcome.point);
-        if (awayOutcome) awaySpread = awayOutcome.point > 0 ? `+${awayOutcome.point}` : String(awayOutcome.point);
+        if (homeOutcome) {
+          // Validate point exists and is a number
+          if (homeOutcome.point !== undefined && homeOutcome.point !== null && !isNaN(homeOutcome.point)) {
+            homeSpread = homeOutcome.point > 0 ? `+${homeOutcome.point}` : String(homeOutcome.point);
+            console.log(`    ✓ ${homeTeam}: ${homeSpread} (price: ${homeOutcome.price})`);
+          } else {
+            console.warn(`    ⚠️ ${homeTeam} outcome missing valid 'point' field`);
+          }
+        } else {
+          console.warn(`    ⚠️ No outcome found for home team: ${homeTeam}`);
+        }
+        
+        if (awayOutcome) {
+          if (awayOutcome.point !== undefined && awayOutcome.point !== null && !isNaN(awayOutcome.point)) {
+            awaySpread = awayOutcome.point > 0 ? `+${awayOutcome.point}` : String(awayOutcome.point);
+            console.log(`    ✓ ${awayTeam}: ${awaySpread} (price: ${awayOutcome.price})`);
+          } else {
+            console.warn(`    ⚠️ ${awayTeam} outcome missing valid 'point' field`);
+          }
+        } else {
+          console.warn(`    ⚠️ No outcome found for away team: ${awayTeam}`);
+        }
+      } else {
+        console.log(`  ❌ No spreads market found`);
       }
       
-      if (totalMarket?.outcomes?.[0]) {
-        total = `O/U ${totalMarket.outcomes[0].point}`;
+      // 6. Extract totals from outcomes array
+      if (totalMarket?.outcomes && totalMarket.outcomes.length > 0) {
+        console.log(`  🎯 Totals market found with ${totalMarket.outcomes.length} outcomes`);
+        
+        // Total market has Over/Under outcomes with same point value
+        const overOutcome = totalMarket.outcomes.find(o => o.name === 'Over');
+        const underOutcome = totalMarket.outcomes.find(o => o.name === 'Under');
+        
+        if (overOutcome) {
+          if (overOutcome.point !== undefined && overOutcome.point !== null && !isNaN(overOutcome.point)) {
+            total = String(overOutcome.point);
+            console.log(`    ✓ Total: ${total} (Over: ${overOutcome.price}, Under: ${underOutcome?.price || 'N/A'})`);
+          } else {
+            console.warn(`    ⚠️ Over outcome missing valid 'point' field`);
+          }
+        } else {
+          console.warn(`    ⚠️ No 'Over' outcome found in totals market`);
+        }
+      } else {
+        console.log(`  ❌ No totals market found`);
       }
       
-      if (h2hMarket?.outcomes) {
+      // 7. Extract moneylines (h2h) from outcomes array
+      // CRITICAL: Soccer has 3 outcomes (Home, Away, Draw), Combat/Traditional have 2
+      if (h2hMarket?.outcomes && h2hMarket.outcomes.length >= 2) {
+        console.log(`  💰 Moneyline (h2h) market found with ${h2hMarket.outcomes.length} outcomes`);
+        console.log(`    Raw outcomes:`, h2hMarket.outcomes.map(o => ({ name: o.name, price: o.price })));
+        
+        // MANDATORY: Match by name comparison, not by array index
         const homeOutcome = h2hMarket.outcomes.find(o => o.name === homeTeam);
         const awayOutcome = h2hMarket.outcomes.find(o => o.name === awayTeam);
         
-        if (homeOutcome) homeMoneyline = homeOutcome.price > 0 ? `+${homeOutcome.price}` : String(homeOutcome.price);
-        if (awayOutcome) awayMoneyline = awayOutcome.price > 0 ? `+${awayOutcome.price}` : String(awayOutcome.price);
+        if (homeOutcome) {
+          // Validate price exists and is a number
+          if (homeOutcome.price !== undefined && homeOutcome.price !== null && !isNaN(homeOutcome.price)) {
+            homeMoneyline = homeOutcome.price > 0 ? `+${homeOutcome.price}` : String(homeOutcome.price);
+            console.log(`    ✓ ${homeTeam}: ${homeMoneyline}`);
+          } else {
+            console.warn(`    ⚠️ ${homeTeam} outcome missing valid 'price' field: ${homeOutcome.price}`);
+          }
+        } else {
+          console.warn(`    ⚠️ No h2h outcome found for home team: ${homeTeam}`);
+        }
+        
+        if (awayOutcome) {
+          if (awayOutcome.price !== undefined && awayOutcome.price !== null && !isNaN(awayOutcome.price)) {
+            awayMoneyline = awayOutcome.price > 0 ? `+${awayOutcome.price}` : String(awayOutcome.price);
+            console.log(`    ✓ ${awayTeam}: ${awayMoneyline}`);
+          } else {
+            console.warn(`    ⚠️ ${awayTeam} outcome missing valid 'price' field: ${awayOutcome.price}`);
+          }
+        } else {
+          console.warn(`    ⚠️ No h2h outcome found for away team: ${awayTeam}`);
+        }
+        
+        // 8. SOCCER ONLY: Extract Draw outcome for 3-way market
+        if (isSoccer) {
+          const drawOutcome = h2hMarket.outcomes.find(o => o.name === 'Draw');
+          if (drawOutcome) {
+            if (drawOutcome.price !== undefined && drawOutcome.price !== null && !isNaN(drawOutcome.price)) {
+              drawMoneyline = drawOutcome.price > 0 ? `+${drawOutcome.price}` : String(drawOutcome.price);
+              console.log(`    ⚽ Draw: ${drawMoneyline}`);
+            } else {
+              console.warn(`    ⚠️ Draw outcome missing valid 'price' field: ${drawOutcome.price}`);
+            }
+          } else {
+            console.warn(`    ⚠️ No Draw outcome found (expected for soccer)`);
+          }
+        }
+        
+        // 9. COMBAT SPORTS: Verify 2-way market structure
+        if (isCombat) {
+          console.log(`    🥊 Combat sport detected - verifying 2-way market structure`);
+          if (h2hMarket.outcomes.length !== 2) {
+            console.warn(`    ⚠️ Expected 2 outcomes for combat sport, got ${h2hMarket.outcomes.length}`);
+          }
+        }
+      } else {
+        console.log(`  ❌ No moneyline (h2h) market found`);
       }
       
+      // 10. Assemble final odds object for this game
       const gameKey = `${awayTeam}|${homeTeam}`;
-      oddsMap[gameKey] = { awaySpread, homeSpread, total, awayMoneyline, homeMoneyline };
+      const oddsData = { 
+        awaySpread, 
+        homeSpread, 
+        total, 
+        awayMoneyline, 
+        homeMoneyline
+      };
+      
+      // Add draw moneyline only for soccer
+      if (isSoccer) {
+        oddsData.drawMoneyline = drawMoneyline;
+      }
+      
+      oddsMap[gameKey] = oddsData;
+      
+      // Summary log with value validation
+      console.log(`  ✅ Final odds stored with key: "${gameKey}"`);
+      console.log(`     Away Spread: ${awaySpread === 'N/A' ? '❌ N/A' : '✓ ' + awaySpread}`);
+      console.log(`     Home Spread: ${homeSpread === 'N/A' ? '❌ N/A' : '✓ ' + homeSpread}`);
+      console.log(`     Total: ${total === 'N/A' ? '❌ N/A' : '✓ ' + total}`);
+      console.log(`     Away ML: ${awayMoneyline === 'N/A' ? '❌ N/A' : '✓ ' + awayMoneyline}`);
+      console.log(`     Home ML: ${homeMoneyline === 'N/A' ? '❌ N/A' : '✓ ' + homeMoneyline}`);
+      if (isSoccer) {
+        console.log(`     Draw ML: ${drawMoneyline === 'N/A' ? '❌ N/A' : '✓ ' + drawMoneyline}`);
+      }
+    });
+    
+    console.log(`\n🎉 Successfully parsed ${Object.keys(oddsMap).length} games for ${sport}`);
+    console.log(`📋 All game keys in oddsMap:`);
+    Object.keys(oddsMap).forEach(key => {
+      console.log(`   "${key}"`);
     });
     
     oddsAPICache[sport] = {
@@ -2091,30 +2320,127 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
     return oddsMap;
     
   } catch (error) {
-    console.error(`❌ Error fetching ${sport} odds from The Odds API:`, error);
+    console.error(`\n❌ EXCEPTION in fetchOddsFromTheOddsAPI for ${sport}:`);
+    console.error(`Error type: ${error.name}`);
+    console.error(`Error message: ${error.message}`);
+    console.error('Stack trace:', error.stack);
     return null;
   }
 };
 
-  const matchOddsToGame = (game, oddsMap) => {
-    if (!oddsMap) return { awaySpread: '', homeSpread: '', total: '', awayMoneyline: '', homeMoneyline: '' };
+  // Helper function to extract mascot from team name (last word)
+  const extractMascot = (teamName) => {
+    if (!teamName) return '';
     
+    // Remove special characters and extra spaces
+    const cleaned = teamName
+      .replace(/[^a-zA-Z0-9\s]/g, '') // Remove special chars
+      .replace(/\s+/g, ' ')            // Normalize spaces
+      .trim()
+      .toLowerCase();
+    
+    // Split into words and get last word (mascot)
+    const words = cleaned.split(' ');
+    const mascot = words[words.length - 1];
+    
+    return mascot;
+  };
+
+  // Helper function for robust team name matching (The "Mascot Rule")
+  const teamsMatch = (team1, team2) => {
+    if (!team1 || !team2) return false;
+    
+    // Exact match (case-insensitive)
+    if (team1.toLowerCase() === team2.toLowerCase()) {
+      return true;
+    }
+    
+    // Extract mascots (last word of team name)
+    const mascot1 = extractMascot(team1);
+    const mascot2 = extractMascot(team2);
+    
+    // Special cases: "Sox" (Red Sox, White Sox) - need city name too
+    const specialCaseMascots = ['sox', 'knicks', 'bulls', 'heat', 'magic', 'jazz', 'thunder'];
+    
+    if (specialCaseMascots.includes(mascot1) || specialCaseMascots.includes(mascot2)) {
+      // For special cases, check if both mascots match AND city is contained
+      if (mascot1 === mascot2) {
+        const clean1 = team1.toLowerCase();
+        const clean2 = team2.toLowerCase();
+        // Check if either contains the other (handles "LA" vs "Los Angeles")
+        return clean1.includes(clean2) || clean2.includes(clean1);
+      }
+      return false;
+    }
+    
+    // Standard mascot matching
+    if (mascot1 === mascot2 && mascot1.length > 0) {
+      return true;
+    }
+    
+    // Fallback: Check if one name contains the other (handles "Lakers" vs "Los Angeles Lakers")
+    const clean1 = team1.toLowerCase().replace(/[^a-z0-9]/g, '');
+    const clean2 = team2.toLowerCase().replace(/[^a-z0-9]/g, '');
+    
+    return clean1.includes(clean2) || clean2.includes(clean1);
+  };
+
+  const matchOddsToGame = (game, oddsMap) => {
+    // Default fallback with N/A values
+    const defaultOdds = { 
+      awaySpread: 'N/A', 
+      homeSpread: 'N/A', 
+      total: 'N/A', 
+      awayMoneyline: 'N/A', 
+      homeMoneyline: 'N/A',
+      drawMoneyline: undefined // Will be set for soccer
+    };
+    
+    if (!oddsMap) {
+      console.warn(`⚠️ matchOddsToGame: No oddsMap provided for ${game.awayTeam} @ ${game.homeTeam}`);
+      return defaultOdds;
+    }
+    
+    // Debug logging
+    console.log(`🔍 Attempting to match game: ${game.homeTeam} vs ${game.awayTeam}`);
+    console.log(`   Home mascot: "${extractMascot(game.homeTeam)}"`);
+    console.log(`   Away mascot: "${extractMascot(game.awayTeam)}"`);
+    
+    // Try exact match first
     const gameKey = `${game.awayTeam}|${game.homeTeam}`;
+    
     if (oddsMap[gameKey]) {
+      console.log(`✅ Exact match found for: "${gameKey}"`);
       return oddsMap[gameKey];
     }
     
+    console.log(`❌ No exact match for: "${gameKey}"`);
+    console.log(`   Available API teams:`);
+    Object.keys(oddsMap).forEach(key => {
+      const [away, home] = key.split('|');
+      console.log(`     "${away}" vs "${home}"`);
+    });
+    
+    // Try mascot-based fuzzy matching
+    console.log(`🔍 Attempting mascot-based matching...`);
     for (const [key, value] of Object.entries(oddsMap)) {
       const [oddsAway, oddsHome] = key.split('|');
       
-      if (game.awayTeam.includes(oddsAway) || oddsAway.includes(game.awayTeam)) {
-        if (game.homeTeam.includes(oddsHome) || oddsHome.includes(game.homeTeam)) {
-          return value;
-        }
+      // Use robust team matcher (mascot rule)
+      const awayMatch = teamsMatch(game.awayTeam, oddsAway);
+      const homeMatch = teamsMatch(game.homeTeam, oddsHome);
+      
+      if (awayMatch && homeMatch) {
+        console.log(`✅ Mascot match found!`);
+        console.log(`   Game: "${game.awayTeam}" @ "${game.homeTeam}"`);
+        console.log(`   API:  "${oddsAway}" @ "${oddsHome}"`);
+        return value;
       }
     }
     
-    return { awaySpread: '', homeSpread: '', total: '', awayMoneyline: '', homeMoneyline: '' };
+    // No match found - return defaults
+    console.warn(`❌ No match found for: "${game.awayTeam}" @ "${game.homeTeam}"`);
+    return defaultOdds;
   };
 
   const fetchPropBets = async (sportName) => {
@@ -2462,7 +2788,8 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
                   console.log(`✅ Applied Odds API moneyline: ${game.homeTeam} ${odds.homeMoneyline}`);
                 }
                 
-                return {
+                // Build updated game object with all odds data
+                const updatedGame = {
                   ...game,
                   awaySpread: odds.awaySpread || game.awaySpread,
                   homeSpread: odds.homeSpread || game.homeSpread,
@@ -2470,6 +2797,14 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
                   awayMoneyline: odds.awayMoneyline || game.awayMoneyline,
                   homeMoneyline: odds.homeMoneyline || game.homeMoneyline
                 };
+                
+                // Add drawMoneyline for soccer sports
+                if (odds.drawMoneyline !== undefined) {
+                  updatedGame.drawMoneyline = odds.drawMoneyline;
+                  console.log(`⚽ Added draw odds for ${game.awayTeam} @ ${game.homeTeam}: ${odds.drawMoneyline}`);
+                }
+                
+                return updatedGame;
               });
               
               sportsData[sport] = finalFormattedGames;

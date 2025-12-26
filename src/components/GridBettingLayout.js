@@ -142,8 +142,16 @@ function GridBettingLayout({
 
   // Helper to format odds
   const formatOdds = (odds) => {
-    if (!odds) return '--';
+    if (!odds || odds === '' || odds === 'undefined') return 'N/A';
+    if (odds === 'OFF' || odds === 'N/A') return odds;
     return odds;
+  };
+
+  // Helper to check if odds are valid (not N/A, OFF, or empty)
+  const isValidOdds = (odds) => {
+    if (!odds || odds === '' || odds === 'undefined') return false;
+    if (odds === 'OFF' || odds === 'N/A') return false;
+    return true;
   };
 
   // Helper to extract short team name with fallback
@@ -253,8 +261,8 @@ function GridBettingLayout({
                         <div className="bet-options combat-fighters">
                           <button
                             className={`bet-btn combat-fighter-btn ${isSelected(game.id, 'winner', 'away') ? 'selected' : ''} ${game.isFinal ? 'disabled' : ''}`}
-                            onClick={() => !game.isFinal && onSelectPick(game.id, 'winner', 'away')}
-                            disabled={game.isFinal || !game.awayMoneyline}
+                            onClick={() => !game.isFinal && isValidOdds(game.awayMoneyline) && onSelectPick(game.id, 'winner', 'away')}
+                            disabled={game.isFinal || !isValidOdds(game.awayMoneyline)}
                             aria-label={`${fighterTop} to win ${formatOdds(game.awayMoneyline)}`}
                           >
                             <span className="btn-team">{fighterTop}</span>
@@ -262,8 +270,8 @@ function GridBettingLayout({
                           </button>
                           <button
                             className={`bet-btn combat-fighter-btn ${isSelected(game.id, 'winner', 'home') ? 'selected' : ''} ${game.isFinal ? 'disabled' : ''}`}
-                            onClick={() => !game.isFinal && onSelectPick(game.id, 'winner', 'home')}
-                            disabled={game.isFinal || !game.homeMoneyline}
+                            onClick={() => !game.isFinal && isValidOdds(game.homeMoneyline) && onSelectPick(game.id, 'winner', 'home')}
+                            disabled={game.isFinal || !isValidOdds(game.homeMoneyline)}
                             aria-label={`${fighterBottom} to win ${formatOdds(game.homeMoneyline)}`}
                           >
                             <span className="btn-team">{fighterBottom}</span>
@@ -280,21 +288,21 @@ function GridBettingLayout({
                           <div className="bet-options">
                             <button
                               className={`bet-btn ${isSelected(game.id, 'total', 'over') ? 'selected' : ''} ${game.isFinal ? 'disabled' : ''}`}
-                              onClick={() => !game.isFinal && onSelectPick(game.id, 'total', 'over')}
-                              disabled={game.isFinal || !game.total}
+                              onClick={() => !game.isFinal && isValidOdds(game.total) && onSelectPick(game.id, 'total', 'over')}
+                              disabled={game.isFinal || !isValidOdds(game.total)}
                               aria-label={`Over ${formatOdds(game.total)} rounds`}
                             >
                               <span className="btn-team">Over</span>
-                              <span className="btn-odds">{formatOdds(game.total || '2.5')}</span>
+                              <span className="btn-odds">{formatOdds(game.total)}</span>
                             </button>
                             <button
                               className={`bet-btn ${isSelected(game.id, 'total', 'under') ? 'selected' : ''} ${game.isFinal ? 'disabled' : ''}`}
-                              onClick={() => !game.isFinal && onSelectPick(game.id, 'total', 'under')}
-                              disabled={game.isFinal || !game.total}
+                              onClick={() => !game.isFinal && isValidOdds(game.total) && onSelectPick(game.id, 'total', 'under')}
+                              disabled={game.isFinal || !isValidOdds(game.total)}
                               aria-label={`Under ${formatOdds(game.total)} rounds`}
                             >
                               <span className="btn-team">Under</span>
-                              <span className="btn-odds">{formatOdds(game.total || '2.5')}</span>
+                              <span className="btn-odds">{formatOdds(game.total)}</span>
                             </button>
                           </div>
                         </div>
@@ -342,8 +350,8 @@ function GridBettingLayout({
                           <div className="bet-options bet-options-3way">
                             <button
                               className={`bet-btn ${isSelected(game.id, 'winner', 'home') ? 'selected' : ''} ${game.isFinal ? 'disabled' : ''}`}
-                              onClick={() => !game.isFinal && onSelectPick(game.id, 'winner', 'home')}
-                              disabled={game.isFinal || !game.homeMoneyline}
+                              onClick={() => !game.isFinal && isValidOdds(game.homeMoneyline) && onSelectPick(game.id, 'winner', 'home')}
+                              disabled={game.isFinal || !isValidOdds(game.homeMoneyline)}
                               aria-label={`${game.homeTeam} win ${formatOdds(game.homeMoneyline)}`}
                             >
                               <span className="btn-team">{getShortTeamName(game.homeTeam)}</span>
@@ -351,8 +359,8 @@ function GridBettingLayout({
                             </button>
                             <button
                               className={`bet-btn ${isSelected(game.id, 'winner', 'draw') ? 'selected' : ''} ${game.isFinal ? 'disabled' : ''}`}
-                              onClick={() => !game.isFinal && onSelectPick(game.id, 'winner', 'draw')}
-                              disabled={game.isFinal || !game.drawMoneyline}
+                              onClick={() => !game.isFinal && isValidOdds(game.drawMoneyline) && onSelectPick(game.id, 'winner', 'draw')}
+                              disabled={game.isFinal || !isValidOdds(game.drawMoneyline)}
                               aria-label={`Draw ${formatOdds(game.drawMoneyline)}`}
                             >
                               <span className="btn-team">Draw</span>
@@ -360,8 +368,8 @@ function GridBettingLayout({
                             </button>
                             <button
                               className={`bet-btn ${isSelected(game.id, 'winner', 'away') ? 'selected' : ''} ${game.isFinal ? 'disabled' : ''}`}
-                              onClick={() => !game.isFinal && onSelectPick(game.id, 'winner', 'away')}
-                              disabled={game.isFinal || !game.awayMoneyline}
+                              onClick={() => !game.isFinal && isValidOdds(game.awayMoneyline) && onSelectPick(game.id, 'winner', 'away')}
+                              disabled={game.isFinal || !isValidOdds(game.awayMoneyline)}
                               aria-label={`${game.awayTeam} win ${formatOdds(game.awayMoneyline)}`}
                             >
                               <span className="btn-team">{getShortTeamName(game.awayTeam)}</span>
@@ -378,8 +386,8 @@ function GridBettingLayout({
                           <div className="bet-options">
                             <button
                               className={`bet-btn ${isSelected(game.id, 'winner', 'away') ? 'selected' : ''} ${game.isFinal ? 'disabled' : ''}`}
-                              onClick={() => !game.isFinal && onSelectPick(game.id, 'winner', 'away')}
-                              disabled={game.isFinal || !game.awayMoneyline}
+                              onClick={() => !game.isFinal && isValidOdds(game.awayMoneyline) && onSelectPick(game.id, 'winner', 'away')}
+                              disabled={game.isFinal || !isValidOdds(game.awayMoneyline)}
                               aria-label={`${game.awayTeam} moneyline ${formatOdds(game.awayMoneyline)}`}
                             >
                               <span className="btn-team">{getShortTeamName(game.awayTeam)}</span>
@@ -387,8 +395,8 @@ function GridBettingLayout({
                             </button>
                             <button
                               className={`bet-btn ${isSelected(game.id, 'winner', 'home') ? 'selected' : ''} ${game.isFinal ? 'disabled' : ''}`}
-                              onClick={() => !game.isFinal && onSelectPick(game.id, 'winner', 'home')}
-                              disabled={game.isFinal || !game.homeMoneyline}
+                              onClick={() => !game.isFinal && isValidOdds(game.homeMoneyline) && onSelectPick(game.id, 'winner', 'home')}
+                              disabled={game.isFinal || !isValidOdds(game.homeMoneyline)}
                               aria-label={`${game.homeTeam} moneyline ${formatOdds(game.homeMoneyline)}`}
                             >
                               <span className="btn-team">{getShortTeamName(game.homeTeam)}</span>
@@ -405,8 +413,8 @@ function GridBettingLayout({
                           <div className="bet-options">
                             <button
                               className={`bet-btn ${isSelected(game.id, 'spread', 'away') ? 'selected' : ''} ${game.isFinal ? 'disabled' : ''}`}
-                              onClick={() => !game.isFinal && onSelectPick(game.id, 'spread', 'away')}
-                              disabled={game.isFinal || !game.awaySpread}
+                              onClick={() => !game.isFinal && isValidOdds(game.awaySpread) && onSelectPick(game.id, 'spread', 'away')}
+                              disabled={game.isFinal || !isValidOdds(game.awaySpread)}
                               aria-label={`${game.awayTeam} spread ${formatOdds(game.awaySpread)}`}
                             >
                               <span className="btn-team">{getShortTeamName(game.awayTeam)}</span>
@@ -414,8 +422,8 @@ function GridBettingLayout({
                             </button>
                             <button
                               className={`bet-btn ${isSelected(game.id, 'spread', 'home') ? 'selected' : ''} ${game.isFinal ? 'disabled' : ''}`}
-                              onClick={() => !game.isFinal && onSelectPick(game.id, 'spread', 'home')}
-                              disabled={game.isFinal || !game.homeSpread}
+                              onClick={() => !game.isFinal && isValidOdds(game.homeSpread) && onSelectPick(game.id, 'spread', 'home')}
+                              disabled={game.isFinal || !isValidOdds(game.homeSpread)}
                               aria-label={`${game.homeTeam} spread ${formatOdds(game.homeSpread)}`}
                             >
                               <span className="btn-team">{getShortTeamName(game.homeTeam)}</span>
@@ -432,8 +440,8 @@ function GridBettingLayout({
                           <div className="bet-options">
                             <button
                               className={`bet-btn ${isSelected(game.id, 'total', 'over') ? 'selected' : ''} ${game.isFinal ? 'disabled' : ''}`}
-                              onClick={() => !game.isFinal && onSelectPick(game.id, 'total', 'over')}
-                              disabled={game.isFinal || !game.total}
+                              onClick={() => !game.isFinal && isValidOdds(game.total) && onSelectPick(game.id, 'total', 'over')}
+                              disabled={game.isFinal || !isValidOdds(game.total)}
                               aria-label={`Over ${formatOdds(game.total)}`}
                             >
                               <span className="btn-team">Over</span>
@@ -441,8 +449,8 @@ function GridBettingLayout({
                             </button>
                             <button
                               className={`bet-btn ${isSelected(game.id, 'total', 'under') ? 'selected' : ''} ${game.isFinal ? 'disabled' : ''}`}
-                              onClick={() => !game.isFinal && onSelectPick(game.id, 'total', 'under')}
-                              disabled={game.isFinal || !game.total}
+                              onClick={() => !game.isFinal && isValidOdds(game.total) && onSelectPick(game.id, 'total', 'under')}
+                              disabled={game.isFinal || !isValidOdds(game.total)}
                               aria-label={`Under ${formatOdds(game.total)}`}
                             >
                               <span className="btn-team">Under</span>
