@@ -149,7 +149,7 @@ const ESPN_API_ENDPOINTS = {
   'NHL': 'https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard',
   'World Cup': 'https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/scoreboard',
   'MLS': 'https://site.api.espn.com/apis/site/v2/sports/soccer/usa.1/scoreboard',
-  'Boxing': 'https://site.api.espn.com/apis/site/v2/sports/boxing/boxing/scoreboard',
+  'Boxing': 'https://site.api.espn.com/apis/site/v2/sports/boxing/scoreboard',
   'UFC': 'https://site.api.espn.com/apis/site/v2/sports/mma/ufc/scoreboard'
 };
 
@@ -219,6 +219,7 @@ const COLLEGE_BASKETBALL_CACHE_DURATION = 6 * 60 * 60 * 1000;
 const ODDS_API_CACHE_DURATION = 24 * 60 * 60 * 1000; // 24 hours to minimize API usage
 const DATA_REFRESH_INTERVAL = 4 * 60 * 60 * 1000; // 4 hours
 const FIREBASE_LISTENER_SETUP_DELAY = 500; // ms
+const GLOBAL_FETCH_THROTTLE = 60 * 1000; // 60 seconds - prevent rapid-fire fetches
 
 const gameCache = {};
 const oddsAPICache = {};
@@ -1659,12 +1660,11 @@ const saveSubmission = async (submission) => {
         
         <div className="main-content with-sidebar">
           <PropBetsView
-            propBets={propBets}
-            loading={propBetsLoading}
-            error={propBetsError}
+            allSportsGames={allSportsGames}
             selectedPicks={selectedPicks}
             onSelectPropBet={handleGridPickSelection}
             betType={betType}
+            authToken={null}  // Token will be fetched inside component when needed
           />
         </div>
         
@@ -1977,6 +1977,17 @@ function App() {
   const sportsDataLoadedRef = useRef(false);
   // Synchronous admin status ref to prevent route guard race conditions
   const isAdminRef = useRef(false);
+  
+  // Global fetch throttle to prevent infinite loops and API quota exhaustion
+  const lastGlobalFetchTime = useRef(0);
+  
+  // API Quota monitoring and hard stop mechanism
+  const [apiQuotaInfo, setApiQuotaInfo] = useState({
+    remaining: null,
+    used: null,
+    hardStop: false
+  });
+  const apiQuotaRef = useRef({ remaining: null, used: null, hardStop: false });
 
   // Function to fetch user's credit info from Firebase
   const fetchUserCredit = useCallback(async (uid) => {
@@ -2018,6 +2029,12 @@ function App() {
   
 const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
   try {
+    // CRITICAL: Check hard stop first - prevent any API calls if quota exhausted
+    if (apiQuotaRef.current.hardStop) {
+      console.error('🛑 HARD STOP: API quota exhausted. All API calls disabled.');
+      return null;
+    }
+    
     const sportKey = ODDS_API_SPORT_KEYS[sport];
     if (!sportKey) {
       console.warn(`⚠️ No Odds API sport key for: ${sport}`);
@@ -2040,15 +2057,65 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
       }
     }
     
-    // Build API URL
-    const url = `${ODDS_API_BASE_URL}/sports/${sportKey}/odds/?apiKey=${ODDS_API_KEY}&regions=us&markets=spreads,totals,h2h&oddsFormat=american`;
+    // Build API URL with markets based on sport type
+    // CRITICAL: Use correct market keys per copilot-instructions.md
+    // MANDATE: h2h (moneyline) is ALWAYS included for all sports
+    const isSoccer = sport === 'World Cup' || sport === 'MLS';
+    const isCombat = sport === 'Boxing' || sport === 'UFC';
+    
+    let markets;
+    if (isCombat) {
+      // Combat Sports: h2h (moneyline), h2h_method (method of victory), h2h_round, h2h_go_distance
+      markets = 'h2h,h2h_method,h2h_round,h2h_go_distance';
+    } else if (isSoccer) {
+      // Soccer: h2h (3-way including Draw), spreads (if available), totals
+      markets = 'h2h,spreads,totals';
+    } else {
+      // US Sports: h2h (moneyline), spreads, totals
+      markets = 'h2h,spreads,totals';
+    }
+    
+    // CRITICAL: Explicitly request 'american' odds format
+    const url = `${ODDS_API_BASE_URL}/sports/${sportKey}/odds/?apiKey=${ODDS_API_KEY}&regions=us&markets=${markets}&oddsFormat=american`;
     
     // DEBUG: Log URL with masked API key for security
     const maskedUrl = url.replace(ODDS_API_KEY, '***KEY_HIDDEN***');
     console.log(`🔥 Making Odds API call for ${sport}...`);
     console.log(`📡 URL: ${maskedUrl}`);
+    console.log(`📋 Markets requested: ${markets}`);
+    console.log(`📐 Odds format: american`);
     
     const response = await fetch(url);
+    
+    // CRITICAL: Extract and monitor quota headers
+    const quotaRemaining = response.headers.get('x-requests-remaining');
+    const quotaUsed = response.headers.get('x-requests-used');
+    
+    if (quotaRemaining !== null || quotaUsed !== null) {
+      const remaining = parseInt(quotaRemaining) || 0;
+      const used = parseInt(quotaUsed) || 0;
+      
+      // Update quota state
+      const newQuotaInfo = {
+        remaining,
+        used,
+        hardStop: remaining < 10
+      };
+      
+      apiQuotaRef.current = newQuotaInfo;
+      setApiQuotaInfo(newQuotaInfo);
+      
+      console.log(`📊 API Quota - Remaining: ${remaining} | Used: ${used}`);
+      
+      // CRITICAL: Activate hard stop if quota < 10
+      if (remaining < 10) {
+        console.error('🚨 CRITICAL: API quota below 10! Activating HARD STOP.');
+        console.error('🛑 All future API calls will be blocked until quota resets.');
+        return null;
+      } else if (remaining < 50) {
+        console.warn(`⚠️ WARNING: API quota low (${remaining} remaining)`);
+      }
+    }
     
     // DEBUG: Log response status
     console.log(`📊 Response Status: ${response.status} ${response.statusText}`);
@@ -2061,8 +2128,40 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
       } else if (response.status === 429) {
         console.error(`❌ 429 RATE LIMIT: Too many requests to The Odds API`);
         console.error('You may have exceeded your monthly quota or requests per second');
+        // Activate hard stop on rate limit
+        apiQuotaRef.current.hardStop = true;
+        setApiQuotaInfo(prev => ({ ...prev, hardStop: true }));
       } else if (response.status === 404) {
         console.error(`❌ 404 NOT FOUND: Sport key "${sportKey}" may be invalid`);
+        console.log(`🔄 Attempting fallback to 'upcoming' sport key...`);
+        
+        // FALLBACK: Try 'upcoming' sport key if specific sport returns 404
+        const fallbackUrl = `${ODDS_API_BASE_URL}/sports/upcoming/odds/?apiKey=${ODDS_API_KEY}&regions=us&markets=${markets}&oddsFormat=american`;
+        const fallbackResponse = await fetch(fallbackUrl);
+        
+        if (fallbackResponse.ok) {
+          const fallbackData = await fallbackResponse.json();
+          console.log(`✅ Fallback successful: Received ${fallbackData.length} games from 'upcoming'`);
+          
+          // Extract quota headers from fallback response
+          const fallbackRemaining = fallbackResponse.headers.get('x-requests-remaining');
+          if (fallbackRemaining !== null) {
+            const remaining = parseInt(fallbackRemaining) || 0;
+            apiQuotaRef.current.remaining = remaining;
+            setApiQuotaInfo(prev => ({ ...prev, remaining }));
+            console.log(`📊 API Quota after fallback - Remaining: ${remaining}`);
+          }
+          
+          // Cache and return fallback data
+          oddsAPICache[sport] = {
+            data: fallbackData,
+            timestamp: Date.now()
+          };
+          
+          return fallbackData;
+        } else {
+          console.error(`❌ Fallback also failed: ${fallbackResponse.status}`);
+        }
       } else {
         console.error(`❌ Odds API returned ${response.status}: ${response.statusText}`);
       }
@@ -2084,6 +2183,35 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
     // DEBUG: Log how many games returned
     console.log(`📈 Received ${data.length} games for ${sport}`);
     
+    // If no games returned for specific sport, try 'upcoming' fallback
+    if (data.length === 0) {
+      console.warn(`⚠️ No games found for ${sport}. Trying 'upcoming' fallback...`);
+      
+      const fallbackUrl = `${ODDS_API_BASE_URL}/sports/upcoming/odds/?apiKey=${ODDS_API_KEY}&regions=us&markets=${markets}&oddsFormat=american`;
+      const fallbackResponse = await fetch(fallbackUrl);
+      
+      if (fallbackResponse.ok) {
+        const fallbackData = await fallbackResponse.json();
+        console.log(`✅ Fallback successful: Received ${fallbackData.length} games from 'upcoming'`);
+        
+        // Extract quota headers
+        const fallbackRemaining = fallbackResponse.headers.get('x-requests-remaining');
+        if (fallbackRemaining !== null) {
+          const remaining = parseInt(fallbackRemaining) || 0;
+          apiQuotaRef.current.remaining = remaining;
+          setApiQuotaInfo(prev => ({ ...prev, remaining }));
+        }
+        
+        // Cache fallback data
+        oddsAPICache[sport] = {
+          data: fallbackData,
+          timestamp: Date.now()
+        };
+        
+        return fallbackData;
+      }
+    }
+    
     // CRITICAL LOGGING: Show all teams from API response
     console.log(`📡 API Results for this league (${sport}):`);
     data.forEach((event, idx) => {
@@ -2098,9 +2226,8 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
       console.log('\n');
     }
     
-    // Identify sport type for proper parsing
-    const isSoccer = sport === 'World Cup' || sport === 'MLS';
-    const isCombat = sport === 'Boxing' || sport === 'UFC';
+    // Sport types already defined at function start for market selection
+    // isSoccer and isCombat variables reused here
     
     console.log(`🏷️ Sport type - Soccer: ${isSoccer}, Combat: ${isCombat}`);
     
@@ -2155,12 +2282,12 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
       const totalMarket = bookmaker.markets.find(m => m.key === 'totals');
       const h2hMarket = bookmaker.markets.find(m => m.key === 'h2h');
       
-      let homeSpread = 'N/A';
-      let awaySpread = 'N/A';
-      let total = 'N/A';
-      let homeMoneyline = 'N/A';
-      let awayMoneyline = 'N/A';
-      let drawMoneyline = isSoccer ? 'N/A' : undefined;
+      let homeSpread = '-';
+      let awaySpread = '-';
+      let total = '-';
+      let homeMoneyline = '-';
+      let awayMoneyline = '-';
+      let drawMoneyline = isSoccer ? '-' : undefined;
       
       // 5. Extract spreads from outcomes array
       if (spreadMarket?.outcomes && spreadMarket.outcomes.length >= 2) {
@@ -2207,7 +2334,7 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
         if (overOutcome) {
           if (overOutcome.point !== undefined && overOutcome.point !== null && !isNaN(overOutcome.point)) {
             total = String(overOutcome.point);
-            console.log(`    ✓ Total: ${total} (Over: ${overOutcome.price}, Under: ${underOutcome?.price || 'N/A'})`);
+            console.log(`    ✓ Total: ${total} (Over: ${overOutcome.price}, Under: ${underOutcome?.price || '-'})`);
           } else {
             console.warn(`    ⚠️ Over outcome missing valid 'point' field`);
           }
@@ -2277,6 +2404,63 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
         console.log(`  ❌ No moneyline (h2h) market found`);
       }
       
+      // 9a. COMBAT SPORTS ONLY: Extract method of victory (h2h_method)
+      let methodOfVictory = undefined;
+      if (isCombat) {
+        const methodMarket = bookmaker.markets.find(m => m.key === 'h2h_method');
+        if (methodMarket?.outcomes && methodMarket.outcomes.length > 0) {
+          console.log(`  🥊 Method of Victory market found with ${methodMarket.outcomes.length} outcomes`);
+          methodOfVictory = {};
+          methodMarket.outcomes.forEach(outcome => {
+            // outcome.name format examples: "Fighter Name - KO/TKO", "Fighter Name - Decision"
+            const methodPrice = outcome.price > 0 ? `+${outcome.price}` : String(outcome.price);
+            methodOfVictory[outcome.name] = methodPrice;
+            console.log(`    ✓ ${outcome.name}: ${methodPrice}`);
+          });
+        } else {
+          console.log(`  ℹ️ No h2h_method market available for this fight`);
+        }
+      }
+      
+      // 9b. COMBAT SPORTS ONLY: Extract round betting (h2h_round)
+      let roundBetting = undefined;
+      if (isCombat) {
+        const roundMarket = bookmaker.markets.find(m => m.key === 'h2h_round');
+        if (roundMarket?.outcomes && roundMarket.outcomes.length > 0) {
+          console.log(`  🥊 Round Betting market found with ${roundMarket.outcomes.length} outcomes`);
+          roundBetting = {};
+          roundMarket.outcomes.forEach(outcome => {
+            const roundPrice = outcome.price > 0 ? `+${outcome.price}` : String(outcome.price);
+            roundBetting[outcome.name] = roundPrice;
+            console.log(`    ✓ ${outcome.name}: ${roundPrice}`);
+          });
+        } else {
+          console.log(`  ℹ️ No h2h_round market available for this fight`);
+        }
+      }
+      
+      // 9c. COMBAT SPORTS ONLY: Extract go distance (h2h_go_distance)
+      let goDistance = undefined;
+      if (isCombat) {
+        const distanceMarket = bookmaker.markets.find(m => m.key === 'h2h_go_distance');
+        if (distanceMarket?.outcomes && distanceMarket.outcomes.length >= 2) {
+          console.log(`  🥊 Go Distance market found with ${distanceMarket.outcomes.length} outcomes`);
+          const yesOutcome = distanceMarket.outcomes.find(o => o.name === 'Yes');
+          const noOutcome = distanceMarket.outcomes.find(o => o.name === 'No');
+          goDistance = {};
+          if (yesOutcome) {
+            goDistance.Yes = yesOutcome.price > 0 ? `+${yesOutcome.price}` : String(yesOutcome.price);
+            console.log(`    ✓ Yes (Goes Distance): ${goDistance.Yes}`);
+          }
+          if (noOutcome) {
+            goDistance.No = noOutcome.price > 0 ? `+${noOutcome.price}` : String(noOutcome.price);
+            console.log(`    ✓ No (Ends Early): ${goDistance.No}`);
+          }
+        } else {
+          console.log(`  ℹ️ No h2h_go_distance market available for this fight`);
+        }
+      }
+      
       // 10. Assemble final odds object for this game
       const gameKey = `${awayTeam}|${homeTeam}`;
       const oddsData = { 
@@ -2284,7 +2468,8 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
         homeSpread, 
         total, 
         awayMoneyline, 
-        homeMoneyline
+        homeMoneyline,
+        oddsApiEventId: game.id // Store The Odds API event ID for prop betting
       };
       
       // Add draw moneyline only for soccer
@@ -2292,17 +2477,29 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
         oddsData.drawMoneyline = drawMoneyline;
       }
       
+      // Add combat sports markets
+      if (isCombat) {
+        if (methodOfVictory) oddsData.methodOfVictory = methodOfVictory;
+        if (roundBetting) oddsData.roundBetting = roundBetting;
+        if (goDistance) oddsData.goDistance = goDistance;
+      }
+      
       oddsMap[gameKey] = oddsData;
       
       // Summary log with value validation
       console.log(`  ✅ Final odds stored with key: "${gameKey}"`);
-      console.log(`     Away Spread: ${awaySpread === 'N/A' ? '❌ N/A' : '✓ ' + awaySpread}`);
-      console.log(`     Home Spread: ${homeSpread === 'N/A' ? '❌ N/A' : '✓ ' + homeSpread}`);
-      console.log(`     Total: ${total === 'N/A' ? '❌ N/A' : '✓ ' + total}`);
-      console.log(`     Away ML: ${awayMoneyline === 'N/A' ? '❌ N/A' : '✓ ' + awayMoneyline}`);
-      console.log(`     Home ML: ${homeMoneyline === 'N/A' ? '❌ N/A' : '✓ ' + homeMoneyline}`);
+      console.log(`     Away Spread: ${awaySpread === '-' ? '❌ Missing' : '✓ ' + awaySpread}`);
+      console.log(`     Home Spread: ${homeSpread === '-' ? '❌ Missing' : '✓ ' + homeSpread}`);
+      console.log(`     Total: ${total === '-' ? '❌ Missing' : '✓ ' + total}`);
+      console.log(`     Away ML: ${awayMoneyline === '-' ? '❌ Missing' : '✓ ' + awayMoneyline}`);
+      console.log(`     Home ML: ${homeMoneyline === '-' ? '❌ Missing' : '✓ ' + homeMoneyline}`);
       if (isSoccer) {
-        console.log(`     Draw ML: ${drawMoneyline === 'N/A' ? '❌ N/A' : '✓ ' + drawMoneyline}`);
+        console.log(`     Draw ML: ${drawMoneyline === '-' ? '❌ Missing' : '✓ ' + drawMoneyline}`);
+      }
+      if (isCombat) {
+        console.log(`     🥊 Method of Victory: ${methodOfVictory ? '✓ Available' : '-'}`);
+        console.log(`     🥊 Round Betting: ${roundBetting ? '✓ Available' : '-'}`);
+        console.log(`     🥊 Go Distance: ${goDistance ? '✓ Available' : '-'}`);
       }
     });
     
@@ -2329,7 +2526,7 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
 };
 
   // Helper function to extract mascot from team name (last word)
-  const extractMascot = (teamName) => {
+  const extractMascot = useCallback((teamName) => {
     if (!teamName) return '';
     
     // Remove special characters and extra spaces
@@ -2344,10 +2541,10 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
     const mascot = words[words.length - 1];
     
     return mascot;
-  };
+  }, []);
 
   // Helper function for robust team name matching (The "Mascot Rule")
-  const teamsMatch = (team1, team2) => {
+  const teamsMatch = useCallback((team1, team2) => {
     if (!team1 || !team2) return false;
     
     // Exact match (case-insensitive)
@@ -2383,16 +2580,16 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
     const clean2 = team2.toLowerCase().replace(/[^a-z0-9]/g, '');
     
     return clean1.includes(clean2) || clean2.includes(clean1);
-  };
+  }, [extractMascot]);
 
-  const matchOddsToGame = (game, oddsMap) => {
-    // Default fallback with N/A values
+  const matchOddsToGame = useCallback((game, oddsMap) => {
+    // Default fallback with dash for missing odds
     const defaultOdds = { 
-      awaySpread: 'N/A', 
-      homeSpread: 'N/A', 
-      total: 'N/A', 
-      awayMoneyline: 'N/A', 
-      homeMoneyline: 'N/A',
+      awaySpread: '-', 
+      homeSpread: '-', 
+      total: '-', 
+      awayMoneyline: '-', 
+      homeMoneyline: '-',
       drawMoneyline: undefined // Will be set for soccer
     };
     
@@ -2441,9 +2638,9 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
     // No match found - return defaults
     console.warn(`❌ No match found for: "${game.awayTeam}" @ "${game.homeTeam}"`);
     return defaultOdds;
-  };
+  }, [extractMascot, teamsMatch]);
 
-  const fetchPropBets = async (sportName) => {
+  const fetchPropBets = useCallback(async (sportName) => {
     const cacheKey = sportName;
     const cachedData = propBetsCache.current[cacheKey];
     if (cachedData && (Date.now() - cachedData.timestamp < PROP_BETS_CACHE_DURATION)) {
@@ -2477,10 +2674,11 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
       console.error(`❌ Error fetching prop bets for ${sportName}:`, error);
       return [];
     }
-  };
+  }, []);
 
-  const loadAllPropBets = async () => {
+  const loadAllPropBets = useCallback(async () => {
     // TEMPORARY: Disable prop bets to preserve API quota
+    // This function is now stable and won't cause infinite loops
     console.warn('⚠️ Prop bets temporarily disabled due to API quota limits');
     setPropBetsLoading(false);
     setPropBetsError('Prop bets are temporarily disabled to preserve API quota. Contact admin for details.');
@@ -2507,7 +2705,7 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
       setPropBetsLoading(false);
     }
     /* eslint-enable no-unreachable */
-  };
+  }, [fetchPropBets]);
 
   const countMissingOdds = useCallback((games) => {
     return games.filter(game => !hasCompleteOddsData(game)).length;
@@ -2654,6 +2852,19 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
   }, [setGames, setIsSyncing, setRecentlyUpdated]);
 
   const loadAllSports = useCallback(async (initialSport, forceRefresh = false) => {
+    // CRITICAL: Global fetch throttle to prevent infinite loops and API exhaustion
+    // Only allow global refresh once every 60 seconds
+    const now = Date.now();
+    const timeSinceLastFetch = now - lastGlobalFetchTime.current;
+    
+    if (!forceRefresh && timeSinceLastFetch < GLOBAL_FETCH_THROTTLE) {
+      console.log(`🛑 Fetch throttled. Last fetch was ${Math.round(timeSinceLastFetch / 1000)}s ago. Minimum: 60s`);
+      return;
+    }
+    
+    lastGlobalFetchTime.current = now;
+    console.log(`✅ Fetch allowed. Last fetch was ${Math.round(timeSinceLastFetch / 1000)}s ago.`);
+    
     const allSports = ['NFL', 'NBA', 'College Football', 'College Basketball', 'Major League Baseball', 'NHL', 'World Cup', 'MLS', 'Boxing', 'UFC'];
     const sportsData = {};
     
@@ -2795,7 +3006,8 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
                   homeSpread: odds.homeSpread || game.homeSpread,
                   total: odds.total || game.total,
                   awayMoneyline: odds.awayMoneyline || game.awayMoneyline,
-                  homeMoneyline: odds.homeMoneyline || game.homeMoneyline
+                  homeMoneyline: odds.homeMoneyline || game.homeMoneyline,
+                  oddsApiEventId: odds.oddsApiEventId // Add Odds API event ID for prop betting
                 };
                 
                 // Add drawMoneyline for soccer sports
@@ -2842,7 +3054,7 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
     }
     setLoading(false);
     setLastRefreshTime(Date.now());
-  }, [parseESPNOdds, countMissingOdds]);
+  }, [parseESPNOdds, countMissingOdds, matchOddsToGame]);
 
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, async (user) => {
@@ -3129,6 +3341,54 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
       <div className="gradient-bg" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh' }}>
         <div className="text-white" style={{ fontSize: '24px' }}>
           Loading...
+        </div>
+      </div>
+    );
+  }
+
+  // CRITICAL: Check for API quota hard stop - show maintenance mode
+  if (apiQuotaInfo.hardStop) {
+    return (
+      <div className="gradient-bg" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', padding: '20px' }}>
+        <div className="card" style={{ maxWidth: '600px', width: '100%', padding: '40px', textAlign: 'center' }}>
+          <h1 style={{ color: '#ff6b6b', marginBottom: '20px', fontSize: '32px' }}>
+            🛑 Maintenance Mode
+          </h1>
+          <h2 style={{ color: '#333', marginBottom: '20px' }}>
+            API Quota Reached
+          </h2>
+          <p style={{ fontSize: '18px', color: '#666', marginBottom: '20px', lineHeight: '1.6' }}>
+            Our application has reached its API request limit to protect your account quota.
+          </p>
+          <div style={{ background: '#f8f9fa', padding: '20px', borderRadius: '8px', marginBottom: '20px' }}>
+            <p style={{ fontSize: '16px', color: '#444', marginBottom: '10px' }}>
+              <strong>Quota Status:</strong>
+            </p>
+            <p style={{ fontSize: '16px', color: '#666' }}>
+              Remaining Requests: <strong style={{ color: apiQuotaInfo.remaining < 10 ? '#ff6b6b' : '#ffa500' }}>
+                {apiQuotaInfo.remaining !== null ? apiQuotaInfo.remaining : 'Unknown'}
+              </strong>
+            </p>
+            <p style={{ fontSize: '16px', color: '#666' }}>
+              Used Requests: <strong>{apiQuotaInfo.used !== null ? apiQuotaInfo.used : 'Unknown'}</strong>
+            </p>
+          </div>
+          <p style={{ fontSize: '16px', color: '#666', marginBottom: '30px' }}>
+            This safety feature prevents infinite loops from exhausting your monthly API quota.
+            The application will automatically resume when your quota resets.
+          </p>
+          <button 
+            className="btn btn-secondary" 
+            onClick={() => {
+              // Reset hard stop and try to reload
+              apiQuotaRef.current.hardStop = false;
+              setApiQuotaInfo(prev => ({ ...prev, hardStop: false }));
+              window.location.reload();
+            }}
+            style={{ padding: '12px 30px', fontSize: '16px' }}
+          >
+            Reset and Retry
+          </button>
         </div>
       </div>
     );

@@ -1,5 +1,5 @@
 // Consolidated Wager Manager - Master API Route
-// Handles: submit, cancel, reset, resolve, updateScores, getPropBets, getHistory
+// Handles: submit, cancel, reset, resolve, updateScores, getPropBets, getEventPropBets, getHistory
 // Route pattern: /api/wager-manager?action=<action>
 
 let admin;
@@ -137,7 +137,7 @@ module.exports = async (req, res) => {
       return res.status(400).json({
         success: false,
         error: 'Missing action parameter',
-        hint: 'Use ?action=<action> where action is: submit, cancel, reset, resolve, updateScores, getPropBets, getHistory'
+        hint: 'Use ?action=<action> where action is: submit, cancel, reset, resolve, updateScores, getPropBets, getEventPropBets, getHistory'
       });
     }
 
@@ -155,13 +155,15 @@ module.exports = async (req, res) => {
         return await handleUpdateGameScores(req, res);
       case 'getPropBets':
         return await handleGetPropBets(req, res);
+      case 'getEventPropBets':
+        return await handleGetEventPropBets(req, res);
       case 'getHistory':
         return await handleGetHistory(req, res);
       default:
         return res.status(400).json({
           success: false,
           error: `Unknown action: ${action}`,
-          availableActions: ['submit', 'cancel', 'reset', 'resolve', 'updateScores', 'getPropBets', 'getHistory']
+          availableActions: ['submit', 'cancel', 'reset', 'resolve', 'updateScores', 'getPropBets', 'getEventPropBets', 'getHistory']
         });
     }
   } catch (error) {
@@ -1100,6 +1102,203 @@ async function handleGetPropBets(req, res) {
       error: error.message || 'Failed to get prop bets'
     });
   }
+}
+
+// ============================================================================
+// Handler: Get Event-Specific Prop Bets (for interactive prop selection)
+// Uses The Odds API /events/{eventId}/odds endpoint
+// ============================================================================
+async function handleGetEventPropBets(req, res) {
+  try {
+    if (req.method !== 'GET') {
+      return res.status(405).json({ success: false, error: 'Method not allowed' });
+    }
+
+    const eventId = req.query.eventId;
+    const sport = req.query.sport || 'NFL';
+    const propCategories = req.query.categories; // Comma-separated list like "player_points,player_assists"
+    
+    if (!eventId) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Missing eventId parameter' 
+      });
+    }
+
+    // The Odds API key from environment
+    const ODDS_API_KEY = process.env.REACT_APP_THE_ODDS_API_KEY;
+    
+    if (!ODDS_API_KEY || ODDS_API_KEY === 'undefined') {
+      return res.status(500).json({
+        success: false,
+        error: 'API key not configured on server'
+      });
+    }
+
+    // Sport key mapping
+    const ODDS_API_SPORT_KEYS = {
+      'NFL': 'americanfootball_nfl',
+      'NBA': 'basketball_nba',
+      'College Football': 'americanfootball_ncaaf',
+      'College Basketball': 'basketball_ncaab',
+      'NHL': 'icehockey_nhl',
+      'Major League Baseball': 'baseball_mlb',
+      'Boxing': 'boxing_boxing',
+      'UFC': 'mma_mixed_martial_arts'
+    };
+
+    const sportKey = ODDS_API_SPORT_KEYS[sport];
+    if (!sportKey) {
+      return res.status(400).json({ 
+        success: false, 
+        error: `Invalid sport: ${sport}` 
+      });
+    }
+
+    // Default prop markets based on sport
+    let markets;
+    if (propCategories) {
+      markets = propCategories;
+    } else {
+      // Default prop markets per sport
+      if (sport === 'NFL' || sport === 'College Football') {
+        markets = 'player_pass_yds,player_rush_yds,player_rece_yds,player_pass_tds,player_anytime_td';
+      } else if (sport === 'NBA' || sport === 'College Basketball') {
+        markets = 'player_points,player_assists,player_rebounds,player_threes';
+      } else if (sport === 'NHL') {
+        markets = 'player_points,player_shots_on_goal';
+      } else {
+        markets = 'player_points';
+      }
+    }
+
+    // Build The Odds API URL for event-specific odds
+    const url = `https://api.the-odds-api.com/v4/sports/${sportKey}/events/${eventId}/odds?apiKey=${ODDS_API_KEY}&regions=us&markets=${markets}&oddsFormat=american`;
+
+    console.log(`📡 Fetching event-specific props for eventId: ${eventId}, sport: ${sport}`);
+    console.log(`📋 Markets: ${markets}`);
+
+    const response = await fetch(url);
+
+    if (!response.ok) {
+      console.error(`❌ Odds API returned ${response.status}: ${response.statusText}`);
+      
+      if (response.status === 429) {
+        return res.status(429).json({
+          success: false,
+          error: 'API rate limit exceeded. Please try again later.'
+        });
+      }
+      
+      return res.status(response.status).json({
+        success: false,
+        error: `Failed to fetch prop bets: ${response.statusText}`
+      });
+    }
+
+    const data = await response.json();
+    
+    // Validate response structure
+    if (!data || typeof data !== 'object') {
+      console.error(`❌ Invalid response structure from Odds API`);
+      return res.status(500).json({
+        success: false,
+        error: 'Invalid response from odds provider'
+      });
+    }
+    
+    // Check for API error in response
+    if (data.error) {
+      console.error(`❌ Odds API returned error: ${data.error}`);
+      return res.status(400).json({
+        success: false,
+        error: data.error || 'Failed to fetch prop bets'
+      });
+    }
+    
+    // Validate required fields
+    if (!data.away_team || !data.home_team) {
+      console.warn(`⚠️ Missing team information in API response for eventId: ${eventId}`);
+      return res.status(404).json({
+        success: false,
+        error: 'Event not found or invalid event data'
+      });
+    }
+    
+    console.log(`✅ Successfully fetched event props for ${sport}`);
+    
+    // Transform the data for frontend
+    const propBets = [];
+    
+    if (data.bookmakers && data.bookmakers.length > 0) {
+      const gameTitle = `${data.away_team} @ ${data.home_team}`;
+      
+      data.bookmakers.forEach(bookmaker => {
+        if (!bookmaker.markets) return;
+
+        bookmaker.markets.forEach(market => {
+          if (!market.outcomes) return;
+
+          market.outcomes.forEach(outcome => {
+            propBets.push({
+              id: `${eventId}-${market.key}-${outcome.name}-${outcome.point || ''}`,
+              sport: sport,
+              gameTitle: gameTitle,
+              eventId: eventId,
+              commence_time: data.commence_time,
+              playerName: outcome.name,
+              marketKey: market.key,
+              marketDisplay: formatMarketName(market.key),
+              line: outcome.point,
+              odds: outcome.price,
+              bookmaker: bookmaker.title
+            });
+          });
+        });
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      sport: sport,
+      eventId: eventId,
+      propBets: propBets,
+      gameInfo: {
+        awayTeam: data.away_team,
+        homeTeam: data.home_team,
+        commenceTime: data.commence_time
+      }
+    });
+
+  } catch (error) {
+    console.error('Error getting event prop bets:', error);
+    
+    // Return graceful error with empty odds array instead of 500
+    return res.status(200).json({ 
+      success: false, 
+      error: error.message || 'Failed to get event prop bets',
+      propBets: [], // Return empty array for graceful degradation
+      rate_limit: error.message?.includes('rate limit') || error.message?.includes('429')
+    });
+  }
+}
+
+// Helper function to format market names for display
+function formatMarketName(marketKey) {
+  const names = {
+    'player_pass_tds': 'Passing Touchdowns',
+    'player_pass_yds': 'Passing Yards',
+    'player_rush_yds': 'Rushing Yards',
+    'player_rece_yds': 'Receiving Yards',
+    'player_receptions': 'Receptions',
+    'player_anytime_td': 'Anytime Touchdown',
+    'player_points': 'Points',
+    'player_rebounds': 'Rebounds',
+    'player_assists': 'Assists',
+    'player_threes': 'Three-Pointers Made',
+    'player_shots_on_goal': 'Shots on Goal'
+  };
+  return names[marketKey] || marketKey.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
 }
 
 // ============================================================================
