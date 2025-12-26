@@ -219,6 +219,7 @@ const COLLEGE_BASKETBALL_CACHE_DURATION = 6 * 60 * 60 * 1000;
 const ODDS_API_CACHE_DURATION = 24 * 60 * 60 * 1000; // 24 hours to minimize API usage
 const DATA_REFRESH_INTERVAL = 4 * 60 * 60 * 1000; // 4 hours
 const FIREBASE_LISTENER_SETUP_DELAY = 500; // ms
+const GLOBAL_FETCH_THROTTLE = 60 * 1000; // 60 seconds - prevent rapid-fire fetches
 
 const gameCache = {};
 const oddsAPICache = {};
@@ -1976,6 +1977,9 @@ function App() {
   const sportsDataLoadedRef = useRef(false);
   // Synchronous admin status ref to prevent route guard race conditions
   const isAdminRef = useRef(false);
+  
+  // Global fetch throttle to prevent infinite loops and API quota exhaustion
+  const lastGlobalFetchTime = useRef(0);
 
   // Function to fetch user's credit info from Firebase
   const fetchUserCredit = useCallback(async (uid) => {
@@ -2740,6 +2744,19 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
   }, [setGames, setIsSyncing, setRecentlyUpdated]);
 
   const loadAllSports = useCallback(async (initialSport, forceRefresh = false) => {
+    // CRITICAL: Global fetch throttle to prevent infinite loops and API exhaustion
+    // Only allow global refresh once every 60 seconds
+    const now = Date.now();
+    const timeSinceLastFetch = now - lastGlobalFetchTime.current;
+    
+    if (!forceRefresh && timeSinceLastFetch < GLOBAL_FETCH_THROTTLE) {
+      console.log(`🛑 Fetch throttled. Last fetch was ${Math.round(timeSinceLastFetch / 1000)}s ago. Minimum: 60s`);
+      return;
+    }
+    
+    lastGlobalFetchTime.current = now;
+    console.log(`✅ Fetch allowed. Last fetch was ${Math.round(timeSinceLastFetch / 1000)}s ago.`);
+    
     const allSports = ['NFL', 'NBA', 'College Football', 'College Basketball', 'Major League Baseball', 'NHL', 'World Cup', 'MLS', 'Boxing', 'UFC'];
     const sportsData = {};
     
