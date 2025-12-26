@@ -192,6 +192,7 @@ input[type="number"]:focus {
   padding: 20px;
   display: flex;
   flex-direction: column;
+  z-index: 1000; /* Ensure proper stacking */
 }
 
 .sports-menu-content {

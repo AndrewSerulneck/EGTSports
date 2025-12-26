@@ -2045,6 +2045,22 @@ function App() {
     return mascot;
   };
   
+  // Helper function to extract city (first word) from team name
+  const extractCityFromName = (teamName) => {
+    if (!teamName) return '';
+    
+    const cleaned = teamName
+      .replace(/[^a-zA-Z0-9\s]/g, '') // Remove special chars
+      .replace(/\s+/g, ' ')            // Normalize spaces
+      .trim()
+      .toLowerCase();
+    
+    const words = cleaned.split(' ');
+    const city = words[0];
+    
+    return city;
+  };
+  
   // Helper function for robust team name matching (The "Mascot Rule")
   const teamsMatchHelper = (team1, team2) => {
     if (!team1 || !team2) return false;
@@ -2075,6 +2091,22 @@ function App() {
     // Standard mascot matching
     if (mascot1 === mascot2 && mascot1.length > 0) {
       return true;
+    }
+    
+    // ENHANCED: City-only name matching (e.g., "Philadelphia" matches "Philadelphia 76ers")
+    // This handles cases where API provides only the city name
+    const city1 = extractCityFromName(team1);
+    const city2 = extractCityFromName(team2);
+    
+    // If one team is just a city name (single word) and the other has a mascot
+    const words1 = team1.trim().split(/\s+/);
+    const words2 = team2.trim().split(/\s+/);
+    
+    if (words1.length === 1 || words2.length === 1) {
+      // One is a single word (likely just city), try city matching
+      if (city1 === city2 && city1.length > 0) {
+        return true;
+      }
     }
     
     // Fallback: Check if one name contains the other (handles "Lakers" vs "Los Angeles Lakers")
@@ -2240,9 +2272,10 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
     // DEBUG: Log how many games returned
     console.log(`📈 Received ${data.length} games for ${sport}`);
     
-    // If no games returned for specific sport, try 'upcoming' fallback
-    if (data.length === 0) {
-      console.warn(`⚠️ No games found for ${sport}. Trying 'upcoming' fallback...`);
+    // ENHANCED: If fewer than expected games returned for specific sport, try 'upcoming' fallback
+    // This helps capture games that might be missing from the sport-specific endpoint
+    if (data.length === 0 || (data.length < 5 && !isCombat)) {
+      console.warn(`⚠️ Limited/no games found for ${sport} (got ${data.length}). Trying 'upcoming' fallback for additional games...`);
       
       const fallbackUrl = `${ODDS_API_BASE_URL}/sports/upcoming/odds/?apiKey=${ODDS_API_KEY}&regions=us&markets=${markets}&oddsFormat=american`;
       const fallbackResponse = await fetch(fallbackUrl);
@@ -2259,13 +2292,28 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
           setApiQuotaInfo(prev => ({ ...prev, remaining }));
         }
         
-        // Cache fallback data
+        // MERGE: Combine specific sport data with upcoming data, removing duplicates
+        const mergedData = [...data];
+        const existingIds = new Set(data.map(g => g.id));
+        
+        // Filter upcoming games by sport and add if not already present
+        const sportKey = ODDS_API_SPORT_KEYS[sport];
+        fallbackData.forEach(game => {
+          // Check if this game belongs to our sport
+          if (game.sport_key === sportKey && !existingIds.has(game.id)) {
+            mergedData.push(game);
+          }
+        });
+        
+        console.log(`📊 Merged ${mergedData.length - data.length} additional games from 'upcoming'`);
+        
+        // Cache merged data
         oddsAPICache[sport] = {
-          data: fallbackData,
+          data: mergedData,
           timestamp: Date.now()
         };
         
-        return fallbackData;
+        return mergedData;
       }
     }
     
@@ -2998,14 +3046,49 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
         }
         
         const apiEndpoint = ESPN_API_ENDPOINTS[sport];
-        const dateURLs = getESPNDateRangeURLs(apiEndpoint);
         
-        apiCallCount.total += dateURLs.length;
-        apiCallCount.byEndpoint[sport] = (apiCallCount.byEndpoint[sport] || 0) + dateURLs.length;
+        // CORS FIX: Use server-side proxy for Boxing/UFC to avoid CORS errors
+        const isCombatSport = sport === 'Boxing' || sport === 'UFC';
+        let responses;
         
-        const responses = await Promise.all(
-          dateURLs.map(url => fetch(url).catch(err => null))
-        );
+        if (isCombatSport) {
+          // Use server-side proxy for combat sports
+          const dates = [0, 1, 2, 3, 4, 5, 6, 7].join(',');
+          const proxyUrl = `/api/wager-manager?action=getESPN&sport=${sport}&dates=${dates}`;
+          
+          console.log(`🥊 Using server proxy for ${sport} to avoid CORS`);
+          
+          try {
+            const proxyResponse = await fetch(proxyUrl);
+            if (proxyResponse.ok) {
+              const proxyData = await proxyResponse.json();
+              if (proxyData.success && proxyData.events) {
+                // Convert to ESPN scoreboard format
+                responses = [{
+                  ok: true,
+                  json: async () => ({ events: proxyData.events })
+                }];
+              } else {
+                responses = [];
+              }
+            } else {
+              responses = [];
+            }
+          } catch (err) {
+            console.error(`Error fetching ${sport} via proxy:`, err);
+            responses = [];
+          }
+        } else {
+          // Direct ESPN API calls for non-combat sports
+          const dateURLs = getESPNDateRangeURLs(apiEndpoint);
+          
+          apiCallCount.total += dateURLs.length;
+          apiCallCount.byEndpoint[sport] = (apiCallCount.byEndpoint[sport] || 0) + dateURLs.length;
+          
+          responses = await Promise.all(
+            dateURLs.map(url => fetch(url).catch(err => null))
+          );
+        }
         
         const validResponses = responses.filter(r => r !== null);
         

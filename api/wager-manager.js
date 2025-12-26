@@ -91,14 +91,16 @@ const checkFirebaseInit = (res) => {
   return true;
 };
 
-// ESPN API endpoints for checking game status
+// ESPN API endpoints for checking game status and CORS proxy
 const ESPN_API_ENDPOINTS = {
   'NFL': 'https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard',
   'NBA': 'https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard',
   'College Football': 'https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard',
   'College Basketball': 'https://site.api.espn.com/apis/site/v2/sports/basketball/mens-college-basketball/scoreboard',
   'Major League Baseball': 'https://site.api.espn.com/apis/site/v2/sports/baseball/mlb/scoreboard',
-  'NHL': 'https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard'
+  'NHL': 'https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard',
+  'Boxing': 'https://site.api.espn.com/apis/site/v2/sports/boxing/scoreboard',
+  'UFC': 'https://site.api.espn.com/apis/site/v2/sports/mma/ufc/scoreboard'
 };
 
 // Parlay multipliers
@@ -159,11 +161,13 @@ module.exports = async (req, res) => {
         return await handleGetEventPropBets(req, res);
       case 'getHistory':
         return await handleGetHistory(req, res);
+      case 'getESPN':
+        return await handleGetESPNData(req, res);
       default:
         return res.status(400).json({
           success: false,
           error: `Unknown action: ${action}`,
-          availableActions: ['submit', 'cancel', 'reset', 'resolve', 'updateScores', 'getPropBets', 'getEventPropBets', 'getHistory']
+          availableActions: ['submit', 'cancel', 'reset', 'resolve', 'updateScores', 'getPropBets', 'getEventPropBets', 'getHistory', 'getESPN']
         });
     }
   } catch (error) {
@@ -1425,6 +1429,80 @@ async function handleGetHistory(req, res) {
     return res.status(500).json({ 
       success: false, 
       error: error.message || 'Failed to get history'
+    });
+  }
+}
+
+
+// ============================================================================
+// Handler: Get ESPN Data (CORS Proxy)
+// Action: getESPN
+// Purpose: Proxy ESPN API calls to avoid CORS issues (especially for Boxing/UFC)
+// ============================================================================
+async function handleGetESPNData(req, res) {
+  try {
+    const sport = req.query.sport;
+    const dates = req.query.dates; // Optional: comma-separated list of date offsets
+    
+    if (!sport) {
+      return res.status(400).json({
+        success: false,
+        error: 'Missing sport parameter',
+        hint: 'Use ?sport=Boxing or ?sport=UFC'
+      });
+    }
+    
+    const endpoint = ESPN_API_ENDPOINTS[sport];
+    if (!endpoint) {
+      return res.status(400).json({
+        success: false,
+        error: `Unknown sport: ${sport}`,
+        availableSports: Object.keys(ESPN_API_ENDPOINTS)
+      });
+    }
+    
+    // Fetch ESPN data server-side to avoid CORS
+    const fetch = require('node-fetch');
+    
+    // If dates parameter provided, fetch multiple dates
+    const dateOffsets = dates ? dates.split(',').map(d => parseInt(d)) : [0];
+    const allEvents = [];
+    
+    for (const offset of dateOffsets) {
+      const today = new Date();
+      today.setDate(today.getDate() + offset);
+      const dateStr = today.toISOString().split('T')[0].replace(/-/g, '');
+      
+      const url = `${endpoint}?dates=${dateStr}`;
+      console.log(`Fetching ESPN data: ${url}`);
+      
+      const response = await fetch(url);
+      
+      if (!response.ok) {
+        console.warn(`ESPN API returned ${response.status} for ${sport} date ${dateStr}`);
+        continue;
+      }
+      
+      const data = await response.json();
+      
+      if (data.events && Array.isArray(data.events)) {
+        allEvents.push(...data.events);
+      }
+    }
+    
+    return res.status(200).json({
+      success: true,
+      sport: sport,
+      events: allEvents,
+      count: allEvents.length
+    });
+    
+  } catch (error) {
+    console.error('Error fetching ESPN data:', error);
+    return res.status(500).json({
+      success: false,
+      error: 'Failed to fetch ESPN data',
+      message: error.message
     });
   }
 }
