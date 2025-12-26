@@ -270,47 +270,42 @@ onValue(ref(database, `spreads/${sport}`), (snapshot) => {
 
 ---
 
-# The Odds API Integration - Core Market Rules
+# The Odds API - Master Betting Market & UI Rules
 
-## Mandatory Betting Market Keys
-When requesting or parsing odds, use these exact market keys as defined in the API documentation:
+## 1. Mandatory Market Keys
+Use these exact keys for all requests and parsing as defined in the official documentation.
 
-| Market Type | API Key (use this) | Description |
-| :--- | :--- | :--- |
-| **Moneyline** | `h2h` | Standard win/loss (includes draw for soccer) |
-| **Point Spread** | `spreads` | Common for US sports (NFL, NBA) |
-| **Over/Under** | `totals` | Total points threshold |
-| **Soccer 3-Way** | `h2h_3_way` | Includes the Draw outcome explicitly |
+### Core Markets (Standard Endpoint)
+Use the `/sports/{sport}/odds` endpoint for these.
+- **Moneyline:** `h2h` (Winner of game, includes draw for soccer)
+- **Point Spread:** `spreads` (Winning team after handicap)
+- **Over/Under:** `totals` (Total score threshold)
+- **Outrights:** `outrights` (Tournament winner)
+- **Soccer 3-Way:** `h2h_3_way` (Includes the Draw outcome explicitly)
 
-## Game Period Markets (Quarters & Halves)
-To fetch period-specific odds, use the following keys:
+### Game Period Markets (Specific Segments)
 - **1st Quarter:** `h2h_q1`, `spreads_q1`, `totals_q1`
 - **2nd Quarter:** `h2h_q2`, `spreads_q2`, `totals_q2`
+- **3rd Quarter:** `h2h_q3`, `spreads_q3`, `totals_q3`
+- **4th Quarter:** `h2h_q4`, `spreads_q4`, `totals_q4`
 - **1st Half:** `h2h_h1`, `spreads_h1`, `totals_h1`
 - **2nd Half:** `h2h_h2`, `spreads_h2`, `totals_h2`
+- **NHL Periods:** `h2h_p1`, `h2h_p2`, `h2h_p3` (Valid for ice hockey)
 
-## Data Fetching Logic
-- **Standard Markets:** Use the main `/sports/{sport}/odds` endpoint for `h2h`, `spreads`, and `totals`.
-- **Deep Markets:** For alternate spreads or period markets, use the `/events/{eventId}/odds` endpoint.
+### Specialized Props & Combat Sports (Event Endpoint Required)
+MANDATORY: These must be accessed via the `/events/{eventId}/odds` endpoint.
+- **Combat Sports:** `h2h_method`, `h2h_round`, `h2h_go_distance`
+- **NBA/NFL Points:** `player_points`, `player_assists`, `player_rebounds`
+- **NFL Specific:** `player_pass_yds`, `player_rush_yds`, `player_rece_yds`, `player_anytime_td`
+- **MLB Specific:** `player_home_runs`, `player_strikeouts`, `player_hits`
+
+## 2. UI & Frontend Rules
+- **Odds Formatting:** Remove all logic prefixing odds with team mascot initials. Odds boxes should only contain the numerical line and the price (e.g., "-3.5 (-110)").
+- **Error States:** If the API returns no data for a market, display a simple dash ("-") on the frontend. Never display "N/A" to users.
+- **Prop Bets Hub:** Interactive buttons must trigger a fetch using the `/events/{eventId}/odds` endpoint for the specific prop key selected.
+
+## 3. Data Fetching & Matching Logic
 - **Matching Rule:** Always use the `extractMascot()` logic to match API team names (e.g., "Philadelphia 76ers") to local names (e.g., "76ers").
-
-## Specialized Market Keys
-When working with props or combat sports, use these exact keys:
-
-| Sport/Category | Market Key | Description |
-| :--- | :--- | :--- |
-| **Combat Sports** | `h2h_method` | Method of victory (KO/Decision/etc.) |
-| **Combat Sports** | `h2h_round` | Round the fight ends |
-| **Combat Sports** | `h2h_go_distance` | Will fight go the distance (Yes/No) |
-| **NBA/NFL Props** | `player_points` | Over/Under on player points |
-| **NBA Props** | `player_assists` | Over/Under on player assists |
-| **NBA Props** | `player_rebounds`| Over/Under on player rebounds |
-| **NFL Props** | `player_pass_yds` | Player passing yards |
-| **NFL Props** | `player_rush_yds` | Player rushing yards |
-| **NFL Props** | `player_rece_yds` | Player receiving yards |
-| **NFL Props** | `player_anytime_td`| Player to score a TD |
-
-## Implementation Note for Props
-Additional and prop markets must be accessed one event at a time using the `/events/{eventId}/odds` endpoint. Standard league-wide endpoints will only return core markets (h2h, spreads, totals).
+- **Endpoint Selection:** Standard league endpoints ONLY return core markets. All additional markets (props, alternates, periods) require the event-specific endpoint.
 
 **Last Updated:** December 2025 (React 19.2.0, Firebase 12.4.0)
