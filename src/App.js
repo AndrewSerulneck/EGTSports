@@ -2114,9 +2114,8 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
       console.log('\n');
     }
     
-    // Identify sport type for proper parsing
-    const isSoccer = sport === 'World Cup' || sport === 'MLS';
-    const isCombat = sport === 'Boxing' || sport === 'UFC';
+    // Sport types already defined at function start for market selection
+    // isSoccer and isCombat variables reused here
     
     console.log(`🏷️ Sport type - Soccer: ${isSoccer}, Combat: ${isCombat}`);
     
@@ -2414,7 +2413,8 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
 };
 
   // Helper function to extract mascot from team name (last word)
-  const extractMascot = (teamName) => {
+  // Helper function to extract mascot from team name (last word)
+  const extractMascot = useCallback((teamName) => {
     if (!teamName) return '';
     
     // Remove special characters and extra spaces
@@ -2429,10 +2429,10 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
     const mascot = words[words.length - 1];
     
     return mascot;
-  };
+  }, []);
 
   // Helper function for robust team name matching (The "Mascot Rule")
-  const teamsMatch = (team1, team2) => {
+  const teamsMatch = useCallback((team1, team2) => {
     if (!team1 || !team2) return false;
     
     // Exact match (case-insensitive)
@@ -2468,9 +2468,9 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
     const clean2 = team2.toLowerCase().replace(/[^a-z0-9]/g, '');
     
     return clean1.includes(clean2) || clean2.includes(clean1);
-  };
+  }, [extractMascot]);
 
-  const matchOddsToGame = (game, oddsMap) => {
+  const matchOddsToGame = useCallback((game, oddsMap) => {
     // Default fallback with N/A values
     const defaultOdds = { 
       awaySpread: 'N/A', 
@@ -2526,7 +2526,7 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
     // No match found - return defaults
     console.warn(`❌ No match found for: "${game.awayTeam}" @ "${game.homeTeam}"`);
     return defaultOdds;
-  };
+  }, [extractMascot, teamsMatch]);
 
   const fetchPropBets = async (sportName) => {
     const cacheKey = sportName;
@@ -2927,7 +2927,7 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
     }
     setLoading(false);
     setLastRefreshTime(Date.now());
-  }, [parseESPNOdds, countMissingOdds]);
+  }, [parseESPNOdds, countMissingOdds, matchOddsToGame]);
 
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, async (user) => {
