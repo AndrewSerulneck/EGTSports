@@ -3146,6 +3146,7 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
     }
     setLoading(false);
     setLastRefreshTime(Date.now());
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [parseESPNOdds, countMissingOdds, matchOddsToGame]);
 
   useEffect(() => {
