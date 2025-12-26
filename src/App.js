@@ -1659,12 +1659,11 @@ const saveSubmission = async (submission) => {
         
         <div className="main-content with-sidebar">
           <PropBetsView
-            propBets={propBets}
-            loading={propBetsLoading}
-            error={propBetsError}
+            allSportsGames={allSportsGames}
             selectedPicks={selectedPicks}
             onSelectPropBet={handleGridPickSelection}
             betType={betType}
+            authToken={null}  // Token will be fetched inside component when needed
           />
         </div>
         
