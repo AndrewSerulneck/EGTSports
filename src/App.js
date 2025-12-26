@@ -1980,6 +1980,14 @@ function App() {
   
   // Global fetch throttle to prevent infinite loops and API quota exhaustion
   const lastGlobalFetchTime = useRef(0);
+  
+  // API Quota monitoring and hard stop mechanism
+  const [apiQuotaInfo, setApiQuotaInfo] = useState({
+    remaining: null,
+    used: null,
+    hardStop: false
+  });
+  const apiQuotaRef = useRef({ remaining: null, used: null, hardStop: false });
 
   // Function to fetch user's credit info from Firebase
   const fetchUserCredit = useCallback(async (uid) => {
@@ -2021,6 +2029,12 @@ function App() {
   
 const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
   try {
+    // CRITICAL: Check hard stop first - prevent any API calls if quota exhausted
+    if (apiQuotaRef.current.hardStop) {
+      console.error('🛑 HARD STOP: API quota exhausted. All API calls disabled.');
+      return null;
+    }
+    
     const sportKey = ODDS_API_SPORT_KEYS[sport];
     if (!sportKey) {
       console.warn(`⚠️ No Odds API sport key for: ${sport}`);
@@ -2045,6 +2059,7 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
     
     // Build API URL with markets based on sport type
     // CRITICAL: Use correct market keys per copilot-instructions.md
+    // MANDATE: h2h (moneyline) is ALWAYS included for all sports
     const isSoccer = sport === 'World Cup' || sport === 'MLS';
     const isCombat = sport === 'Boxing' || sport === 'UFC';
     
@@ -2060,6 +2075,7 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
       markets = 'h2h,spreads,totals';
     }
     
+    // CRITICAL: Explicitly request 'american' odds format
     const url = `${ODDS_API_BASE_URL}/sports/${sportKey}/odds/?apiKey=${ODDS_API_KEY}&regions=us&markets=${markets}&oddsFormat=american`;
     
     // DEBUG: Log URL with masked API key for security
@@ -2067,8 +2083,39 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
     console.log(`🔥 Making Odds API call for ${sport}...`);
     console.log(`📡 URL: ${maskedUrl}`);
     console.log(`📋 Markets requested: ${markets}`);
+    console.log(`📐 Odds format: american`);
     
     const response = await fetch(url);
+    
+    // CRITICAL: Extract and monitor quota headers
+    const quotaRemaining = response.headers.get('x-requests-remaining');
+    const quotaUsed = response.headers.get('x-requests-used');
+    
+    if (quotaRemaining !== null || quotaUsed !== null) {
+      const remaining = parseInt(quotaRemaining) || 0;
+      const used = parseInt(quotaUsed) || 0;
+      
+      // Update quota state
+      const newQuotaInfo = {
+        remaining,
+        used,
+        hardStop: remaining < 10
+      };
+      
+      apiQuotaRef.current = newQuotaInfo;
+      setApiQuotaInfo(newQuotaInfo);
+      
+      console.log(`📊 API Quota - Remaining: ${remaining} | Used: ${used}`);
+      
+      // CRITICAL: Activate hard stop if quota < 10
+      if (remaining < 10) {
+        console.error('🚨 CRITICAL: API quota below 10! Activating HARD STOP.');
+        console.error('🛑 All future API calls will be blocked until quota resets.');
+        return null;
+      } else if (remaining < 50) {
+        console.warn(`⚠️ WARNING: API quota low (${remaining} remaining)`);
+      }
+    }
     
     // DEBUG: Log response status
     console.log(`📊 Response Status: ${response.status} ${response.statusText}`);
@@ -2081,8 +2128,40 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
       } else if (response.status === 429) {
         console.error(`❌ 429 RATE LIMIT: Too many requests to The Odds API`);
         console.error('You may have exceeded your monthly quota or requests per second');
+        // Activate hard stop on rate limit
+        apiQuotaRef.current.hardStop = true;
+        setApiQuotaInfo(prev => ({ ...prev, hardStop: true }));
       } else if (response.status === 404) {
         console.error(`❌ 404 NOT FOUND: Sport key "${sportKey}" may be invalid`);
+        console.log(`🔄 Attempting fallback to 'upcoming' sport key...`);
+        
+        // FALLBACK: Try 'upcoming' sport key if specific sport returns 404
+        const fallbackUrl = `${ODDS_API_BASE_URL}/sports/upcoming/odds/?apiKey=${ODDS_API_KEY}&regions=us&markets=${markets}&oddsFormat=american`;
+        const fallbackResponse = await fetch(fallbackUrl);
+        
+        if (fallbackResponse.ok) {
+          const fallbackData = await fallbackResponse.json();
+          console.log(`✅ Fallback successful: Received ${fallbackData.length} games from 'upcoming'`);
+          
+          // Extract quota headers from fallback response
+          const fallbackRemaining = fallbackResponse.headers.get('x-requests-remaining');
+          if (fallbackRemaining !== null) {
+            const remaining = parseInt(fallbackRemaining) || 0;
+            apiQuotaRef.current.remaining = remaining;
+            setApiQuotaInfo(prev => ({ ...prev, remaining }));
+            console.log(`📊 API Quota after fallback - Remaining: ${remaining}`);
+          }
+          
+          // Cache and return fallback data
+          oddsAPICache[sport] = {
+            data: fallbackData,
+            timestamp: Date.now()
+          };
+          
+          return fallbackData;
+        } else {
+          console.error(`❌ Fallback also failed: ${fallbackResponse.status}`);
+        }
       } else {
         console.error(`❌ Odds API returned ${response.status}: ${response.statusText}`);
       }
@@ -2103,6 +2182,35 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
     
     // DEBUG: Log how many games returned
     console.log(`📈 Received ${data.length} games for ${sport}`);
+    
+    // If no games returned for specific sport, try 'upcoming' fallback
+    if (data.length === 0) {
+      console.warn(`⚠️ No games found for ${sport}. Trying 'upcoming' fallback...`);
+      
+      const fallbackUrl = `${ODDS_API_BASE_URL}/sports/upcoming/odds/?apiKey=${ODDS_API_KEY}&regions=us&markets=${markets}&oddsFormat=american`;
+      const fallbackResponse = await fetch(fallbackUrl);
+      
+      if (fallbackResponse.ok) {
+        const fallbackData = await fallbackResponse.json();
+        console.log(`✅ Fallback successful: Received ${fallbackData.length} games from 'upcoming'`);
+        
+        // Extract quota headers
+        const fallbackRemaining = fallbackResponse.headers.get('x-requests-remaining');
+        if (fallbackRemaining !== null) {
+          const remaining = parseInt(fallbackRemaining) || 0;
+          apiQuotaRef.current.remaining = remaining;
+          setApiQuotaInfo(prev => ({ ...prev, remaining }));
+        }
+        
+        // Cache fallback data
+        oddsAPICache[sport] = {
+          data: fallbackData,
+          timestamp: Date.now()
+        };
+        
+        return fallbackData;
+      }
+    }
     
     // CRITICAL LOGGING: Show all teams from API response
     console.log(`📡 API Results for this league (${sport}):`);
@@ -3233,6 +3341,54 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
       <div className="gradient-bg" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh' }}>
         <div className="text-white" style={{ fontSize: '24px' }}>
           Loading...
+        </div>
+      </div>
+    );
+  }
+
+  // CRITICAL: Check for API quota hard stop - show maintenance mode
+  if (apiQuotaInfo.hardStop) {
+    return (
+      <div className="gradient-bg" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', padding: '20px' }}>
+        <div className="card" style={{ maxWidth: '600px', width: '100%', padding: '40px', textAlign: 'center' }}>
+          <h1 style={{ color: '#ff6b6b', marginBottom: '20px', fontSize: '32px' }}>
+            🛑 Maintenance Mode
+          </h1>
+          <h2 style={{ color: '#333', marginBottom: '20px' }}>
+            API Quota Reached
+          </h2>
+          <p style={{ fontSize: '18px', color: '#666', marginBottom: '20px', lineHeight: '1.6' }}>
+            Our application has reached its API request limit to protect your account quota.
+          </p>
+          <div style={{ background: '#f8f9fa', padding: '20px', borderRadius: '8px', marginBottom: '20px' }}>
+            <p style={{ fontSize: '16px', color: '#444', marginBottom: '10px' }}>
+              <strong>Quota Status:</strong>
+            </p>
+            <p style={{ fontSize: '16px', color: '#666' }}>
+              Remaining Requests: <strong style={{ color: apiQuotaInfo.remaining < 10 ? '#ff6b6b' : '#ffa500' }}>
+                {apiQuotaInfo.remaining !== null ? apiQuotaInfo.remaining : 'Unknown'}
+              </strong>
+            </p>
+            <p style={{ fontSize: '16px', color: '#666' }}>
+              Used Requests: <strong>{apiQuotaInfo.used !== null ? apiQuotaInfo.used : 'Unknown'}</strong>
+            </p>
+          </div>
+          <p style={{ fontSize: '16px', color: '#666', marginBottom: '30px' }}>
+            This safety feature prevents infinite loops from exhausting your monthly API quota.
+            The application will automatically resume when your quota resets.
+          </p>
+          <button 
+            className="btn btn-secondary" 
+            onClick={() => {
+              // Reset hard stop and try to reload
+              apiQuotaRef.current.hardStop = false;
+              setApiQuotaInfo(prev => ({ ...prev, hardStop: false }));
+              window.location.reload();
+            }}
+            style={{ padding: '12px 30px', fontSize: '16px' }}
+          >
+            Reset and Retry
+          </button>
         </div>
       </div>
     );
