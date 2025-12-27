@@ -2,7 +2,7 @@ import './App.css';
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { Routes, Route, useNavigate, useParams, Navigate } from 'react-router-dom';
 import { initializeApp, getApps } from "firebase/app";
-import { getDatabase, ref, set, onValue, push, get } from "firebase/database";
+import { getDatabase, ref, set, update, onValue, push, get } from "firebase/database";
 import {
   getAuth,
   signInWithEmailAndPassword,
@@ -498,7 +498,13 @@ function AdminPanel({ user, games, setGames, isSyncing, setIsSyncing, recentlyUp
         
         spreadsData[game.espnId] = gameData;
       });
-      await set(ref(database, `spreads/${sport}`), spreadsData);
+      
+      // CRITICAL FIX: Use update() instead of set() to preserve existing data
+      // This allows full game and quarter/half odds to coexist in same Firebase entry
+      for (const [espnId, gameData] of Object.entries(spreadsData)) {
+        await update(ref(database, `spreads/${sport}/${espnId}`), gameData);
+      }
+      
       alert('✅ Spreads saved! All devices will update in real-time.');
       setIsSyncing(false);
     } catch (error) {
@@ -510,7 +516,7 @@ function AdminPanel({ user, games, setGames, isSyncing, setIsSyncing, recentlyUp
   const updateSpread = (gameId, team, value) => {
     setGames(prevGames =>
       prevGames.map(game =>
-        game.id === gameId
+        game.espnId === gameId
           ? { ...game, [team === 'away' ? 'awaySpread' : 'homeSpread']: value }
           : game
       )
@@ -520,7 +526,7 @@ function AdminPanel({ user, games, setGames, isSyncing, setIsSyncing, recentlyUp
   const updateMoneyline = (gameId, team, value) => {
     setGames(prevGames =>
       prevGames.map(game =>
-        game.id === gameId
+        game.espnId === gameId
           ? { ...game, [team === 'away' ? 'awayMoneyline' : 'homeMoneyline']: value }
           : game
       )
@@ -530,7 +536,7 @@ function AdminPanel({ user, games, setGames, isSyncing, setIsSyncing, recentlyUp
   const updateTotal = (gameId, value) => {
     setGames(prevGames =>
       prevGames.map(game =>
-        game.id === gameId
+        game.espnId === gameId
           ? { ...game, total: value }
           : game
       )
@@ -540,7 +546,7 @@ function AdminPanel({ user, games, setGames, isSyncing, setIsSyncing, recentlyUp
   const updateQuarterHalf = (gameId, fieldName, value) => {
     setGames(prevGames =>
       prevGames.map(game =>
-        game.id === gameId
+        game.espnId === gameId
           ? { ...game, [fieldName]: value }
           : game
       )
@@ -711,23 +717,23 @@ function AdminPanel({ user, games, setGames, isSyncing, setIsSyncing, recentlyUp
             </div>
             <div>
               <label><strong>{game.awayTeam} (Away)</strong></label>
-              <input type="text" value={game.awaySpread} onChange={(e) => updateSpread(game.id, 'away', e.target.value)} placeholder="Spread, e.g. +3.5" />
+              <input type="text" value={game.awaySpread} onChange={(e) => updateSpread(game.espnId, 'away', e.target.value)} placeholder="Spread, e.g. +3.5" />
             </div>
             <div>
               <label><strong>{game.homeTeam} (Home)</strong></label>
-              <input type="text" value={game.homeSpread} onChange={(e) => updateSpread(game.id, 'home', e.target.value)} placeholder="Spread, e.g. -3.5" />
+              <input type="text" value={game.homeSpread} onChange={(e) => updateSpread(game.espnId, 'home', e.target.value)} placeholder="Spread, e.g. -3.5" />
             </div>
             <div>
               <label><strong>Moneyline</strong></label>
-              <input type="text" value={game.awayMoneyline} onChange={(e) => updateMoneyline(game.id, 'away', e.target.value)} placeholder={`${game.awayTeam} ML, e.g. +150`} />
-              <input type="text" value={game.homeMoneyline} onChange={(e) => updateMoneyline(game.id, 'home', e.target.value)} placeholder={`${game.homeTeam} ML, e.g. -180`} />
+              <input type="text" value={game.awayMoneyline} onChange={(e) => updateMoneyline(game.espnId, 'away', e.target.value)} placeholder={`${game.awayTeam} ML, e.g. +150`} />
+              <input type="text" value={game.homeMoneyline} onChange={(e) => updateMoneyline(game.espnId, 'home', e.target.value)} placeholder={`${game.homeTeam} ML, e.g. -180`} />
             </div>
             <div>
               <label><strong>Total (O/U)</strong></label>
               <input
                 type="text"
                 value={game.total}
-                onChange={(e) => updateTotal(game.id, e.target.value)}
+                onChange={(e) => updateTotal(game.espnId, e.target.value)}
                 placeholder="42.5"
               />
             </div>
@@ -743,11 +749,11 @@ function AdminPanel({ user, games, setGames, isSyncing, setIsSyncing, recentlyUp
                   <div style={{ marginBottom: '12px', paddingBottom: '12px', borderBottom: '1px solid #e0e0e0' }}>
                     <h4 style={{ fontSize: '14px', marginBottom: '8px', color: '#555' }}>1st Quarter</h4>
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
-                      <input type="text" value={game.Q1_awaySpread || ''} onChange={(e) => updateQuarterHalf(game.id, 'Q1_awaySpread', e.target.value)} placeholder={`${game.awayTeam} Q1 Spread`} />
-                      <input type="text" value={game.Q1_homeSpread || ''} onChange={(e) => updateQuarterHalf(game.id, 'Q1_homeSpread', e.target.value)} placeholder={`${game.homeTeam} Q1 Spread`} />
-                      <input type="text" value={game.Q1_awayMoneyline || ''} onChange={(e) => updateQuarterHalf(game.id, 'Q1_awayMoneyline', e.target.value)} placeholder={`${game.awayTeam} Q1 ML`} />
-                      <input type="text" value={game.Q1_homeMoneyline || ''} onChange={(e) => updateQuarterHalf(game.id, 'Q1_homeMoneyline', e.target.value)} placeholder={`${game.homeTeam} Q1 ML`} />
-                      <input type="text" value={game.Q1_total || ''} onChange={(e) => updateQuarterHalf(game.id, 'Q1_total', e.target.value)} placeholder="Q1 Total" style={{ gridColumn: '1 / -1' }} />
+                      <input type="text" value={game.Q1_awaySpread || ''} onChange={(e) => updateQuarterHalf(game.espnId, 'Q1_awaySpread', e.target.value)} placeholder={`${game.awayTeam} Q1 Spread`} />
+                      <input type="text" value={game.Q1_homeSpread || ''} onChange={(e) => updateQuarterHalf(game.espnId, 'Q1_homeSpread', e.target.value)} placeholder={`${game.homeTeam} Q1 Spread`} />
+                      <input type="text" value={game.Q1_awayMoneyline || ''} onChange={(e) => updateQuarterHalf(game.espnId, 'Q1_awayMoneyline', e.target.value)} placeholder={`${game.awayTeam} Q1 ML`} />
+                      <input type="text" value={game.Q1_homeMoneyline || ''} onChange={(e) => updateQuarterHalf(game.espnId, 'Q1_homeMoneyline', e.target.value)} placeholder={`${game.homeTeam} Q1 ML`} />
+                      <input type="text" value={game.Q1_total || ''} onChange={(e) => updateQuarterHalf(game.espnId, 'Q1_total', e.target.value)} placeholder="Q1 Total" style={{ gridColumn: '1 / -1' }} />
                     </div>
                   </div>
                   
@@ -755,11 +761,11 @@ function AdminPanel({ user, games, setGames, isSyncing, setIsSyncing, recentlyUp
                   <div style={{ marginBottom: '12px', paddingBottom: '12px', borderBottom: '1px solid #e0e0e0' }}>
                     <h4 style={{ fontSize: '14px', marginBottom: '8px', color: '#555' }}>2nd Quarter</h4>
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
-                      <input type="text" value={game.Q2_awaySpread || ''} onChange={(e) => updateQuarterHalf(game.id, 'Q2_awaySpread', e.target.value)} placeholder={`${game.awayTeam} Q2 Spread`} />
-                      <input type="text" value={game.Q2_homeSpread || ''} onChange={(e) => updateQuarterHalf(game.id, 'Q2_homeSpread', e.target.value)} placeholder={`${game.homeTeam} Q2 Spread`} />
-                      <input type="text" value={game.Q2_awayMoneyline || ''} onChange={(e) => updateQuarterHalf(game.id, 'Q2_awayMoneyline', e.target.value)} placeholder={`${game.awayTeam} Q2 ML`} />
-                      <input type="text" value={game.Q2_homeMoneyline || ''} onChange={(e) => updateQuarterHalf(game.id, 'Q2_homeMoneyline', e.target.value)} placeholder={`${game.homeTeam} Q2 ML`} />
-                      <input type="text" value={game.Q2_total || ''} onChange={(e) => updateQuarterHalf(game.id, 'Q2_total', e.target.value)} placeholder="Q2 Total" style={{ gridColumn: '1 / -1' }} />
+                      <input type="text" value={game.Q2_awaySpread || ''} onChange={(e) => updateQuarterHalf(game.espnId, 'Q2_awaySpread', e.target.value)} placeholder={`${game.awayTeam} Q2 Spread`} />
+                      <input type="text" value={game.Q2_homeSpread || ''} onChange={(e) => updateQuarterHalf(game.espnId, 'Q2_homeSpread', e.target.value)} placeholder={`${game.homeTeam} Q2 Spread`} />
+                      <input type="text" value={game.Q2_awayMoneyline || ''} onChange={(e) => updateQuarterHalf(game.espnId, 'Q2_awayMoneyline', e.target.value)} placeholder={`${game.awayTeam} Q2 ML`} />
+                      <input type="text" value={game.Q2_homeMoneyline || ''} onChange={(e) => updateQuarterHalf(game.espnId, 'Q2_homeMoneyline', e.target.value)} placeholder={`${game.homeTeam} Q2 ML`} />
+                      <input type="text" value={game.Q2_total || ''} onChange={(e) => updateQuarterHalf(game.espnId, 'Q2_total', e.target.value)} placeholder="Q2 Total" style={{ gridColumn: '1 / -1' }} />
                     </div>
                   </div>
                   
@@ -767,11 +773,11 @@ function AdminPanel({ user, games, setGames, isSyncing, setIsSyncing, recentlyUp
                   <div style={{ marginBottom: '12px', paddingBottom: '12px', borderBottom: '1px solid #e0e0e0' }}>
                     <h4 style={{ fontSize: '14px', marginBottom: '8px', color: '#555' }}>3rd Quarter</h4>
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
-                      <input type="text" value={game.Q3_awaySpread || ''} onChange={(e) => updateQuarterHalf(game.id, 'Q3_awaySpread', e.target.value)} placeholder={`${game.awayTeam} Q3 Spread`} />
-                      <input type="text" value={game.Q3_homeSpread || ''} onChange={(e) => updateQuarterHalf(game.id, 'Q3_homeSpread', e.target.value)} placeholder={`${game.homeTeam} Q3 Spread`} />
-                      <input type="text" value={game.Q3_awayMoneyline || ''} onChange={(e) => updateQuarterHalf(game.id, 'Q3_awayMoneyline', e.target.value)} placeholder={`${game.awayTeam} Q3 ML`} />
-                      <input type="text" value={game.Q3_homeMoneyline || ''} onChange={(e) => updateQuarterHalf(game.id, 'Q3_homeMoneyline', e.target.value)} placeholder={`${game.homeTeam} Q3 ML`} />
-                      <input type="text" value={game.Q3_total || ''} onChange={(e) => updateQuarterHalf(game.id, 'Q3_total', e.target.value)} placeholder="Q3 Total" style={{ gridColumn: '1 / -1' }} />
+                      <input type="text" value={game.Q3_awaySpread || ''} onChange={(e) => updateQuarterHalf(game.espnId, 'Q3_awaySpread', e.target.value)} placeholder={`${game.awayTeam} Q3 Spread`} />
+                      <input type="text" value={game.Q3_homeSpread || ''} onChange={(e) => updateQuarterHalf(game.espnId, 'Q3_homeSpread', e.target.value)} placeholder={`${game.homeTeam} Q3 Spread`} />
+                      <input type="text" value={game.Q3_awayMoneyline || ''} onChange={(e) => updateQuarterHalf(game.espnId, 'Q3_awayMoneyline', e.target.value)} placeholder={`${game.awayTeam} Q3 ML`} />
+                      <input type="text" value={game.Q3_homeMoneyline || ''} onChange={(e) => updateQuarterHalf(game.espnId, 'Q3_homeMoneyline', e.target.value)} placeholder={`${game.homeTeam} Q3 ML`} />
+                      <input type="text" value={game.Q3_total || ''} onChange={(e) => updateQuarterHalf(game.espnId, 'Q3_total', e.target.value)} placeholder="Q3 Total" style={{ gridColumn: '1 / -1' }} />
                     </div>
                   </div>
                   
@@ -779,11 +785,11 @@ function AdminPanel({ user, games, setGames, isSyncing, setIsSyncing, recentlyUp
                   <div style={{ marginBottom: '12px', paddingBottom: '12px', borderBottom: '1px solid #e0e0e0' }}>
                     <h4 style={{ fontSize: '14px', marginBottom: '8px', color: '#555' }}>4th Quarter</h4>
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
-                      <input type="text" value={game.Q4_awaySpread || ''} onChange={(e) => updateQuarterHalf(game.id, 'Q4_awaySpread', e.target.value)} placeholder={`${game.awayTeam} Q4 Spread`} />
-                      <input type="text" value={game.Q4_homeSpread || ''} onChange={(e) => updateQuarterHalf(game.id, 'Q4_homeSpread', e.target.value)} placeholder={`${game.homeTeam} Q4 Spread`} />
-                      <input type="text" value={game.Q4_awayMoneyline || ''} onChange={(e) => updateQuarterHalf(game.id, 'Q4_awayMoneyline', e.target.value)} placeholder={`${game.awayTeam} Q4 ML`} />
-                      <input type="text" value={game.Q4_homeMoneyline || ''} onChange={(e) => updateQuarterHalf(game.id, 'Q4_homeMoneyline', e.target.value)} placeholder={`${game.homeTeam} Q4 ML`} />
-                      <input type="text" value={game.Q4_total || ''} onChange={(e) => updateQuarterHalf(game.id, 'Q4_total', e.target.value)} placeholder="Q4 Total" style={{ gridColumn: '1 / -1' }} />
+                      <input type="text" value={game.Q4_awaySpread || ''} onChange={(e) => updateQuarterHalf(game.espnId, 'Q4_awaySpread', e.target.value)} placeholder={`${game.awayTeam} Q4 Spread`} />
+                      <input type="text" value={game.Q4_homeSpread || ''} onChange={(e) => updateQuarterHalf(game.espnId, 'Q4_homeSpread', e.target.value)} placeholder={`${game.homeTeam} Q4 Spread`} />
+                      <input type="text" value={game.Q4_awayMoneyline || ''} onChange={(e) => updateQuarterHalf(game.espnId, 'Q4_awayMoneyline', e.target.value)} placeholder={`${game.awayTeam} Q4 ML`} />
+                      <input type="text" value={game.Q4_homeMoneyline || ''} onChange={(e) => updateQuarterHalf(game.espnId, 'Q4_homeMoneyline', e.target.value)} placeholder={`${game.homeTeam} Q4 ML`} />
+                      <input type="text" value={game.Q4_total || ''} onChange={(e) => updateQuarterHalf(game.espnId, 'Q4_total', e.target.value)} placeholder="Q4 Total" style={{ gridColumn: '1 / -1' }} />
                     </div>
                   </div>
                   
@@ -791,11 +797,11 @@ function AdminPanel({ user, games, setGames, isSyncing, setIsSyncing, recentlyUp
                   <div style={{ marginBottom: '12px', paddingBottom: '12px', borderBottom: '1px solid #e0e0e0' }}>
                     <h4 style={{ fontSize: '14px', marginBottom: '8px', color: '#555' }}>1st Half</h4>
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
-                      <input type="text" value={game.H1_awaySpread || ''} onChange={(e) => updateQuarterHalf(game.id, 'H1_awaySpread', e.target.value)} placeholder={`${game.awayTeam} H1 Spread`} />
-                      <input type="text" value={game.H1_homeSpread || ''} onChange={(e) => updateQuarterHalf(game.id, 'H1_homeSpread', e.target.value)} placeholder={`${game.homeTeam} H1 Spread`} />
-                      <input type="text" value={game.H1_awayMoneyline || ''} onChange={(e) => updateQuarterHalf(game.id, 'H1_awayMoneyline', e.target.value)} placeholder={`${game.awayTeam} H1 ML`} />
-                      <input type="text" value={game.H1_homeMoneyline || ''} onChange={(e) => updateQuarterHalf(game.id, 'H1_homeMoneyline', e.target.value)} placeholder={`${game.homeTeam} H1 ML`} />
-                      <input type="text" value={game.H1_total || ''} onChange={(e) => updateQuarterHalf(game.id, 'H1_total', e.target.value)} placeholder="H1 Total" style={{ gridColumn: '1 / -1' }} />
+                      <input type="text" value={game.H1_awaySpread || ''} onChange={(e) => updateQuarterHalf(game.espnId, 'H1_awaySpread', e.target.value)} placeholder={`${game.awayTeam} H1 Spread`} />
+                      <input type="text" value={game.H1_homeSpread || ''} onChange={(e) => updateQuarterHalf(game.espnId, 'H1_homeSpread', e.target.value)} placeholder={`${game.homeTeam} H1 Spread`} />
+                      <input type="text" value={game.H1_awayMoneyline || ''} onChange={(e) => updateQuarterHalf(game.espnId, 'H1_awayMoneyline', e.target.value)} placeholder={`${game.awayTeam} H1 ML`} />
+                      <input type="text" value={game.H1_homeMoneyline || ''} onChange={(e) => updateQuarterHalf(game.espnId, 'H1_homeMoneyline', e.target.value)} placeholder={`${game.homeTeam} H1 ML`} />
+                      <input type="text" value={game.H1_total || ''} onChange={(e) => updateQuarterHalf(game.espnId, 'H1_total', e.target.value)} placeholder="H1 Total" style={{ gridColumn: '1 / -1' }} />
                     </div>
                   </div>
                   
@@ -803,11 +809,11 @@ function AdminPanel({ user, games, setGames, isSyncing, setIsSyncing, recentlyUp
                   <div style={{ marginBottom: '12px' }}>
                     <h4 style={{ fontSize: '14px', marginBottom: '8px', color: '#555' }}>2nd Half</h4>
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
-                      <input type="text" value={game.H2_awaySpread || ''} onChange={(e) => updateQuarterHalf(game.id, 'H2_awaySpread', e.target.value)} placeholder={`${game.awayTeam} H2 Spread`} />
-                      <input type="text" value={game.H2_homeSpread || ''} onChange={(e) => updateQuarterHalf(game.id, 'H2_homeSpread', e.target.value)} placeholder={`${game.homeTeam} H2 Spread`} />
-                      <input type="text" value={game.H2_awayMoneyline || ''} onChange={(e) => updateQuarterHalf(game.id, 'H2_awayMoneyline', e.target.value)} placeholder={`${game.awayTeam} H2 ML`} />
-                      <input type="text" value={game.H2_homeMoneyline || ''} onChange={(e) => updateQuarterHalf(game.id, 'H2_homeMoneyline', e.target.value)} placeholder={`${game.homeTeam} H2 ML`} />
-                      <input type="text" value={game.H2_total || ''} onChange={(e) => updateQuarterHalf(game.id, 'H2_total', e.target.value)} placeholder="H2 Total" style={{ gridColumn: '1 / -1' }} />
+                      <input type="text" value={game.H2_awaySpread || ''} onChange={(e) => updateQuarterHalf(game.espnId, 'H2_awaySpread', e.target.value)} placeholder={`${game.awayTeam} H2 Spread`} />
+                      <input type="text" value={game.H2_homeSpread || ''} onChange={(e) => updateQuarterHalf(game.espnId, 'H2_homeSpread', e.target.value)} placeholder={`${game.homeTeam} H2 Spread`} />
+                      <input type="text" value={game.H2_awayMoneyline || ''} onChange={(e) => updateQuarterHalf(game.espnId, 'H2_awayMoneyline', e.target.value)} placeholder={`${game.awayTeam} H2 ML`} />
+                      <input type="text" value={game.H2_homeMoneyline || ''} onChange={(e) => updateQuarterHalf(game.espnId, 'H2_homeMoneyline', e.target.value)} placeholder={`${game.homeTeam} H2 ML`} />
+                      <input type="text" value={game.H2_total || ''} onChange={(e) => updateQuarterHalf(game.espnId, 'H2_total', e.target.value)} placeholder="H2 Total" style={{ gridColumn: '1 / -1' }} />
                     </div>
                   </div>
                 </div>
@@ -3104,6 +3110,146 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
   }
 };
 
+/**
+ * fetchDetailedOdds - Fetch period-specific odds for a single event
+ * Uses The Odds API per-event endpoint to get quarter/half odds
+ * 
+ * @param {string} sport - Sport name (e.g., 'NFL', 'NBA')
+ * @param {string} eventId - The Odds API event ID
+ * @returns {object} - Quarter/half odds fields (Q1_homeMoneyline, H1_total, etc.)
+ */
+const fetchDetailedOdds = async (sport, eventId) => {
+  try {
+    // CRITICAL: Check hard stop first
+    if (apiQuotaRef.current.hardStop) {
+      console.error('🛑 HARD STOP: API quota exhausted. Cannot fetch detailed odds.');
+      return null;
+    }
+    
+    const sportKey = ODDS_API_SPORT_KEYS[sport];
+    if (!sportKey) {
+      console.warn(`⚠️ No Odds API sport key for: ${sport}`);
+      return null;
+    }
+    
+    // Only fetch period odds for US sports (not soccer, not combat)
+    const isSoccer = sport === 'World Cup' || sport === 'MLS';
+    const isCombat = sport === 'Boxing' || sport === 'UFC';
+    
+    if (isSoccer || isCombat) {
+      console.log(`ℹ️ Skipping detailed odds for ${sport} (not applicable)`);
+      return null;
+    }
+    
+    // CRITICAL: Validate API key
+    if (!ODDS_API_KEY || ODDS_API_KEY === 'undefined') {
+      console.error('❌ Error: REACT_APP_THE_ODDS_API_KEY is not defined');
+      return null;
+    }
+    
+    // Request quarter and halftime markets
+    const markets = 'h2h_q1,h2h_q2,h2h_q3,h2h_q4,h2h_h1,h2h_h2,spreads_q1,spreads_q2,spreads_q3,spreads_q4,spreads_h1,spreads_h2,totals_q1,totals_q2,totals_q3,totals_q4,totals_h1,totals_h2';
+    
+    // Use per-event endpoint
+    const url = `${ODDS_API_BASE_URL}/sports/${sportKey}/events/${eventId}/odds?apiKey=${ODDS_API_KEY}&regions=us&markets=${markets}&oddsFormat=american`;
+    
+    console.log(`🔍 Fetching detailed odds for event ${eventId}...`);
+    const response = await fetch(url);
+    
+    // Monitor quota
+    const quotaRemaining = response.headers.get('x-requests-remaining');
+    if (quotaRemaining !== null) {
+      const remaining = parseInt(quotaRemaining) || 0;
+      apiQuotaRef.current.remaining = remaining;
+      setApiQuotaInfo(prev => ({ ...prev, remaining }));
+      
+      if (remaining < 10) {
+        console.error('🚨 API quota below 10! Activating HARD STOP.');
+        apiQuotaRef.current.hardStop = true;
+        setApiQuotaInfo(prev => ({ ...prev, hardStop: true }));
+        return null;
+      }
+    }
+    
+    if (!response.ok) {
+      console.error(`❌ Detailed odds fetch failed: ${response.status}`);
+      return null;
+    }
+    
+    const data = await response.json();
+    
+    if (!data.bookmakers || data.bookmakers.length === 0) {
+      console.log(`ℹ️ No bookmakers found for event ${eventId}`);
+      return null;
+    }
+    
+    const quarterHalfOdds = {};
+    
+    // Find priority bookmaker
+    const bookmaker = findBookmakerWithMarket(data.bookmakers, 'h2h_q1', data.home_team, data.away_team)?.bookmaker || data.bookmakers[0];
+    
+    if (!bookmaker || !bookmaker.markets) {
+      console.log(`ℹ️ No markets in bookmaker for event ${eventId}`);
+      return null;
+    }
+    
+    console.log(`📊 Processing ${bookmaker.markets.length} period markets for ${data.away_team} @ ${data.home_team}`);
+    
+    // Parse each period market
+    PERIOD_MARKET_CONFIG.forEach(({ key, type, period }) => {
+      const market = bookmaker.markets.find(m => m.key === key);
+      
+      if (!market || !market.outcomes) return;
+      
+      if (type === 'moneyline') {
+        // Parse h2h (moneyline) - use price field
+        const homeOutcome = market.outcomes.find(o => teamsMatchHelper(o.name, data.home_team).match);
+        const awayOutcome = market.outcomes.find(o => teamsMatchHelper(o.name, data.away_team).match);
+        
+        if (homeOutcome && homeOutcome.price !== undefined) {
+          quarterHalfOdds[`${period}_homeMoneyline`] = homeOutcome.price > 0 ? `+${homeOutcome.price}` : String(homeOutcome.price);
+        }
+        
+        if (awayOutcome && awayOutcome.price !== undefined) {
+          quarterHalfOdds[`${period}_awayMoneyline`] = awayOutcome.price > 0 ? `+${awayOutcome.price}` : String(awayOutcome.price);
+        }
+      } else if (type === 'spread') {
+        // Parse spreads - use point field
+        const homeOutcome = market.outcomes.find(o => teamsMatchHelper(o.name, data.home_team).match);
+        const awayOutcome = market.outcomes.find(o => teamsMatchHelper(o.name, data.away_team).match);
+        
+        if (homeOutcome && homeOutcome.point !== undefined) {
+          quarterHalfOdds[`${period}_homeSpread`] = homeOutcome.point > 0 ? `+${homeOutcome.point}` : String(homeOutcome.point);
+        }
+        
+        if (awayOutcome && awayOutcome.point !== undefined) {
+          quarterHalfOdds[`${period}_awaySpread`] = awayOutcome.point > 0 ? `+${awayOutcome.point}` : String(awayOutcome.point);
+        }
+      } else if (type === 'total') {
+        // Parse totals - use point field from Over outcome
+        const overOutcome = market.outcomes.find(o => o.name === 'Over');
+        
+        if (overOutcome && overOutcome.point !== undefined) {
+          quarterHalfOdds[`${period}_total`] = String(overOutcome.point);
+        }
+      }
+    });
+    
+    const foundCount = Object.keys(quarterHalfOdds).length;
+    if (foundCount > 0) {
+      console.log(`✅ Fetched ${foundCount} quarter/half odds for event ${eventId}`);
+    } else {
+      console.log(`ℹ️ No quarter/half odds available for event ${eventId}`);
+    }
+    
+    return quarterHalfOdds;
+    
+  } catch (error) {
+    console.error(`❌ Error fetching detailed odds for event ${eventId}:`, error);
+    return null;
+  }
+};
+
   // Helper function to extract mascot from team name (last word)
 
   // Helper function for robust team name matching (The "Mascot Rule")
@@ -3367,7 +3513,9 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
                     }));
                   }, 600);
                 }
-                return {
+                
+                // Build updated game object with all fields from Firebase
+                const updatedGame = {
                   ...game,
                   awaySpread: fbGame.awaySpread || '',
                   homeSpread: fbGame.homeSpread || '',
@@ -3375,6 +3523,24 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
                   homeMoneyline: fbGame.homeMoneyline || '',
                   total: fbGame.total || ''
                 };
+                
+                // Add quarter/halftime fields if present in Firebase
+                const quarterHalfKeys = [
+                  'Q1_homeMoneyline', 'Q1_awayMoneyline', 'Q1_homeSpread', 'Q1_awaySpread', 'Q1_total',
+                  'Q2_homeMoneyline', 'Q2_awayMoneyline', 'Q2_homeSpread', 'Q2_awaySpread', 'Q2_total',
+                  'Q3_homeMoneyline', 'Q3_awayMoneyline', 'Q3_homeSpread', 'Q3_awaySpread', 'Q3_total',
+                  'Q4_homeMoneyline', 'Q4_awayMoneyline', 'Q4_homeSpread', 'Q4_awaySpread', 'Q4_total',
+                  'H1_homeMoneyline', 'H1_awayMoneyline', 'H1_homeSpread', 'H1_awaySpread', 'H1_total',
+                  'H2_homeMoneyline', 'H2_awayMoneyline', 'H2_homeSpread', 'H2_awaySpread', 'H2_total'
+                ];
+                
+                quarterHalfKeys.forEach(key => {
+                  if (fbGame[key] !== undefined && fbGame[key] !== null && fbGame[key] !== '') {
+                    updatedGame[key] = fbGame[key];
+                  }
+                });
+                
+                return updatedGame;
               }
               return game;
             });

@@ -164,6 +164,38 @@ function GridBettingLayout({
     return true;
   };
   
+  // Helper to check if a game has data for a specific period
+  const hasPeriodData = (game, period) => {
+    if (period === 'whole_game') return true; // Whole game always available
+    
+    // Map period IDs to field prefixes
+    const periodPrefixMap = {
+      'first_quarter': 'Q1',
+      'second_quarter': 'Q2',
+      'third_quarter': 'Q3',
+      'fourth_quarter': 'Q4',
+      'first_half': 'H1',
+      'second_half': 'H2',
+      'first_period': 'P1', // NHL
+      'second_period': 'P2', // NHL
+      'third_period': 'P3' // NHL
+    };
+    
+    const prefix = periodPrefixMap[period];
+    if (!prefix) return false;
+    
+    // Check if any of the period-specific fields exist and have valid data
+    const fields = [
+      `${prefix}_homeMoneyline`,
+      `${prefix}_awayMoneyline`,
+      `${prefix}_homeSpread`,
+      `${prefix}_awaySpread`,
+      `${prefix}_total`
+    ];
+    
+    return fields.some(field => isValidOdds(game[field]));
+  };
+  
   // Get period label for display
   const getPeriodLabel = (periodId) => {
     const labels = {
@@ -193,7 +225,6 @@ function GridBettingLayout({
     
     const periodLabel = getPeriodLabel(selectedPeriod);
     const showPeriodHeader = selectedPeriod !== 'whole_game';
-    const isComingSoon = selectedPeriod !== 'whole_game'; // For now, only whole game has odds
     const isSoccer = sport === 'World Cup' || sport === 'Soccer' || sport === 'MLS';
     const isCombat = sport === 'Boxing' || sport === 'UFC';
     
@@ -202,11 +233,6 @@ function GridBettingLayout({
         {showPeriodHeader && (
           <div className="period-header">
             <h3 className="period-title">{periodLabel}</h3>
-            {isComingSoon && (
-              <div className="period-coming-soon">
-                <span className="badge badge-info">Coming Soon</span>
-              </div>
-            )}
           </div>
         )}
         
@@ -466,14 +492,128 @@ function GridBettingLayout({
                   )}
                 </div>
               ) : (
-                // Show "Coming Soon" message for period-specific betting
-                <div className="bet-buttons-row">
-                  <div className="period-odds-placeholder">
-                    <p className="text-gray-500 text-sm text-center py-4">
-                      📊 Period-specific odds coming soon
-                    </p>
-                  </div>
-                </div>
+                // Period-specific betting (Quarter/Half)
+                (() => {
+                  // Check if this game has data for the selected period
+                  if (!hasPeriodData(game, selectedPeriod)) {
+                    return (
+                      <div className="bet-buttons-row">
+                        <div className="period-odds-placeholder">
+                          <p className="text-gray-500 text-sm text-center py-4">
+                            📊 Data unavailable for this period
+                          </p>
+                        </div>
+                      </div>
+                    );
+                  }
+                  
+                  // Map period ID to field prefix
+                  const periodPrefixMap = {
+                    'first_quarter': 'Q1',
+                    'second_quarter': 'Q2',
+                    'third_quarter': 'Q3',
+                    'fourth_quarter': 'Q4',
+                    'first_half': 'H1',
+                    'second_half': 'H2',
+                    'first_period': 'P1',
+                    'second_period': 'P2',
+                    'third_period': 'P3'
+                  };
+                  
+                  const prefix = periodPrefixMap[selectedPeriod];
+                  
+                  // Get period-specific odds
+                  const awaySpread = game[`${prefix}_awaySpread`];
+                  const homeSpread = game[`${prefix}_homeSpread`];
+                  const awayMoneyline = game[`${prefix}_awayMoneyline`];
+                  const homeMoneyline = game[`${prefix}_homeMoneyline`];
+                  const total = game[`${prefix}_total`];
+                  
+                  return (
+                    <div className="bet-buttons-row">
+                      {/* Spread */}
+                      {!isCombat && (
+                        <div className="bet-type-group">
+                          <div className="bet-type-label">Spread</div>
+                          <div className="bet-options">
+                            <button
+                              className={`bet-btn ${isSelected(game.id, 'spread', `away_${prefix}`) ? 'selected' : ''} ${game.isFinal ? 'disabled' : ''}`}
+                              onClick={() => !game.isFinal && isValidOdds(awaySpread) && onSelectPick(game.id, 'spread', `away_${prefix}`)}
+                              disabled={game.isFinal || !isValidOdds(awaySpread)}
+                              aria-label={`${game.awayTeam} ${prefix} spread ${formatOdds(awaySpread)}`}
+                            >
+                              <span className="btn-team">{extractMascot(game.awayTeam)}</span>
+                              <span className="btn-odds">{formatOdds(awaySpread)}</span>
+                            </button>
+                            <button
+                              className={`bet-btn ${isSelected(game.id, 'spread', `home_${prefix}`) ? 'selected' : ''} ${game.isFinal ? 'disabled' : ''}`}
+                              onClick={() => !game.isFinal && isValidOdds(homeSpread) && onSelectPick(game.id, 'spread', `home_${prefix}`)}
+                              disabled={game.isFinal || !isValidOdds(homeSpread)}
+                              aria-label={`${game.homeTeam} ${prefix} spread ${formatOdds(homeSpread)}`}
+                            >
+                              <span className="btn-team">{extractMascot(game.homeTeam)}</span>
+                              <span className="btn-odds">{formatOdds(homeSpread)}</span>
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                      
+                      {/* Moneyline */}
+                      {!isCombat && (
+                        <div className="bet-type-group">
+                          <div className="bet-type-label">Moneyline</div>
+                          <div className="bet-options">
+                            <button
+                              className={`bet-btn ${isSelected(game.id, 'winner', `away_${prefix}`) ? 'selected' : ''} ${game.isFinal ? 'disabled' : ''}`}
+                              onClick={() => !game.isFinal && isValidOdds(awayMoneyline) && onSelectPick(game.id, 'winner', `away_${prefix}`)}
+                              disabled={game.isFinal || !isValidOdds(awayMoneyline)}
+                              aria-label={`${game.awayTeam} ${prefix} moneyline ${formatOdds(awayMoneyline)}`}
+                            >
+                              <span className="btn-team">{extractMascot(game.awayTeam)}</span>
+                              <span className="btn-odds">{formatOdds(awayMoneyline)}</span>
+                            </button>
+                            <button
+                              className={`bet-btn ${isSelected(game.id, 'winner', `home_${prefix}`) ? 'selected' : ''} ${game.isFinal ? 'disabled' : ''}`}
+                              onClick={() => !game.isFinal && isValidOdds(homeMoneyline) && onSelectPick(game.id, 'winner', `home_${prefix}`)}
+                              disabled={game.isFinal || !isValidOdds(homeMoneyline)}
+                              aria-label={`${game.homeTeam} ${prefix} moneyline ${formatOdds(homeMoneyline)}`}
+                            >
+                              <span className="btn-team">{extractMascot(game.homeTeam)}</span>
+                              <span className="btn-odds">{formatOdds(homeMoneyline)}</span>
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                      
+                      {/* Over/Under */}
+                      {!isCombat && (
+                        <div className="bet-type-group">
+                          <div className="bet-type-label">O/U</div>
+                          <div className="bet-options">
+                            <button
+                              className={`bet-btn ${isSelected(game.id, 'total', `over_${prefix}`) ? 'selected' : ''} ${game.isFinal ? 'disabled' : ''}`}
+                              onClick={() => !game.isFinal && isValidOdds(total) && onSelectPick(game.id, 'total', `over_${prefix}`)}
+                              disabled={game.isFinal || !isValidOdds(total)}
+                              aria-label={`Over ${formatOdds(total)} ${prefix}`}
+                            >
+                              <span className="btn-team">Over</span>
+                              <span className="btn-odds">{formatOdds(total)}</span>
+                            </button>
+                            <button
+                              className={`bet-btn ${isSelected(game.id, 'total', `under_${prefix}`) ? 'selected' : ''} ${game.isFinal ? 'disabled' : ''}`}
+                              onClick={() => !game.isFinal && isValidOdds(total) && onSelectPick(game.id, 'total', `under_${prefix}`)}
+                              disabled={game.isFinal || !isValidOdds(total)}
+                              aria-label={`Under ${formatOdds(total)} ${prefix}`}
+                            >
+                              <span className="btn-team">Under</span>
+                              <span className="btn-odds">{formatOdds(total)}</span>
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()
               )}
             </div>
           );
