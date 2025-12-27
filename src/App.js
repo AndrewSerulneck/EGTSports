@@ -469,18 +469,40 @@ function AdminPanel({ user, games, setGames, isSyncing, setIsSyncing, recentlyUp
   const saveSpreadToFirebase = async () => {
     try {
       setIsSyncing(true);
+      
+      // Filter out games with invalid sport names
+      const validGames = games.filter(game => game.sport && typeof game.sport === 'string' && game.sport.trim() !== '');
+      
+      if (validGames.length === 0) {
+        alert('⚠️ No valid games to save');
+        setIsSyncing(false);
+        return;
+      }
+      
       const spreadsData = {};
-      games.forEach(game => {
+      validGames.forEach(game => {
         const gameData = {
-          awaySpread: game.awaySpread || '',
-          homeSpread: game.homeSpread || '',
-          awayMoneyline: game.awayMoneyline || '',
-          homeMoneyline: game.homeMoneyline || '',
-          total: game.total || '',
           timestamp: new Date().toISOString()
         };
         
-        // Add quarter/halftime fields if present
+        // Only add fields if they have valid values (not empty strings or null)
+        if (game.awaySpread && game.awaySpread !== '' && game.awaySpread !== '-') {
+          gameData.awaySpread = game.awaySpread;
+        }
+        if (game.homeSpread && game.homeSpread !== '' && game.homeSpread !== '-') {
+          gameData.homeSpread = game.homeSpread;
+        }
+        if (game.awayMoneyline && game.awayMoneyline !== '' && game.awayMoneyline !== '-') {
+          gameData.awayMoneyline = game.awayMoneyline;
+        }
+        if (game.homeMoneyline && game.homeMoneyline !== '' && game.homeMoneyline !== '-') {
+          gameData.homeMoneyline = game.homeMoneyline;
+        }
+        if (game.total && game.total !== '' && game.total !== '-') {
+          gameData.total = game.total;
+        }
+        
+        // Add quarter/halftime fields if present and valid
         const quarterHalfKeys = [
           'Q1_homeMoneyline', 'Q1_awayMoneyline', 'Q1_homeSpread', 'Q1_awaySpread', 'Q1_total',
           'Q2_homeMoneyline', 'Q2_awayMoneyline', 'Q2_homeSpread', 'Q2_awaySpread', 'Q2_total',
@@ -491,7 +513,7 @@ function AdminPanel({ user, games, setGames, isSyncing, setIsSyncing, recentlyUp
         ];
         
         quarterHalfKeys.forEach(key => {
-          if (game[key] !== undefined && game[key] !== null && game[key] !== '') {
+          if (game[key] && game[key] !== '' && game[key] !== '-') {
             gameData[key] = game[key];
           }
         });
@@ -499,15 +521,20 @@ function AdminPanel({ user, games, setGames, isSyncing, setIsSyncing, recentlyUp
         spreadsData[game.espnId] = gameData;
       });
       
+      console.log(`💾 Saving ${Object.keys(spreadsData).length} games to Firebase path: spreads/${sport}`);
+      
       // CRITICAL FIX: Use update() instead of set() to preserve existing data
       // This allows full game and quarter/half odds to coexist in same Firebase entry
       for (const [espnId, gameData] of Object.entries(spreadsData)) {
-        await update(ref(database, `spreads/${sport}/${espnId}`), gameData);
+        const path = `spreads/${sport}/${espnId}`;
+        console.log(`  → Updating ${path}`, gameData);
+        await update(ref(database, path), gameData);
       }
       
       alert('✅ Spreads saved! All devices will update in real-time.');
       setIsSyncing(false);
     } catch (error) {
+      console.error('❌ Error saving spreads:', error);
       alert('❌ Error saving spreads:\n' + error.message);
       setIsSyncing(false);
     }
@@ -2295,8 +2322,13 @@ function App() {
   const teamsMatchHelper = useCallback((team1, team2) => {
     if (!team1 || !team2) return { match: false, method: null };
     
+    // Normalize both team names for comparison
+    const normalize = (str) => str.toLowerCase().trim();
+    const t1 = normalize(team1);
+    const t2 = normalize(team2);
+    
     // Exact match (case-insensitive)
-    if (team1.toLowerCase() === team2.toLowerCase()) {
+    if (t1 === t2) {
       return { match: true, method: 'Exact' };
     }
     
@@ -2306,16 +2338,33 @@ function App() {
     const city1 = extractCityFromName(team1);
     const city2 = extractCityFromName(team2);
     
+    // AGGRESSIVE KEYWORD MATCHING: If any significant word appears in both, it's likely a match
+    // Split into words, filter out common words, check for overlaps
+    const words1 = t1.split(/\s+/).filter(w => w.length > 2 && !['the', 'of', 'and'].includes(w));
+    const words2 = t2.split(/\s+/).filter(w => w.length > 2 && !['the', 'of', 'and'].includes(w));
+    
+    // Check if any significant word from team1 exists in team2
+    for (const word of words1) {
+      if (t2.includes(word) && word.length >= 4) {
+        return { match: true, method: 'Keyword' };
+      }
+    }
+    
+    // Check if any significant word from team2 exists in team1
+    for (const word of words2) {
+      if (t1.includes(word) && word.length >= 4) {
+        return { match: true, method: 'Keyword' };
+      }
+    }
+    
     // Special cases: "Sox" (Red Sox, White Sox) - need city name too
     const specialCaseMascots = ['sox', 'knicks', 'bulls', 'heat', 'magic', 'jazz', 'thunder'];
     
     if (specialCaseMascots.includes(mascot1) || specialCaseMascots.includes(mascot2)) {
       // For special cases, check if both mascots match AND city is contained
       if (mascot1 === mascot2) {
-        const clean1 = team1.toLowerCase();
-        const clean2 = team2.toLowerCase();
         // Check if either contains the other (handles "LA" vs "Los Angeles")
-        if (clean1.includes(clean2) || clean2.includes(clean1)) {
+        if (t1.includes(t2) || t2.includes(t1)) {
           return { match: true, method: 'Mascot' };
         }
       }
@@ -2323,48 +2372,41 @@ function App() {
     }
     
     // Standard mascot matching with .includes() for more flexibility
-    // This handles cases like "St. Mary's" vs "Saint Mary's Gaels"
     if (mascot1 && mascot2 && mascot1.length > 2 && mascot2.length > 2) {
       // First try exact match
       if (mascot1 === mascot2) {
         return { match: true, method: 'Mascot' };
       }
       // Then try if one mascot is contained in the full name of the other team
-      const clean1 = team1.toLowerCase();
-      const clean2 = team2.toLowerCase();
-      if (clean1.includes(mascot2) || clean2.includes(mascot1)) {
+      if (t1.includes(mascot2) || t2.includes(mascot1)) {
         return { match: true, method: 'Mascot' };
       }
     }
     
     // ENHANCED CITY MATCH: Check if first word of either team name exists within the other
-    // This handles: "Evansville" in "Evansville Purple Aces" and vice versa
     if (city1.length >= 3 && city2.length >= 3) {
-      const clean1 = team1.toLowerCase();
-      const clean2 = team2.toLowerCase();
-      
       // Check if city1 is contained in team2 or city2 is contained in team1
-      if (clean1.includes(city2) || clean2.includes(city1)) {
+      if (t1.includes(city2) || t2.includes(city1)) {
         return { match: true, method: 'City' };
       }
     }
     
     // ENHANCED: Partial name matching for multi-word cities
-    const clean1 = team1.toLowerCase().replace(/[^a-z0-9\s]/g, '');
-    const clean2 = team2.toLowerCase().replace(/[^a-z0-9\s]/g, '');
+    const clean1 = t1.replace(/[^a-z0-9\s]/g, '');
+    const clean2 = t2.replace(/[^a-z0-9\s]/g, '');
     
     if (clean1.length >= 5 && clean2.length >= 5) {
       if (clean1.includes(clean2) || clean2.includes(clean1)) {
-        return { match: true, method: 'City' };
+        return { match: true, method: 'Partial' };
       }
     }
     
     // Last resort: Check if cleaned names are substrings (no spaces)
-    const cleanNoSpace1 = team1.toLowerCase().replace(/[^a-z0-9]/g, '');
-    const cleanNoSpace2 = team2.toLowerCase().replace(/[^a-z0-9]/g, '');
+    const cleanNoSpace1 = t1.replace(/[^a-z0-9]/g, '');
+    const cleanNoSpace2 = t2.replace(/[^a-z0-9]/g, '');
     
     if (cleanNoSpace1.includes(cleanNoSpace2) || cleanNoSpace2.includes(cleanNoSpace1)) {
-      return { match: true, method: 'City' };
+      return { match: true, method: 'Substring' };
     }
     
     return { match: false, method: null };
@@ -2828,11 +2870,13 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
             homeMoneyline = homeOutcome.price > 0 ? `+${homeOutcome.price}` : String(homeOutcome.price);
             const matchType = homeOutcome.name === homeTeam ? 'exact' : 'fuzzy';
             console.log(`    ✓ ${homeTeam} matched with "${homeOutcome.name}" (${matchType}): ${homeMoneyline}`);
+            console.log(`    🔍 API Raw Price for ${game.id} (home): ${homeOutcome.price}`);
             if (matchType === 'fuzzy') {
               console.log(`    ✅ Successfully matched API name '${homeOutcome.name}' to Local name '${homeTeam}'`);
             }
           } else {
             console.warn(`    ⚠️ ${homeTeam} outcome missing valid 'price' field: ${homeOutcome.price}`);
+            console.warn(`    ⚠️ Full outcome object:`, homeOutcome);
           }
         } else {
           console.error(`    🔍 REASON 3 (Matching Failure): [${gameName}]: h2h exists, but couldn't match home team outcome.`);
@@ -2845,11 +2889,13 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
             awayMoneyline = awayOutcome.price > 0 ? `+${awayOutcome.price}` : String(awayOutcome.price);
             const matchType = awayOutcome.name === awayTeam ? 'exact' : 'fuzzy';
             console.log(`    ✓ ${awayTeam} matched with "${awayOutcome.name}" (${matchType}): ${awayMoneyline}`);
+            console.log(`    🔍 API Raw Price for ${game.id} (away): ${awayOutcome.price}`);
             if (matchType === 'fuzzy') {
               console.log(`    ✅ Successfully matched API name '${awayOutcome.name}' to Local name '${awayTeam}'`);
             }
           } else {
             console.warn(`    ⚠️ ${awayTeam} outcome missing valid 'price' field: ${awayOutcome.price}`);
+            console.warn(`    ⚠️ Full outcome object:`, awayOutcome);
           }
         } else {
           console.error(`    🔍 REASON 3 (Matching Failure): [${gameName}]: h2h exists, but couldn't match away team outcome.`);
@@ -3492,16 +3538,30 @@ const fetchDetailedOdds = async (sport, eventId) => {
 
   const setupFirebaseListener = useCallback((sport) => {
     try {
-      const spreadsRef = ref(database, `spreads/${sport}`);
+      const firebasePath = `spreads/${sport}`;
+      console.log(`🔥 Firebase Listener Path: ${firebasePath}`);
+      
+      const spreadsRef = ref(database, firebasePath);
       onValue(spreadsRef, (snapshot) => {
         if (snapshot.exists()) {
           const firebaseData = snapshot.val();
+          console.log(`📥 Firebase data received for ${sport}:`, Object.keys(firebaseData).length, 'games');
+          
           setGames(prevGames => {
             let updated = false;
             const newGames = prevGames.map(game => {
               const espnId = game.espnId;
               if (firebaseData[espnId]) {
                 const fbGame = firebaseData[espnId];
+                
+                // Log what we're receiving from Firebase
+                console.log(`  🔍 Syncing game ${espnId}:`, {
+                  awayML: fbGame.awayMoneyline,
+                  homeML: fbGame.homeMoneyline,
+                  Q1_homeML: fbGame.Q1_homeMoneyline,
+                  H1_homeML: fbGame.H1_homeMoneyline
+                });
+                
                 const awaySpreadChanged = game.awaySpread !== fbGame.awaySpread;
                 const homeSpreadChanged = game.homeSpread !== fbGame.homeSpread;
                 const awayMoneylineChanged = game.awayMoneyline !== fbGame.awayMoneyline;
@@ -3511,6 +3571,7 @@ const fetchDetailedOdds = async (sport, eventId) => {
 
                 if (changed) {
                   updated = true;
+                  console.log(`  ✅ Game ${espnId} updated from Firebase`);
                   setRecentlyUpdated(prev => ({
                     ...prev,
                     [game.id]: true
@@ -3524,13 +3585,14 @@ const fetchDetailedOdds = async (sport, eventId) => {
                 }
                 
                 // Build updated game object with all fields from Firebase
+                // CRITICAL: Use spread operator to trigger React re-render
                 const updatedGame = {
                   ...game,
-                  awaySpread: fbGame.awaySpread || '',
-                  homeSpread: fbGame.homeSpread || '',
-                  awayMoneyline: fbGame.awayMoneyline || '',
-                  homeMoneyline: fbGame.homeMoneyline || '',
-                  total: fbGame.total || ''
+                  awaySpread: fbGame.awaySpread || game.awaySpread || '',
+                  homeSpread: fbGame.homeSpread || game.homeSpread || '',
+                  awayMoneyline: fbGame.awayMoneyline || game.awayMoneyline || '',
+                  homeMoneyline: fbGame.homeMoneyline || game.homeMoneyline || '',
+                  total: fbGame.total || game.total || ''
                 };
                 
                 // Add quarter/halftime fields if present in Firebase
@@ -3553,16 +3615,21 @@ const fetchDetailedOdds = async (sport, eventId) => {
               }
               return game;
             });
+            
             if (updated) {
               setIsSyncing(false);
+              console.log(`  ✅ State updated with new Firebase data`);
             }
             
+            // Update cache
             if (gameCache[sport]) {
               gameCache[sport].data = newGames;
             }
             
             return newGames;
           });
+        } else {
+          console.log(`ℹ️ No Firebase data found at path: ${firebasePath}`);
         }
       });
     } catch (error) {
@@ -3827,6 +3894,72 @@ const fetchDetailedOdds = async (sport, eventId) => {
     setLastRefreshTime(Date.now());
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [parseESPNOdds, countMissingOdds, matchOddsToGame]);
+
+  // AUTO-MIGRATION: One-time check for orphaned data at /spreads root
+  // Move any numeric IDs (orphaned games) into proper sport subfolders
+  useEffect(() => {
+    const migrateOrphanedData = async () => {
+      try {
+        console.log('🔍 Checking for orphaned data in Firebase /spreads root...');
+        
+        const spreadsRootRef = ref(database, 'spreads');
+        const snapshot = await get(spreadsRootRef);
+        
+        if (!snapshot.exists()) {
+          console.log('✅ No data at /spreads root');
+          return;
+        }
+        
+        const rootData = snapshot.val();
+        const orphanedIds = [];
+        
+        // Find numeric IDs at root level (these are orphaned games)
+        Object.keys(rootData).forEach(key => {
+          // Check if key is a numeric ID (not a sport name like "NFL", "NBA")
+          if (/^\d+$/.test(key)) {
+            orphanedIds.push(key);
+          }
+        });
+        
+        if (orphanedIds.length === 0) {
+          console.log('✅ No orphaned data found at /spreads root');
+          return;
+        }
+        
+        console.log(`⚠️ Found ${orphanedIds.length} orphaned game IDs at root:`, orphanedIds);
+        
+        // Migrate orphaned data to /spreads/NFL/ (default assumption)
+        // In a real app, you might want to detect the sport from the game data
+        const targetSport = 'NFL';
+        
+        for (const espnId of orphanedIds) {
+          try {
+            const gameData = rootData[espnId];
+            
+            // Move to proper location
+            const newPath = `spreads/${targetSport}/${espnId}`;
+            console.log(`  → Migrating ${espnId} to ${newPath}`);
+            
+            await update(ref(database, newPath), gameData);
+            
+            // Delete old root entry
+            await set(ref(database, `spreads/${espnId}`), null);
+            
+            console.log(`  ✅ Migrated ${espnId}`);
+          } catch (error) {
+            console.error(`  ❌ Failed to migrate ${espnId}:`, error);
+          }
+        }
+        
+        console.log(`✅ Migration complete: ${orphanedIds.length} games moved to ${targetSport}`);
+      } catch (error) {
+        console.error('❌ Error during Firebase migration:', error);
+      }
+    };
+    
+    // Run migration once on component mount
+    migrateOrphanedData();
+  }, []); // Empty dependency array - run once
 
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, async (user) => {
