@@ -2101,14 +2101,28 @@ function App() {
   const extractMascotFromName = useCallback((teamName) => {
     if (!teamName) return '';
     
-    const cleaned = teamName
-      .replace(/[^a-zA-Z0-9\s]/g, '') // Remove special chars
+    // Remove special chars and normalize spaces
+    let cleaned = teamName
+      .replace(/[^a-zA-Z0-9\s]/g, '') // Remove special chars like apostrophes
       .replace(/\s+/g, ' ')            // Normalize spaces
       .trim()
       .toLowerCase();
     
+    // Remove common college suffixes that aren't part of the mascot
+    // This handles "St. Mary's Gaels" -> "marys gaels" -> "gaels"
+    const suffixesToRemove = ['st', 'saint', 'state', 'university', 'college', 'tech', 'a&m'];
     const words = cleaned.split(' ');
-    const mascot = words[words.length - 1];
+    
+    // Filter out suffix words, but keep at least the last word (mascot)
+    const filteredWords = words.filter((word, index) => {
+      // Always keep the last word (the mascot)
+      if (index === words.length - 1) return true;
+      // Remove if it's a suffix word
+      return !suffixesToRemove.includes(word);
+    });
+    
+    // Return the last word from the filtered list (the mascot)
+    const mascot = filteredWords[filteredWords.length - 1];
     
     return mascot;
   }, []);
@@ -2160,9 +2174,19 @@ function App() {
       return { match: false, method: null };
     }
     
-    // Standard mascot matching
-    if (mascot1 === mascot2 && mascot1.length > 0) {
-      return { match: true, method: 'Mascot' };
+    // Standard mascot matching with .includes() for more flexibility
+    // This handles cases like "St. Mary's" vs "Saint Mary's Gaels"
+    if (mascot1 && mascot2 && mascot1.length > 2 && mascot2.length > 2) {
+      // First try exact match
+      if (mascot1 === mascot2) {
+        return { match: true, method: 'Mascot' };
+      }
+      // Then try if one mascot is contained in the full name of the other team
+      const clean1 = team1.toLowerCase();
+      const clean2 = team2.toLowerCase();
+      if (clean1.includes(mascot2) || clean2.includes(mascot1)) {
+        return { match: true, method: 'Mascot' };
+      }
     }
     
     // ENHANCED CITY MATCH: Check if first word of either team name exists within the other

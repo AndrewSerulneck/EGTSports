@@ -112,8 +112,11 @@
 
 .team-name {
   font-weight: 600;
-  font-size: 14px;
+  font-size: clamp(0.9rem, 2vw, 1.1rem);
   color: #333;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .vs-divider {
@@ -270,7 +273,8 @@
   }
   
   .team-name {
-    font-size: 15px;
+    font-size: clamp(0.9rem, 2vw, 1.1rem);
+    white-space: nowrap;
   }
   
   .bet-btn {
@@ -295,7 +299,8 @@
   }
   
   .team-name {
-    font-size: 16px;
+    font-size: clamp(0.9rem, 2vw, 1.1rem);
+    white-space: nowrap;
   }
   
   .bet-buttons-row {
