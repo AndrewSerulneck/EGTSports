@@ -6,7 +6,7 @@ This document explains how moneylines are extracted from The Odds API's `h2h` (h
 ## Data Flow
 
 ### 1. API Fetch (The Odds API)
-**Location**: `src/App.js` lines 2285-2500
+**Location**: `src/App.js` function `fetchOddsFromTheOddsAPI` starting at line 2285
 
 The application fetches odds from The Odds API with the `h2h` market explicitly requested:
 
@@ -231,7 +231,7 @@ Additional combat-specific markets are also extracted:
 If no h2h market is found, moneylines default to `'-'`:
 
 ```javascript
-// Line 2582
+// Lines 2581-2582
 let homeMoneyline = '-';
 let awayMoneyline = '-';
 ```
@@ -239,7 +239,7 @@ let awayMoneyline = '-';
 When saved to Firebase with no data, they become empty strings:
 
 ```javascript
-// Line 445-446
+// Lines 445-446 in saveSpreadToFirebase
 awayMoneyline: game.awayMoneyline || '',
 homeMoneyline: game.homeMoneyline || '',
 ```
