@@ -79,25 +79,27 @@ function MobileSportsMenu({ currentSport, onSelectSport, allSportsGames }) {
     const showPropBets = sortedSports.some(sport => ['NFL', 'NBA', 'College Football', 'College Basketball', 'NHL'].includes(sport));
 
     return (
-        <div className="mobile-sports-menu">
-            {sortedSports.map(sport => (
-                <button
-                    key={sport}
-                    className={`mobile-menu-button ${currentSport === sport ? 'active' : ''}`}
-                    onClick={() => onSelectSport(sport)}
-                >
-                    {getSportDisplayName(sport)}
-                </button>
-            ))}
-            {showPropBets && (
-                <button
-                    key="prop-bets"
-                    className={`mobile-menu-button ${currentSport === 'Prop Bets' ? 'active' : ''}`}
-                    onClick={() => onSelectSport('Prop Bets')}
-                >
-                    Prop Bets
-                </button>
-            )}
+        <div className="mobile-sports-menu-wrapper">
+            <div className="mobile-sports-menu">
+                {sortedSports.map(sport => (
+                    <button
+                        key={sport}
+                        className={`mobile-menu-button ${currentSport === sport ? 'active' : ''}`}
+                        onClick={() => onSelectSport(sport)}
+                    >
+                        {getSportDisplayName(sport)}
+                    </button>
+                ))}
+                {showPropBets && (
+                    <button
+                        key="prop-bets"
+                        className={`mobile-menu-button ${currentSport === 'Prop Bets' ? 'active' : ''}`}
+                        onClick={() => onSelectSport('Prop Bets')}
+                    >
+                        Prop Bets
+                    </button>
+                )}
+            </div>
         </div>
     );
 }
@@ -144,7 +146,7 @@ const ESPN_API_ENDPOINTS = {
   'NFL': 'https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard',
   'NBA': 'https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard',
   'College Football': 'https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard',
-  'College Basketball': 'https://site.api.espn.com/apis/site/v2/sports/basketball/mens-college-basketball/scoreboard',
+  'College Basketball': 'https://site.api.espn.com/apis/site/v2/sports/basketball/mens-college-basketball/scoreboard?limit=400', // All Division 1 games
   'Major League Baseball': 'https://site.api.espn.com/apis/site/v2/sports/baseball/mlb/scoreboard',
   'NHL': 'https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard',
   'World Cup': 'https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/scoreboard',
@@ -2027,6 +2029,107 @@ function App() {
     return hasSpread || hasMoneyline;
   };
   
+  // Helper function to extract mascot from team name (last word)
+  const extractMascotFromName = useCallback((teamName) => {
+    if (!teamName) return '';
+    
+    const cleaned = teamName
+      .replace(/[^a-zA-Z0-9\s]/g, '') // Remove special chars
+      .replace(/\s+/g, ' ')            // Normalize spaces
+      .trim()
+      .toLowerCase();
+    
+    const words = cleaned.split(' ');
+    const mascot = words[words.length - 1];
+    
+    return mascot;
+  }, []);
+  
+  // Helper function to extract city (first word) from team name
+  const extractCityFromName = useCallback((teamName) => {
+    if (!teamName) return '';
+    
+    const cleaned = teamName
+      .replace(/[^a-zA-Z0-9\s]/g, '') // Remove special chars
+      .replace(/\s+/g, ' ')            // Normalize spaces
+      .trim()
+      .toLowerCase();
+    
+    const words = cleaned.split(' ');
+    const city = words[0];
+    
+    return city;
+  }, []);
+  
+  // Helper function for robust team name matching (The "Mascot Rule") with method tracking
+  const teamsMatchHelper = useCallback((team1, team2) => {
+    if (!team1 || !team2) return { match: false, method: null };
+    
+    // Exact match (case-insensitive)
+    if (team1.toLowerCase() === team2.toLowerCase()) {
+      return { match: true, method: 'Exact' };
+    }
+    
+    // Extract mascots (last word of team name) and cities (first word)
+    const mascot1 = extractMascotFromName(team1);
+    const mascot2 = extractMascotFromName(team2);
+    const city1 = extractCityFromName(team1);
+    const city2 = extractCityFromName(team2);
+    
+    // Special cases: "Sox" (Red Sox, White Sox) - need city name too
+    const specialCaseMascots = ['sox', 'knicks', 'bulls', 'heat', 'magic', 'jazz', 'thunder'];
+    
+    if (specialCaseMascots.includes(mascot1) || specialCaseMascots.includes(mascot2)) {
+      // For special cases, check if both mascots match AND city is contained
+      if (mascot1 === mascot2) {
+        const clean1 = team1.toLowerCase();
+        const clean2 = team2.toLowerCase();
+        // Check if either contains the other (handles "LA" vs "Los Angeles")
+        if (clean1.includes(clean2) || clean2.includes(clean1)) {
+          return { match: true, method: 'Mascot' };
+        }
+      }
+      return { match: false, method: null };
+    }
+    
+    // Standard mascot matching
+    if (mascot1 === mascot2 && mascot1.length > 0) {
+      return { match: true, method: 'Mascot' };
+    }
+    
+    // ENHANCED CITY MATCH: Check if first word of either team name exists within the other
+    // This handles: "Evansville" in "Evansville Purple Aces" and vice versa
+    if (city1.length >= 3 && city2.length >= 3) {
+      const clean1 = team1.toLowerCase();
+      const clean2 = team2.toLowerCase();
+      
+      // Check if city1 is contained in team2 or city2 is contained in team1
+      if (clean1.includes(city2) || clean2.includes(city1)) {
+        return { match: true, method: 'City' };
+      }
+    }
+    
+    // ENHANCED: Partial name matching for multi-word cities
+    const clean1 = team1.toLowerCase().replace(/[^a-z0-9\s]/g, '');
+    const clean2 = team2.toLowerCase().replace(/[^a-z0-9\s]/g, '');
+    
+    if (clean1.length >= 5 && clean2.length >= 5) {
+      if (clean1.includes(clean2) || clean2.includes(clean1)) {
+        return { match: true, method: 'City' };
+      }
+    }
+    
+    // Last resort: Check if cleaned names are substrings (no spaces)
+    const cleanNoSpace1 = team1.toLowerCase().replace(/[^a-z0-9]/g, '');
+    const cleanNoSpace2 = team2.toLowerCase().replace(/[^a-z0-9]/g, '');
+    
+    if (cleanNoSpace1.includes(cleanNoSpace2) || cleanNoSpace2.includes(cleanNoSpace1)) {
+      return { match: true, method: 'City' };
+    }
+    
+    return { match: false, method: null };
+  }, [extractMascotFromName, extractCityFromName]);
+  
 const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
   try {
     // CRITICAL: Check hard stop first - prevent any API calls if quota exhausted
@@ -2183,9 +2286,10 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
     // DEBUG: Log how many games returned
     console.log(`📈 Received ${data.length} games for ${sport}`);
     
-    // If no games returned for specific sport, try 'upcoming' fallback
-    if (data.length === 0) {
-      console.warn(`⚠️ No games found for ${sport}. Trying 'upcoming' fallback...`);
+    // ENHANCED: If fewer than expected games returned for specific sport, try 'upcoming' fallback
+    // This helps capture games that might be missing from the sport-specific endpoint
+    if (data.length === 0 || (data.length < 5 && !isCombat)) {
+      console.warn(`⚠️ Limited/no games found for ${sport} (got ${data.length}). Trying 'upcoming' fallback for additional games...`);
       
       const fallbackUrl = `${ODDS_API_BASE_URL}/sports/upcoming/odds/?apiKey=${ODDS_API_KEY}&regions=us&markets=${markets}&oddsFormat=american`;
       const fallbackResponse = await fetch(fallbackUrl);
@@ -2202,13 +2306,28 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
           setApiQuotaInfo(prev => ({ ...prev, remaining }));
         }
         
-        // Cache fallback data
+        // MERGE: Combine specific sport data with upcoming data, removing duplicates
+        const mergedData = [...data];
+        const existingIds = new Set(data.map(g => g.id));
+        
+        // Filter upcoming games by sport and add if not already present
+        const sportKey = ODDS_API_SPORT_KEYS[sport];
+        fallbackData.forEach(game => {
+          // Check if this game belongs to our sport
+          if (game.sport_key === sportKey && !existingIds.has(game.id)) {
+            mergedData.push(game);
+          }
+        });
+        
+        console.log(`📊 Merged ${mergedData.length - data.length} additional games from 'upcoming'`);
+        
+        // Cache merged data
         oddsAPICache[sport] = {
-          data: fallbackData,
+          data: mergedData,
           timestamp: Date.now()
         };
         
-        return fallbackData;
+        return mergedData;
       }
     }
     
@@ -2256,9 +2375,19 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
         return;
       }
       
-      // 2. Select first available bookmaker (e.g., DraftKings, FanDuel)
-      const bookmaker = game.bookmakers[0];
-      console.log(`  📊 Using bookmaker: ${bookmaker.title}`);
+      // 2. Select bookmaker with h2h market, or fall back to first available
+      // IMPROVED: Try to find a bookmaker that has the h2h market
+      let bookmaker = game.bookmakers.find(bm => 
+        bm.markets && bm.markets.some(m => m.key === 'h2h')
+      );
+      
+      // Fallback to first bookmaker if none have h2h
+      if (!bookmaker) {
+        bookmaker = game.bookmakers[0];
+        console.log(`  📊 No bookmaker with h2h market found, using: ${bookmaker.title}`);
+      } else {
+        console.log(`  📊 Using bookmaker with h2h market: ${bookmaker.title}`);
+      }
       
       // 3. Get markets array from bookmaker
       if (!bookmaker.markets || bookmaker.markets.length === 0) {
@@ -2345,37 +2474,66 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
         console.log(`  ❌ No totals market found`);
       }
       
-      // 7. Extract moneylines (h2h) from outcomes array
+      // 7. Extract moneylines (h2h) from outcomes array with DEEP DIAGNOSTICS
       // CRITICAL: Soccer has 3 outcomes (Home, Away, Draw), Combat/Traditional have 2
+      const gameName = `${awayTeam} @ ${homeTeam}`;
+      
       if (h2hMarket?.outcomes && h2hMarket.outcomes.length >= 2) {
         console.log(`  💰 Moneyline (h2h) market found with ${h2hMarket.outcomes.length} outcomes`);
         console.log(`    Raw outcomes:`, h2hMarket.outcomes.map(o => ({ name: o.name, price: o.price })));
+        console.log(`    🔍 Attempting to match against:`);
+        console.log(`       Home team from API: "${homeTeam}"`);
+        console.log(`       Away team from API: "${awayTeam}"`);
         
-        // MANDATORY: Match by name comparison, not by array index
-        const homeOutcome = h2hMarket.outcomes.find(o => o.name === homeTeam);
-        const awayOutcome = h2hMarket.outcomes.find(o => o.name === awayTeam);
+        // IMPROVED: Use fuzzy matching with teamsMatchHelper for more robust name matching
+        // This helps when API returns "LA Lakers" vs ESPN "Los Angeles Lakers"
+        const homeOutcome = h2hMarket.outcomes.find(o => {
+          // Try exact match first
+          if (o.name === homeTeam) return true;
+          // Fall back to mascot-based fuzzy matching
+          return teamsMatchHelper(o.name, homeTeam);
+        });
+        
+        const awayOutcome = h2hMarket.outcomes.find(o => {
+          // Try exact match first
+          if (o.name === awayTeam) return true;
+          // Fall back to mascot-based fuzzy matching
+          return teamsMatchHelper(o.name, awayTeam);
+        });
         
         if (homeOutcome) {
           // Validate price exists and is a number
           if (homeOutcome.price !== undefined && homeOutcome.price !== null && !isNaN(homeOutcome.price)) {
             homeMoneyline = homeOutcome.price > 0 ? `+${homeOutcome.price}` : String(homeOutcome.price);
-            console.log(`    ✓ ${homeTeam}: ${homeMoneyline}`);
+            const matchType = homeOutcome.name === homeTeam ? 'exact' : 'fuzzy';
+            console.log(`    ✓ ${homeTeam} matched with "${homeOutcome.name}" (${matchType}): ${homeMoneyline}`);
+            if (matchType === 'fuzzy') {
+              console.log(`    ✅ Successfully matched API name '${homeOutcome.name}' to Local name '${homeTeam}'`);
+            }
           } else {
             console.warn(`    ⚠️ ${homeTeam} outcome missing valid 'price' field: ${homeOutcome.price}`);
           }
         } else {
-          console.warn(`    ⚠️ No h2h outcome found for home team: ${homeTeam}`);
+          console.error(`    🔍 REASON 3 (Matching Failure): [${gameName}]: h2h exists, but couldn't match home team outcome.`);
+          console.error(`       API says outcomes: [${h2hMarket.outcomes.map(o => o.name).join(', ')}]`);
+          console.error(`       Local says Home: "${homeTeam}"`);
         }
         
         if (awayOutcome) {
           if (awayOutcome.price !== undefined && awayOutcome.price !== null && !isNaN(awayOutcome.price)) {
             awayMoneyline = awayOutcome.price > 0 ? `+${awayOutcome.price}` : String(awayOutcome.price);
-            console.log(`    ✓ ${awayTeam}: ${awayMoneyline}`);
+            const matchType = awayOutcome.name === awayTeam ? 'exact' : 'fuzzy';
+            console.log(`    ✓ ${awayTeam} matched with "${awayOutcome.name}" (${matchType}): ${awayMoneyline}`);
+            if (matchType === 'fuzzy') {
+              console.log(`    ✅ Successfully matched API name '${awayOutcome.name}' to Local name '${awayTeam}'`);
+            }
           } else {
             console.warn(`    ⚠️ ${awayTeam} outcome missing valid 'price' field: ${awayOutcome.price}`);
           }
         } else {
-          console.warn(`    ⚠️ No h2h outcome found for away team: ${awayTeam}`);
+          console.error(`    🔍 REASON 3 (Matching Failure): [${gameName}]: h2h exists, but couldn't match away team outcome.`);
+          console.error(`       API says outcomes: [${h2hMarket.outcomes.map(o => o.name).join(', ')}]`);
+          console.error(`       Local says Away: "${awayTeam}"`);
         }
         
         // 8. SOCCER ONLY: Extract Draw outcome for 3-way market
@@ -2401,7 +2559,21 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
           }
         }
       } else {
-        console.log(`  ❌ No moneyline (h2h) market found`);
+        // REASON 1: No h2h market found at all
+        const availableMarkets = bookmaker.markets.map(m => m.key);
+        console.error(`  ❌ REASON 1 (No Market): [${gameName}]: No 'h2h' key found in bookmaker "${bookmaker.title}".`);
+        console.error(`     Available markets: [${availableMarkets.join(', ')}]`);
+        
+        // Check if other bookmakers have h2h market (REASON 2)
+        const bookmakersWith_h2h = game.bookmakers.filter(bm => 
+          bm.markets && bm.markets.some(m => m.key === 'h2h')
+        );
+        
+        if (bookmakersWith_h2h.length > 0 && !bookmakersWith_h2h.includes(bookmaker)) {
+          console.warn(`  ⚠️ REASON 2 (Bookmaker Gap): [${gameName}]: Found 'h2h' in ${bookmakersWith_h2h.length} other bookmaker(s), but not in the one checked first.`);
+          console.warn(`     Bookmakers with h2h: [${bookmakersWith_h2h.map(bm => bm.title).join(', ')}]`);
+          console.warn(`     Note: Smart selection already prioritizes h2h bookmakers, so this shouldn't happen often.`);
+        }
       }
       
       // 9a. COMBAT SPORTS ONLY: Extract method of victory (h2h_method)
@@ -2526,62 +2698,8 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
 };
 
   // Helper function to extract mascot from team name (last word)
-  const extractMascot = useCallback((teamName) => {
-    if (!teamName) return '';
-    
-    // Remove special characters and extra spaces
-    const cleaned = teamName
-      .replace(/[^a-zA-Z0-9\s]/g, '') // Remove special chars
-      .replace(/\s+/g, ' ')            // Normalize spaces
-      .trim()
-      .toLowerCase();
-    
-    // Split into words and get last word (mascot)
-    const words = cleaned.split(' ');
-    const mascot = words[words.length - 1];
-    
-    return mascot;
-  }, []);
 
   // Helper function for robust team name matching (The "Mascot Rule")
-  const teamsMatch = useCallback((team1, team2) => {
-    if (!team1 || !team2) return false;
-    
-    // Exact match (case-insensitive)
-    if (team1.toLowerCase() === team2.toLowerCase()) {
-      return true;
-    }
-    
-    // Extract mascots (last word of team name)
-    const mascot1 = extractMascot(team1);
-    const mascot2 = extractMascot(team2);
-    
-    // Special cases: "Sox" (Red Sox, White Sox) - need city name too
-    const specialCaseMascots = ['sox', 'knicks', 'bulls', 'heat', 'magic', 'jazz', 'thunder'];
-    
-    if (specialCaseMascots.includes(mascot1) || specialCaseMascots.includes(mascot2)) {
-      // For special cases, check if both mascots match AND city is contained
-      if (mascot1 === mascot2) {
-        const clean1 = team1.toLowerCase();
-        const clean2 = team2.toLowerCase();
-        // Check if either contains the other (handles "LA" vs "Los Angeles")
-        return clean1.includes(clean2) || clean2.includes(clean1);
-      }
-      return false;
-    }
-    
-    // Standard mascot matching
-    if (mascot1 === mascot2 && mascot1.length > 0) {
-      return true;
-    }
-    
-    // Fallback: Check if one name contains the other (handles "Lakers" vs "Los Angeles Lakers")
-    const clean1 = team1.toLowerCase().replace(/[^a-z0-9]/g, '');
-    const clean2 = team2.toLowerCase().replace(/[^a-z0-9]/g, '');
-    
-    return clean1.includes(clean2) || clean2.includes(clean1);
-  }, [extractMascot]);
-
   const matchOddsToGame = useCallback((game, oddsMap) => {
     // Default fallback with dash for missing odds
     const defaultOdds = { 
@@ -2594,51 +2712,40 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
     };
     
     if (!oddsMap) {
-      console.warn(`⚠️ matchOddsToGame: No oddsMap provided for ${game.awayTeam} @ ${game.homeTeam}`);
       return defaultOdds;
     }
-    
-    // Debug logging
-    console.log(`🔍 Attempting to match game: ${game.homeTeam} vs ${game.awayTeam}`);
-    console.log(`   Home mascot: "${extractMascot(game.homeTeam)}"`);
-    console.log(`   Away mascot: "${extractMascot(game.awayTeam)}"`);
     
     // Try exact match first
     const gameKey = `${game.awayTeam}|${game.homeTeam}`;
     
     if (oddsMap[gameKey]) {
-      console.log(`✅ Exact match found for: "${gameKey}"`);
-      return oddsMap[gameKey];
+      const odds = oddsMap[gameKey];
+      // Concise diagnostic log
+      console.log(`[${game.awayTeam} @ ${game.homeTeam}] -> ML: ${odds.awayMoneyline !== '-' ? 'Yes' : 'No'} | Spread: ${odds.awaySpread !== '-' ? 'Yes' : 'No'} | Total: ${odds.total !== '-' ? 'Yes' : 'No'} | Match Method: Exact`);
+      return odds;
     }
     
-    console.log(`❌ No exact match for: "${gameKey}"`);
-    console.log(`   Available API teams:`);
-    Object.keys(oddsMap).forEach(key => {
-      const [away, home] = key.split('|');
-      console.log(`     "${away}" vs "${home}"`);
-    });
-    
-    // Try mascot-based fuzzy matching
-    console.log(`🔍 Attempting mascot-based matching...`);
+    // Try mascot-based fuzzy matching with enhanced city fallback
     for (const [key, value] of Object.entries(oddsMap)) {
       const [oddsAway, oddsHome] = key.split('|');
       
-      // Use robust team matcher (mascot rule)
-      const awayMatch = teamsMatch(game.awayTeam, oddsAway);
-      const homeMatch = teamsMatch(game.homeTeam, oddsHome);
+      // Use robust team matcher with method tracking
+      const awayMatchResult = teamsMatchHelper(game.awayTeam, oddsAway);
+      const homeMatchResult = teamsMatchHelper(game.homeTeam, oddsHome);
       
-      if (awayMatch && homeMatch) {
-        console.log(`✅ Mascot match found!`);
-        console.log(`   Game: "${game.awayTeam}" @ "${game.homeTeam}"`);
-        console.log(`   API:  "${oddsAway}" @ "${oddsHome}"`);
+      if (awayMatchResult.match && homeMatchResult.match) {
+        // Determine primary match method (use away team's method as reference)
+        const matchMethod = awayMatchResult.method;
+        // Concise diagnostic log
+        console.log(`[${game.awayTeam} @ ${game.homeTeam}] -> ML: ${value.awayMoneyline !== '-' ? 'Yes' : 'No'} | Spread: ${value.awaySpread !== '-' ? 'Yes' : 'No'} | Total: ${value.total !== '-' ? 'Yes' : 'No'} | Match Method: ${matchMethod}`);
         return value;
       }
     }
     
-    // No match found - return defaults
-    console.warn(`❌ No match found for: "${game.awayTeam}" @ "${game.homeTeam}"`);
+    // No match found - return defaults with diagnostic log
+    console.log(`[${game.awayTeam} @ ${game.homeTeam}] -> ML: No | Spread: No | Total: No | Match Method: None (No API data)`);
     return defaultOdds;
-  }, [extractMascot, teamsMatch]);
+  }, [teamsMatchHelper]);
 
   const fetchPropBets = useCallback(async (sportName) => {
     const cacheKey = sportName;
@@ -2888,14 +2995,49 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
         }
         
         const apiEndpoint = ESPN_API_ENDPOINTS[sport];
-        const dateURLs = getESPNDateRangeURLs(apiEndpoint);
         
-        apiCallCount.total += dateURLs.length;
-        apiCallCount.byEndpoint[sport] = (apiCallCount.byEndpoint[sport] || 0) + dateURLs.length;
+        // CORS FIX: Use server-side proxy for Boxing/UFC to avoid CORS errors
+        const isCombatSport = sport === 'Boxing' || sport === 'UFC';
+        let responses;
         
-        const responses = await Promise.all(
-          dateURLs.map(url => fetch(url).catch(err => null))
-        );
+        if (isCombatSport) {
+          // Use server-side proxy for combat sports
+          const dates = [0, 1, 2, 3, 4, 5, 6, 7].join(',');
+          const proxyUrl = `/api/wager-manager?action=getESPN&sport=${sport}&dates=${dates}`;
+          
+          console.log(`🥊 Using server proxy for ${sport} to avoid CORS`);
+          
+          try {
+            const proxyResponse = await fetch(proxyUrl);
+            if (proxyResponse.ok) {
+              const proxyData = await proxyResponse.json();
+              if (proxyData.success && proxyData.events) {
+                // Convert to ESPN scoreboard format
+                responses = [{
+                  ok: true,
+                  json: async () => ({ events: proxyData.events })
+                }];
+              } else {
+                responses = [];
+              }
+            } else {
+              responses = [];
+            }
+          } catch (err) {
+            console.error(`Error fetching ${sport} via proxy:`, err);
+            responses = [];
+          }
+        } else {
+          // Direct ESPN API calls for non-combat sports
+          const dateURLs = getESPNDateRangeURLs(apiEndpoint);
+          
+          apiCallCount.total += dateURLs.length;
+          apiCallCount.byEndpoint[sport] = (apiCallCount.byEndpoint[sport] || 0) + dateURLs.length;
+          
+          responses = await Promise.all(
+            dateURLs.map(url => fetch(url).catch(err => null))
+          );
+        }
         
         const validResponses = responses.filter(r => r !== null);
         
@@ -3054,6 +3196,7 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
     }
     setLoading(false);
     setLastRefreshTime(Date.now());
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [parseESPNOdds, countMissingOdds, matchOddsToGame]);
 
   useEffect(() => {

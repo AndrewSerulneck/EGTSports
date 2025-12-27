@@ -284,35 +284,32 @@ function PropBetsView({
   return (
     <div className="prop-bets-view">
       <div className="prop-bets-header">
-        <h2>🎯 Player Prop Bets</h2>
-        <p className="prop-bets-subtitle">
-          Select a game, then choose a prop category to view available bets
-        </p>
-        <p className="prop-bets-info">
-          💾 Props are cached for 5 minutes to optimize API usage
-        </p>
+        <h2>🎯 Prop Bets</h2>
       </div>
 
       {/* Sport Tabs */}
-      <div className="prop-sports-tabs">
-        {sports.map(sport => (
-          <button
-            key={sport}
-            className={`prop-sport-tab ${selectedSport === sport ? 'active' : ''}`}
-            onClick={() => setSelectedSport(sport)}
-          >
-            {sport}
-            <span className="prop-count">
-              {(allSportsGames[sport] || []).filter(g => g.status !== 'post').length}
-            </span>
-          </button>
-        ))}
+      <div className="sport-tabs-section">
+        <h3 className="section-title">Step 1: Select a League</h3>
+        <div className="prop-sports-tabs">
+          {sports.map(sport => (
+            <button
+              key={sport}
+              className={`prop-sport-tab ${selectedSport === sport ? 'active' : ''}`}
+              onClick={() => setSelectedSport(sport)}
+            >
+              {sport}
+              <span className="prop-count">
+                {(allSportsGames[sport] || []).filter(g => g.status !== 'post').length}
+              </span>
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Game Selection */}
       {upcomingGames.length > 0 ? (
         <div className="game-selection-section">
-          <h3 className="section-title">1️⃣ Select a Game</h3>
+          <h3 className="section-title">Step 2: Select a Game</h3>
           <div className="games-grid">
             {upcomingGames.map(game => (
               <button
@@ -343,7 +340,7 @@ function PropBetsView({
       {/* Category Selection */}
       {selectedGame && (
         <div className="category-selection-section">
-          <h3 className="section-title">2️⃣ Choose Prop Category</h3>
+          <h3 className="section-title">Step 3: Select a Prop Category</h3>
           <div className="categories-grid">
             {propCategories[selectedSport]?.map(category => (
               <button
@@ -369,7 +366,7 @@ function PropBetsView({
       {/* Prop Bets Display */}
       {selectedGame && selectedCategory && (
         <div className="props-display-section">
-          <h3 className="section-title">3️⃣ Select Props to Bet</h3>
+          <h3 className="section-title">Step 4: Select Props to Bet</h3>
           
           {loading && (
             <div className="loading-spinner">

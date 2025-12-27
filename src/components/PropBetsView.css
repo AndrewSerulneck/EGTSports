@@ -2,6 +2,8 @@
   padding: 20px;
   max-width: 1400px;
   margin: 0 auto;
+  background: #1a202c;
+  min-height: 100vh;
 }
 
 .prop-bets-header {
@@ -11,7 +13,7 @@
 
 .prop-bets-header h2 {
   font-size: 32px;
-  color: #667eea;
+  color: #e2e8f0; /* High contrast light color against dark background */
   margin-bottom: 10px;
   font-weight: 700;
 }
@@ -27,6 +29,11 @@
   color: #999;
   margin: 0;
   font-style: italic;
+}
+
+/* Sport Tabs Section */
+.sport-tabs-section {
+  margin-bottom: 30px;
 }
 
 /* Sport Tabs */
@@ -238,10 +245,10 @@
   font-size: 18px;
 }
 
-/* Section Titles */
+/* Section Titles - High Contrast Light Color */
 .section-title {
   font-size: 20px;
-  color: #333;
+  color: #e2e8f0; /* Increased from #CBD5E0 for maximum contrast */
   font-weight: 700;
   margin-bottom: 16px;
   padding-left: 4px;

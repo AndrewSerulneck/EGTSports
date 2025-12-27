@@ -208,11 +208,12 @@
 }
 
 .btn-team {
-  font-size: clamp(0.65rem, 1.5vw, 0.9rem); /* Fluid typography for responsiveness */
-  font-weight: 600;
+  font-size: 1.2rem; /* All mascot names - bold */
+  font-weight: bold;
   color: #495057;
-  white-space: nowrap;
-  hyphens: auto;
+  white-space: normal; /* NEVER truncate - allow wrapping if needed */
+  word-wrap: break-word;
+  hyphens: none; /* No hyphenation */
   max-width: 100%;
   overflow-wrap: break-word;
   line-height: 1.2;
@@ -220,8 +221,8 @@
 }
 
 .btn-odds {
-  font-size: clamp(0.75rem, 1.8vw, 1rem); /* Fluid typography for responsiveness */
-  font-weight: 700;
+  font-size: 1.2rem; /* All odds - bold */
+  font-weight: bold;
   color: #333;
   white-space: nowrap; /* Prevents minus sign from separating */
 }
