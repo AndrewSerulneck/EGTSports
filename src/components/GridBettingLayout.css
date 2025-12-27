@@ -208,20 +208,20 @@
 }
 
 .btn-team {
-  font-size: 1.2rem; /* All mascot names - bold */
+  font-size: clamp(0.9rem, 2.5vw, 1.15rem); /* Dynamic scaling for long names */
   font-weight: bold;
   color: #495057;
-  white-space: normal; /* NEVER truncate - allow wrapping if needed */
-  word-wrap: break-word;
+  white-space: nowrap !important; /* NEVER break into two lines */
   hyphens: none; /* No hyphenation */
   max-width: 100%;
-  overflow-wrap: break-word;
+  overflow: hidden; /* Hide overflow */
+  text-overflow: ellipsis; /* Show ellipsis if text is too long */
   line-height: 1.2;
   margin-bottom: 2px;
 }
 
 .btn-odds {
-  font-size: 1.2rem; /* All odds - bold */
+  font-size: clamp(0.9rem, 2.5vw, 1.15rem); /* Dynamic scaling, same as team name */
   font-weight: bold;
   color: #333;
   white-space: nowrap; /* Prevents minus sign from separating */

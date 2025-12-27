@@ -2022,11 +2022,20 @@ function App() {
   }, [authState.user, authState.isAdmin, fetchUserCredit]);
 
   const hasCompleteOddsData = (game) => {
+    // A game should be displayed if at least ONE market (ML, Spread, or Total) has valid data
     const hasSpread = game.awaySpread && game.homeSpread && 
-                      game.awaySpread !== '' && game.homeSpread !== '';
+                      game.awaySpread !== '' && game.homeSpread !== '' &&
+                      game.awaySpread !== '-' && game.homeSpread !== '-' &&
+                      game.awaySpread !== 'OFF' && game.homeSpread !== 'OFF';
     const hasMoneyline = game.awayMoneyline && game.homeMoneyline && 
-                         game.awayMoneyline !== '' && game.homeMoneyline !== '';
-    return hasSpread || hasMoneyline;
+                         game.awayMoneyline !== '' && game.homeMoneyline !== '' &&
+                         game.awayMoneyline !== '-' && game.homeMoneyline !== '-' &&
+                         game.awayMoneyline !== 'OFF' && game.homeMoneyline !== 'OFF';
+    const hasTotal = game.total && game.total !== '' && 
+                     game.total !== '-' && game.total !== 'OFF';
+    
+    // Return true if ANY market has data (not all three required)
+    return hasSpread || hasMoneyline || hasTotal;
   };
   
   // Helper function to extract mascot from team name (last word)
@@ -2130,16 +2139,89 @@ function App() {
     return { match: false, method: null };
   }, [extractMascotFromName, extractCityFromName]);
   
-  // Helper function to find the first bookmaker that has a specific market with valid data
-  // FIX: This solves the "Bookmaker 0" trap where we only checked the first bookmaker
+  // Helper function to find bookmaker with a specific market using priority order
+  // Priority List: DraftKings > FanDuel > BetMGM > Pinnacle > WilliamHill
   const findBookmakerWithMarket = (bookmakers, marketKey, homeTeam, awayTeam) => {
     if (!bookmakers || bookmakers.length === 0) {
       return null;
     }
     
-    // Loop through ALL bookmakers to find the first one with the requested market
+    // BOOKMAKER PRIORITY LIST (case-insensitive matching)
+    const BOOKMAKER_PRIORITY = ['draftkings', 'fanduel', 'betmgm', 'pinnacle', 'williamhill_us'];
+    
+    // Helper to normalize bookmaker name for priority matching
+    const normalizeBookmakerName = (title) => {
+      if (!title) return '';
+      // Remove spaces, convert to lowercase, remove special characters
+      return title.toLowerCase().replace(/[^a-z0-9]/g, '');
+    };
+    
+    // Helper to validate market has required data
+    const validateMarket = (market, marketKey, homeTeam, awayTeam) => {
+      if (!market || !market.outcomes || market.outcomes.length < 2) {
+        return false;
+      }
+      
+      if (marketKey === 'h2h' || marketKey === 'spreads') {
+        // For h2h and spreads, verify we can match both teams
+        const hasHomeTeam = market.outcomes.some(o => 
+          o.name === homeTeam || o.name.toLowerCase().includes(homeTeam.toLowerCase())
+        );
+        const hasAwayTeam = market.outcomes.some(o => 
+          o.name === awayTeam || o.name.toLowerCase().includes(awayTeam.toLowerCase())
+        );
+        return hasHomeTeam && hasAwayTeam;
+      } else if (marketKey === 'totals') {
+        // For totals, verify we have Over/Under outcomes
+        const hasOver = market.outcomes.some(o => o.name === 'Over');
+        const hasUnder = market.outcomes.some(o => o.name === 'Under');
+        return hasOver && hasUnder;
+      } else if (marketKey === 'h2h_go_distance') {
+        // For go distance, verify we have Yes/No outcomes
+        const hasYes = market.outcomes.some(o => o.name === 'Yes');
+        const hasNo = market.outcomes.some(o => o.name === 'No');
+        return hasYes && hasNo;
+      } else {
+        // For other markets (h2h_method, h2h_round), just verify outcomes exist
+        return true;
+      }
+    };
+    
+    // PRIORITY SEARCH: Loop through priority list first
+    for (const priorityBook of BOOKMAKER_PRIORITY) {
+      for (let i = 0; i < bookmakers.length; i++) {
+        const bookmaker = bookmakers[i];
+        const normalizedName = normalizeBookmakerName(bookmaker.title || bookmaker.key);
+        
+        // Check if this bookmaker matches the current priority
+        if (normalizedName.includes(priorityBook) || priorityBook.includes(normalizedName)) {
+          if (!bookmaker.markets || bookmaker.markets.length === 0) {
+            continue;
+          }
+          
+          // Check if this bookmaker has the requested market
+          const market = bookmaker.markets.find(m => m.key === marketKey);
+          
+          if (validateMarket(market, marketKey, homeTeam, awayTeam)) {
+            console.log(`  ✅ Found ${marketKey} market in priority bookmaker: ${bookmaker.title}`);
+            return { bookmaker, market };
+          }
+        }
+      }
+    }
+    
+    // FALLBACK: If no priority bookmaker has the market, check remaining bookmakers
     for (let i = 0; i < bookmakers.length; i++) {
       const bookmaker = bookmakers[i];
+      const normalizedName = normalizeBookmakerName(bookmaker.title || bookmaker.key);
+      
+      // Skip if already checked in priority search
+      const isPriorityBook = BOOKMAKER_PRIORITY.some(pb => 
+        normalizedName.includes(pb) || pb.includes(normalizedName)
+      );
+      if (isPriorityBook) {
+        continue;
+      }
       
       if (!bookmaker.markets || bookmaker.markets.length === 0) {
         continue;
@@ -2148,44 +2230,9 @@ function App() {
       // Check if this bookmaker has the requested market
       const market = bookmaker.markets.find(m => m.key === marketKey);
       
-      if (market && market.outcomes && market.outcomes.length >= 2) {
-        // Verify the market has valid data by checking if we can match teams
-        if (marketKey === 'h2h' || marketKey === 'spreads') {
-          // For h2h and spreads, verify we can match both teams
-          const hasHomeTeam = market.outcomes.some(o => 
-            o.name === homeTeam || o.name.toLowerCase().includes(homeTeam.toLowerCase())
-          );
-          const hasAwayTeam = market.outcomes.some(o => 
-            o.name === awayTeam || o.name.toLowerCase().includes(awayTeam.toLowerCase())
-          );
-          
-          if (hasHomeTeam && hasAwayTeam) {
-            console.log(`  ✓ Found ${marketKey} market in bookmaker: ${bookmaker.title} (checked ${i + 1}/${bookmakers.length})`);
-            return { bookmaker, market };
-          }
-        } else if (marketKey === 'totals') {
-          // For totals, just verify we have Over/Under outcomes
-          const hasOver = market.outcomes.some(o => o.name === 'Over');
-          const hasUnder = market.outcomes.some(o => o.name === 'Under');
-          
-          if (hasOver && hasUnder) {
-            console.log(`  ✓ Found ${marketKey} market in bookmaker: ${bookmaker.title} (checked ${i + 1}/${bookmakers.length})`);
-            return { bookmaker, market };
-          }
-        } else if (marketKey === 'h2h_go_distance') {
-          // For go distance, verify we have Yes/No outcomes
-          const hasYes = market.outcomes.some(o => o.name === 'Yes');
-          const hasNo = market.outcomes.some(o => o.name === 'No');
-          
-          if (hasYes && hasNo) {
-            console.log(`  ✓ Found ${marketKey} market in bookmaker: ${bookmaker.title} (checked ${i + 1}/${bookmakers.length})`);
-            return { bookmaker, market };
-          }
-        } else {
-          // For other markets (h2h_method, h2h_round), just verify outcomes exist
-          console.log(`  ✓ Found ${marketKey} market in bookmaker: ${bookmaker.title} (checked ${i + 1}/${bookmakers.length})`);
-          return { bookmaker, market };
-        }
+      if (validateMarket(market, marketKey, homeTeam, awayTeam)) {
+        console.log(`  ✓ Found ${marketKey} market in fallback bookmaker: ${bookmaker.title}`);
+        return { bookmaker, market };
       }
     }
     
@@ -2694,8 +2741,24 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
       
       oddsMap[gameKey] = oddsData;
       
-      // Summary log with value validation
-      console.log(`  ✅ Final odds stored with key: "${gameKey}"`);
+      // ENHANCED DIAGNOSTIC LOGGING: Show which bookmaker provided each market
+      const spreadBookmaker = spreadResult ? spreadResult.bookmaker.title : 'None';
+      const totalBookmaker = totalResult ? totalResult.bookmaker.title : 'None';
+      const h2hBookmaker = h2hResult ? h2hResult.bookmaker.title : 'None';
+      
+      // Check if we have at least one valid market
+      const hasAnyMarket = (awaySpread !== '-' && homeSpread !== '-') || 
+                           total !== '-' || 
+                           (awayMoneyline !== '-' && homeMoneyline !== '-');
+      
+      if (hasAnyMarket) {
+        console.log(`  ✅ ${gameName}: ML via ${h2hBookmaker}, Spread via ${spreadBookmaker}, Total via ${totalBookmaker}`);
+      } else {
+        console.log(`  ❌ ${gameName}: No Odds API match found - checking for naming discrepancies.`);
+      }
+      
+      // Summary log with value validation (keep existing detailed logging)
+      console.log(`  📊 Final odds stored with key: "${gameKey}"`);
       console.log(`     Away Spread: ${awaySpread === '-' ? '❌ Missing' : '✓ ' + awaySpread}`);
       console.log(`     Home Spread: ${homeSpread === '-' ? '❌ Missing' : '✓ ' + homeSpread}`);
       console.log(`     Total: ${total === '-' ? '❌ Missing' : '✓ ' + total}`);
