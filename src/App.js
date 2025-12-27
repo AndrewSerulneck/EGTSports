@@ -2130,6 +2130,69 @@ function App() {
     return { match: false, method: null };
   }, [extractMascotFromName, extractCityFromName]);
   
+  // Helper function to find the first bookmaker that has a specific market with valid data
+  // FIX: This solves the "Bookmaker 0" trap where we only checked the first bookmaker
+  const findBookmakerWithMarket = (bookmakers, marketKey, homeTeam, awayTeam) => {
+    if (!bookmakers || bookmakers.length === 0) {
+      return null;
+    }
+    
+    // Loop through ALL bookmakers to find the first one with the requested market
+    for (let i = 0; i < bookmakers.length; i++) {
+      const bookmaker = bookmakers[i];
+      
+      if (!bookmaker.markets || bookmaker.markets.length === 0) {
+        continue;
+      }
+      
+      // Check if this bookmaker has the requested market
+      const market = bookmaker.markets.find(m => m.key === marketKey);
+      
+      if (market && market.outcomes && market.outcomes.length >= 2) {
+        // Verify the market has valid data by checking if we can match teams
+        if (marketKey === 'h2h' || marketKey === 'spreads') {
+          // For h2h and spreads, verify we can match both teams
+          const hasHomeTeam = market.outcomes.some(o => 
+            o.name === homeTeam || o.name.toLowerCase().includes(homeTeam.toLowerCase())
+          );
+          const hasAwayTeam = market.outcomes.some(o => 
+            o.name === awayTeam || o.name.toLowerCase().includes(awayTeam.toLowerCase())
+          );
+          
+          if (hasHomeTeam && hasAwayTeam) {
+            console.log(`  ✓ Found ${marketKey} market in bookmaker: ${bookmaker.title} (checked ${i + 1}/${bookmakers.length})`);
+            return { bookmaker, market };
+          }
+        } else if (marketKey === 'totals') {
+          // For totals, just verify we have Over/Under outcomes
+          const hasOver = market.outcomes.some(o => o.name === 'Over');
+          const hasUnder = market.outcomes.some(o => o.name === 'Under');
+          
+          if (hasOver && hasUnder) {
+            console.log(`  ✓ Found ${marketKey} market in bookmaker: ${bookmaker.title} (checked ${i + 1}/${bookmakers.length})`);
+            return { bookmaker, market };
+          }
+        } else if (marketKey === 'h2h_go_distance') {
+          // For go distance, verify we have Yes/No outcomes
+          const hasYes = market.outcomes.some(o => o.name === 'Yes');
+          const hasNo = market.outcomes.some(o => o.name === 'No');
+          
+          if (hasYes && hasNo) {
+            console.log(`  ✓ Found ${marketKey} market in bookmaker: ${bookmaker.title} (checked ${i + 1}/${bookmakers.length})`);
+            return { bookmaker, market };
+          }
+        } else {
+          // For other markets (h2h_method, h2h_round), just verify outcomes exist
+          console.log(`  ✓ Found ${marketKey} market in bookmaker: ${bookmaker.title} (checked ${i + 1}/${bookmakers.length})`);
+          return { bookmaker, market };
+        }
+      }
+    }
+    
+    console.log(`  ❌ No bookmaker found with valid ${marketKey} market (checked all ${bookmakers.length} bookmakers)`);
+    return null;
+  };
+  
 const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
   try {
     // CRITICAL: Check hard stop first - prevent any API calls if quota exhausted
@@ -2375,41 +2438,11 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
         return;
       }
       
-      // 2. Select bookmaker with h2h market, or fall back to first available
-      // IMPROVED: Try to find a bookmaker that has the h2h market
-      let bookmaker = game.bookmakers.find(bm => 
-        bm.markets && bm.markets.some(m => m.key === 'h2h')
-      );
+      console.log(`  📊 Found ${game.bookmakers.length} bookmaker(s) for this game`);
       
-      // Fallback to first bookmaker if none have h2h
-      if (!bookmaker) {
-        bookmaker = game.bookmakers[0];
-        console.log(`  📊 No bookmaker with h2h market found, using: ${bookmaker.title}`);
-      } else {
-        console.log(`  📊 Using bookmaker with h2h market: ${bookmaker.title}`);
-      }
-      
-      // 3. Get markets array from bookmaker
-      if (!bookmaker.markets || bookmaker.markets.length === 0) {
-        console.warn(`  ⚠️ No markets data in bookmaker`);
-        const gameKey = `${awayTeam}|${homeTeam}`;
-        oddsMap[gameKey] = { 
-          awaySpread: 'OFF', 
-          homeSpread: 'OFF', 
-          total: 'OFF', 
-          awayMoneyline: 'OFF', 
-          homeMoneyline: 'OFF',
-          drawMoneyline: isSoccer ? 'OFF' : undefined
-        };
-        return;
-      }
-      
-      console.log(`  📋 Available markets: ${bookmaker.markets.map(m => m.key).join(', ')}`);
-      
-      // 4. Find specific markets by key
-      const spreadMarket = bookmaker.markets.find(m => m.key === 'spreads');
-      const totalMarket = bookmaker.markets.find(m => m.key === 'totals');
-      const h2hMarket = bookmaker.markets.find(m => m.key === 'h2h');
+      // FIX: Instead of selecting ONE bookmaker, we'll search through ALL bookmakers
+      // for EACH market type independently. This solves the "Bookmaker 0 trap" where
+      // FanDuel might have taken moneyline off the board but DraftKings still has it.
       
       let homeSpread = '-';
       let awaySpread = '-';
@@ -2418,8 +2451,10 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
       let awayMoneyline = '-';
       let drawMoneyline = isSoccer ? '-' : undefined;
       
-      // 5. Extract spreads from outcomes array
-      if (spreadMarket?.outcomes && spreadMarket.outcomes.length >= 2) {
+      // 2. Find bookmaker with spreads market
+      const spreadResult = findBookmakerWithMarket(game.bookmakers, 'spreads', homeTeam, awayTeam);
+      if (spreadResult) {
+        const { market: spreadMarket } = spreadResult;
         console.log(`  📐 Spreads market found with ${spreadMarket.outcomes.length} outcomes`);
         
         // MANDATORY: Match by team name, not by array index
@@ -2449,11 +2484,13 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
           console.warn(`    ⚠️ No outcome found for away team: ${awayTeam}`);
         }
       } else {
-        console.log(`  ❌ No spreads market found`);
+        console.log(`  ❌ No spreads market found in any bookmaker`);
       }
       
-      // 6. Extract totals from outcomes array
-      if (totalMarket?.outcomes && totalMarket.outcomes.length > 0) {
+      // 3. Find bookmaker with totals market (independent search)
+      const totalResult = findBookmakerWithMarket(game.bookmakers, 'totals', homeTeam, awayTeam);
+      if (totalResult) {
+        const { market: totalMarket } = totalResult;
         console.log(`  🎯 Totals market found with ${totalMarket.outcomes.length} outcomes`);
         
         // Total market has Over/Under outcomes with same point value
@@ -2471,14 +2508,16 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
           console.warn(`    ⚠️ No 'Over' outcome found in totals market`);
         }
       } else {
-        console.log(`  ❌ No totals market found`);
+        console.log(`  ❌ No totals market found in any bookmaker`);
       }
       
-      // 7. Extract moneylines (h2h) from outcomes array with DEEP DIAGNOSTICS
+      // 4. Find bookmaker with moneyline (h2h) market - THE CRITICAL FIX
       // CRITICAL: Soccer has 3 outcomes (Home, Away, Draw), Combat/Traditional have 2
       const gameName = `${awayTeam} @ ${homeTeam}`;
       
-      if (h2hMarket?.outcomes && h2hMarket.outcomes.length >= 2) {
+      const h2hResult = findBookmakerWithMarket(game.bookmakers, 'h2h', homeTeam, awayTeam);
+      if (h2hResult) {
+        const { market: h2hMarket } = h2hResult;
         console.log(`  💰 Moneyline (h2h) market found with ${h2hMarket.outcomes.length} outcomes`);
         console.log(`    Raw outcomes:`, h2hMarket.outcomes.map(o => ({ name: o.name, price: o.price })));
         console.log(`    🔍 Attempting to match against:`);
@@ -2536,7 +2575,7 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
           console.error(`       Local says Away: "${awayTeam}"`);
         }
         
-        // 8. SOCCER ONLY: Extract Draw outcome for 3-way market
+        // 5. SOCCER ONLY: Extract Draw outcome for 3-way market
         if (isSoccer) {
           const drawOutcome = h2hMarket.outcomes.find(o => o.name === 'Draw');
           if (drawOutcome) {
@@ -2551,7 +2590,7 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
           }
         }
         
-        // 9. COMBAT SPORTS: Verify 2-way market structure
+        // 6. COMBAT SPORTS: Verify 2-way market structure
         if (isCombat) {
           console.log(`    🥊 Combat sport detected - verifying 2-way market structure`);
           if (h2hMarket.outcomes.length !== 2) {
@@ -2559,74 +2598,71 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
           }
         }
       } else {
-        // REASON 1: No h2h market found at all
-        const availableMarkets = bookmaker.markets.map(m => m.key);
-        console.error(`  ❌ REASON 1 (No Market): [${gameName}]: No 'h2h' key found in bookmaker "${bookmaker.title}".`);
-        console.error(`     Available markets: [${availableMarkets.join(', ')}]`);
-        
-        // Check if other bookmakers have h2h market (REASON 2)
-        const bookmakersWith_h2h = game.bookmakers.filter(bm => 
-          bm.markets && bm.markets.some(m => m.key === 'h2h')
-        );
-        
-        if (bookmakersWith_h2h.length > 0 && !bookmakersWith_h2h.includes(bookmaker)) {
-          console.warn(`  ⚠️ REASON 2 (Bookmaker Gap): [${gameName}]: Found 'h2h' in ${bookmakersWith_h2h.length} other bookmaker(s), but not in the one checked first.`);
-          console.warn(`     Bookmakers with h2h: [${bookmakersWith_h2h.map(bm => bm.title).join(', ')}]`);
-          console.warn(`     Note: Smart selection already prioritizes h2h bookmakers, so this shouldn't happen often.`);
-        }
+        // No h2h market found in any bookmaker
+        console.error(`  ❌ No 'h2h' (moneyline) market found in any bookmaker for [${gameName}]`);
+        console.log(`  ℹ️ All ${game.bookmakers.length} bookmaker(s) were checked`);
       }
       
-      // 9a. COMBAT SPORTS ONLY: Extract method of victory (h2h_method)
+      // 7. COMBAT SPORTS ONLY: Extract method of victory (h2h_method)
       let methodOfVictory = undefined;
       if (isCombat) {
-        const methodMarket = bookmaker.markets.find(m => m.key === 'h2h_method');
-        if (methodMarket?.outcomes && methodMarket.outcomes.length > 0) {
-          console.log(`  🥊 Method of Victory market found with ${methodMarket.outcomes.length} outcomes`);
-          methodOfVictory = {};
-          methodMarket.outcomes.forEach(outcome => {
-            // outcome.name format examples: "Fighter Name - KO/TKO", "Fighter Name - Decision"
-            const methodPrice = outcome.price > 0 ? `+${outcome.price}` : String(outcome.price);
-            methodOfVictory[outcome.name] = methodPrice;
-            console.log(`    ✓ ${outcome.name}: ${methodPrice}`);
-          });
+        const methodResult = findBookmakerWithMarket(game.bookmakers, 'h2h_method', homeTeam, awayTeam);
+        if (methodResult) {
+          const { market: methodMarket } = methodResult;
+          if (methodMarket.outcomes && methodMarket.outcomes.length > 0) {
+            console.log(`  🥊 Method of Victory market found with ${methodMarket.outcomes.length} outcomes`);
+            methodOfVictory = {};
+            methodMarket.outcomes.forEach(outcome => {
+              // outcome.name format examples: "Fighter Name - KO/TKO", "Fighter Name - Decision"
+              const methodPrice = outcome.price > 0 ? `+${outcome.price}` : String(outcome.price);
+              methodOfVictory[outcome.name] = methodPrice;
+              console.log(`    ✓ ${outcome.name}: ${methodPrice}`);
+            });
+          }
         } else {
           console.log(`  ℹ️ No h2h_method market available for this fight`);
         }
       }
       
-      // 9b. COMBAT SPORTS ONLY: Extract round betting (h2h_round)
+      // 8. COMBAT SPORTS ONLY: Extract round betting (h2h_round)
       let roundBetting = undefined;
       if (isCombat) {
-        const roundMarket = bookmaker.markets.find(m => m.key === 'h2h_round');
-        if (roundMarket?.outcomes && roundMarket.outcomes.length > 0) {
-          console.log(`  🥊 Round Betting market found with ${roundMarket.outcomes.length} outcomes`);
-          roundBetting = {};
-          roundMarket.outcomes.forEach(outcome => {
-            const roundPrice = outcome.price > 0 ? `+${outcome.price}` : String(outcome.price);
-            roundBetting[outcome.name] = roundPrice;
-            console.log(`    ✓ ${outcome.name}: ${roundPrice}`);
-          });
+        const roundResult = findBookmakerWithMarket(game.bookmakers, 'h2h_round', homeTeam, awayTeam);
+        if (roundResult) {
+          const { market: roundMarket } = roundResult;
+          if (roundMarket.outcomes && roundMarket.outcomes.length > 0) {
+            console.log(`  🥊 Round Betting market found with ${roundMarket.outcomes.length} outcomes`);
+            roundBetting = {};
+            roundMarket.outcomes.forEach(outcome => {
+              const roundPrice = outcome.price > 0 ? `+${outcome.price}` : String(outcome.price);
+              roundBetting[outcome.name] = roundPrice;
+              console.log(`    ✓ ${outcome.name}: ${roundPrice}`);
+            });
+          }
         } else {
           console.log(`  ℹ️ No h2h_round market available for this fight`);
         }
       }
       
-      // 9c. COMBAT SPORTS ONLY: Extract go distance (h2h_go_distance)
+      // 9. COMBAT SPORTS ONLY: Extract go distance (h2h_go_distance)
       let goDistance = undefined;
       if (isCombat) {
-        const distanceMarket = bookmaker.markets.find(m => m.key === 'h2h_go_distance');
-        if (distanceMarket?.outcomes && distanceMarket.outcomes.length >= 2) {
-          console.log(`  🥊 Go Distance market found with ${distanceMarket.outcomes.length} outcomes`);
-          const yesOutcome = distanceMarket.outcomes.find(o => o.name === 'Yes');
-          const noOutcome = distanceMarket.outcomes.find(o => o.name === 'No');
-          goDistance = {};
-          if (yesOutcome) {
-            goDistance.Yes = yesOutcome.price > 0 ? `+${yesOutcome.price}` : String(yesOutcome.price);
-            console.log(`    ✓ Yes (Goes Distance): ${goDistance.Yes}`);
-          }
-          if (noOutcome) {
-            goDistance.No = noOutcome.price > 0 ? `+${noOutcome.price}` : String(noOutcome.price);
-            console.log(`    ✓ No (Ends Early): ${goDistance.No}`);
+        const distanceResult = findBookmakerWithMarket(game.bookmakers, 'h2h_go_distance', homeTeam, awayTeam);
+        if (distanceResult) {
+          const { market: distanceMarket } = distanceResult;
+          if (distanceMarket.outcomes && distanceMarket.outcomes.length >= 2) {
+            console.log(`  🥊 Go Distance market found with ${distanceMarket.outcomes.length} outcomes`);
+            const yesOutcome = distanceMarket.outcomes.find(o => o.name === 'Yes');
+            const noOutcome = distanceMarket.outcomes.find(o => o.name === 'No');
+            goDistance = {};
+            if (yesOutcome) {
+              goDistance.Yes = yesOutcome.price > 0 ? `+${yesOutcome.price}` : String(yesOutcome.price);
+              console.log(`    ✓ Yes (Goes Distance): ${goDistance.Yes}`);
+            }
+            if (noOutcome) {
+              goDistance.No = noOutcome.price > 0 ? `+${noOutcome.price}` : String(noOutcome.price);
+              console.log(`    ✓ No (Ends Early): ${goDistance.No}`);
+            }
           }
         } else {
           console.log(`  ℹ️ No h2h_go_distance market available for this fight`);
@@ -2830,64 +2866,94 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
         return { awaySpread, homeSpread, total, awayMoneyline, homeMoneyline };
       }
       
-      const odds = competition.odds[0];
+      // FIX: Loop through ALL odds providers in ESPN data, not just the first one
+      // This ensures we find moneyline data even if the first provider has taken it off the board
+      console.log(`🔍 ESPN odds: Found ${competition.odds.length} odds provider(s)`);
       
-      if (odds.spread !== undefined) {
-        const spreadValue = parseFloat(odds.spread);
-        if (!isNaN(spreadValue) && Math.abs(spreadValue) < 50) {
-          homeSpread = spreadValue > 0 ? `+${spreadValue}` : String(spreadValue);
-          awaySpread = spreadValue > 0 ? String(-spreadValue) : `+${-spreadValue}`;
-        }
-      }
-      
-      if (!homeSpread && !awaySpread && (odds.homeTeamOdds || odds.awayTeamOdds)) {
-        const homeSpreadValue = odds.homeTeamOdds?.line || odds.homeTeamOdds?.point || odds.homeTeamOdds?.spread;
-        const awaySpreadValue = odds.awayTeamOdds?.line || odds.awayTeamOdds?.point || odds.awayTeamOdds?.spread;
+      for (let i = 0; i < competition.odds.length; i++) {
+        const odds = competition.odds[i];
+        const providerName = odds.provider?.name || `Provider ${i}`;
         
-        if (homeSpreadValue !== undefined && Math.abs(homeSpreadValue) < 50) {
-          homeSpread = homeSpreadValue > 0 ? `+${homeSpreadValue}` : String(homeSpreadValue);
+        // Extract spreads if not already found
+        if (!homeSpread && !awaySpread) {
+          if (odds.spread !== undefined) {
+            const spreadValue = parseFloat(odds.spread);
+            if (!isNaN(spreadValue) && Math.abs(spreadValue) < 50) {
+              homeSpread = spreadValue > 0 ? `+${spreadValue}` : String(spreadValue);
+              awaySpread = spreadValue > 0 ? String(-spreadValue) : `+${-spreadValue}`;
+              console.log(`  ✓ Spreads from ${providerName}: ${awaySpread}/${homeSpread}`);
+            }
+          }
+          
+          if (!homeSpread && !awaySpread && (odds.homeTeamOdds || odds.awayTeamOdds)) {
+            const homeSpreadValue = odds.homeTeamOdds?.line || odds.homeTeamOdds?.point || odds.homeTeamOdds?.spread;
+            const awaySpreadValue = odds.awayTeamOdds?.line || odds.awayTeamOdds?.point || odds.awayTeamOdds?.spread;
+            
+            if (homeSpreadValue !== undefined && Math.abs(homeSpreadValue) < 50) {
+              homeSpread = homeSpreadValue > 0 ? `+${homeSpreadValue}` : String(homeSpreadValue);
+              console.log(`  ✓ Home spread from ${providerName}: ${homeSpread}`);
+            }
+            
+            if (awaySpreadValue !== undefined && Math.abs(awaySpreadValue) < 50) {
+              awaySpread = awaySpreadValue > 0 ? `+${awaySpreadValue}` : String(awaySpreadValue);
+              console.log(`  ✓ Away spread from ${providerName}: ${awaySpread}`);
+            }
+          }
         }
         
-        if (awaySpreadValue !== undefined && Math.abs(awaySpreadValue) < 50) {
-          awaySpread = awaySpreadValue > 0 ? `+${awaySpreadValue}` : String(awaySpreadValue);
+        // Extract total if not already found
+        if (!total) {
+          if (odds.overUnder !== undefined) {
+            if (odds.overUnder > 30 && odds.overUnder < 300) {
+              total = String(odds.overUnder);
+              console.log(`  ✓ Total from ${providerName}: ${total}`);
+            }
+          } else if (odds.total !== undefined) {
+            if (odds.total > 30 && odds.total < 300) {
+              total = String(odds.total);
+              console.log(`  ✓ Total from ${providerName}: ${total}`);
+            }
+          }
         }
-      }
-      
-      if (odds.overUnder !== undefined) {
-        if (odds.overUnder > 30 && odds.overUnder < 300) {
-          total = String(odds.overUnder);
+        
+        // Extract moneylines if not already found - PRIORITY FIX
+        if (!homeMoneyline && odds.homeTeamOdds?.moneyLine !== undefined) {
+          const ml = parseInt(odds.homeTeamOdds.moneyLine);
+          if (!isNaN(ml) && ml >= -10000 && ml <= 10000) {
+            homeMoneyline = ml > 0 ? `+${ml}` : String(ml);
+            console.log(`  ✅ Home moneyline from ${providerName}: ${homeMoneyline}`);
+          }
         }
-      } else if (odds.total !== undefined) {
-        if (odds.total > 30 && odds.total < 300) {
-          total = String(odds.total);
+        
+        if (!awayMoneyline && odds.awayTeamOdds?.moneyLine !== undefined) {
+          const ml = parseInt(odds.awayTeamOdds.moneyLine);
+          if (!isNaN(ml) && ml >= -10000 && ml <= 10000) {
+            awayMoneyline = ml > 0 ? `+${ml}` : String(ml);
+            console.log(`  ✅ Away moneyline from ${providerName}: ${awayMoneyline}`);
+          }
         }
-      }
-      
-      if (odds.homeTeamOdds?.moneyLine !== undefined) {
-        const ml = parseInt(odds.homeTeamOdds.moneyLine);
-        if (!isNaN(ml) && ml >= -10000 && ml <= 10000) {
-          homeMoneyline = ml > 0 ? `+${ml}` : String(ml);
+        
+        // Fallback to price field for moneylines
+        if (!homeMoneyline && odds.homeTeamOdds?.price !== undefined) {
+          const price = parseInt(odds.homeTeamOdds.price);
+          if (!isNaN(price) && price >= -10000 && price <= 10000) {
+            homeMoneyline = price > 0 ? `+${price}` : String(price);
+            console.log(`  ✅ Home moneyline (price) from ${providerName}: ${homeMoneyline}`);
+          }
         }
-      }
-      
-      if (odds.awayTeamOdds?.moneyLine !== undefined) {
-        const ml = parseInt(odds.awayTeamOdds.moneyLine);
-        if (!isNaN(ml) && ml >= -10000 && ml <= 10000) {
-          awayMoneyline = ml > 0 ? `+${ml}` : String(ml);
+        
+        if (!awayMoneyline && odds.awayTeamOdds?.price !== undefined) {
+          const price = parseInt(odds.awayTeamOdds.price);
+          if (!isNaN(price) && price >= -10000 && price <= 10000) {
+            awayMoneyline = price > 0 ? `+${price}` : String(price);
+            console.log(`  ✅ Away moneyline (price) from ${providerName}: ${awayMoneyline}`);
+          }
         }
-      }
-      
-      if (!homeMoneyline && odds.homeTeamOdds?.price !== undefined) {
-        const price = parseInt(odds.homeTeamOdds.price);
-        if (!isNaN(price) && price >= -10000 && price <= 10000) {
-          homeMoneyline = price > 0 ? `+${price}` : String(price);
-        }
-      }
-      
-      if (!awayMoneyline && odds.awayTeamOdds?.price !== undefined) {
-        const price = parseInt(odds.awayTeamOdds.price);
-        if (!isNaN(price) && price >= -10000 && price <= 10000) {
-          awayMoneyline = price > 0 ? `+${price}` : String(price);
+        
+        // If we've found all odds data, no need to check more providers
+        if (awaySpread && homeSpread && total && awayMoneyline && homeMoneyline) {
+          console.log(`  ✓ All odds found from ESPN providers, stopping search`);
+          break;
         }
       }
       

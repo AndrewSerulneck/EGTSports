@@ -51,7 +51,15 @@ const renderBettingSlip = (props = {}) => {
     MAX_BET: 250
   };
   
-  return render(<BettingSlip {...defaultProps} {...props} />);
+  const result = render(<BettingSlip {...defaultProps} {...props} />);
+  
+  // Expand the betting slip by clicking the header (it starts collapsed by default)
+  const header = result.container.querySelector('.betting-slip-header');
+  if (header) {
+    fireEvent.click(header);
+  }
+  
+  return result;
 };
 
 describe('BettingSlip Component', () => {
