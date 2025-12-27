@@ -3114,10 +3114,15 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
  * fetchDetailedOdds - Fetch period-specific odds for a single event
  * Uses The Odds API per-event endpoint to get quarter/half odds
  * 
+ * FUTURE ENHANCEMENT: This function can be called as a fallback when the bulk
+ * endpoint doesn't return quarter/half odds, or for on-demand fetching of
+ * specific events. Currently defined for future use.
+ * 
  * @param {string} sport - Sport name (e.g., 'NFL', 'NBA')
  * @param {string} eventId - The Odds API event ID
  * @returns {object} - Quarter/half odds fields (Q1_homeMoneyline, H1_total, etc.)
  */
+// eslint-disable-next-line no-unused-vars
 const fetchDetailedOdds = async (sport, eventId) => {
   try {
     // CRITICAL: Check hard stop first
