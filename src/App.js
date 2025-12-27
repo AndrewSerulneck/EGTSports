@@ -2462,6 +2462,48 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
     
     const oddsMap = {};
     
+    // MARKET AVAILABILITY CACHING: Track which bookmakers have which markets
+    // This prevents redundant array loops and optimizes bookmaker selection
+    const availabilityCache = new Map(); // Key: gameId, Value: { marketKey: [bookmakerNames] }
+    
+    // Pre-scan all games to build availability cache
+    console.log('🔍 Pre-scanning bookmaker availability for all games...');
+    data.forEach((game) => {
+      if (!game.bookmakers || game.bookmakers.length === 0) return;
+      
+      const gameAvailability = {
+        h2h: [],
+        spreads: [],
+        totals: [],
+        h2h_go_distance: [],
+        h2h_method: [],
+        h2h_round: []
+      };
+      
+      game.bookmakers.forEach((bookmaker) => {
+        if (!bookmaker.markets || bookmaker.markets.length === 0) return;
+        
+        bookmaker.markets.forEach((market) => {
+          if (gameAvailability[market.key]) {
+            gameAvailability[market.key].push(bookmaker.title || bookmaker.key);
+          }
+        });
+      });
+      
+      availabilityCache.set(game.id, gameAvailability);
+      
+      // Log availability summary
+      const availableParts = [];
+      if (gameAvailability.h2h.length > 0) availableParts.push(`ML:${gameAvailability.h2h.length}`);
+      if (gameAvailability.spreads.length > 0) availableParts.push(`Spread:${gameAvailability.spreads.length}`);
+      if (gameAvailability.totals.length > 0) availableParts.push(`Total:${gameAvailability.totals.length}`);
+      
+      if (availableParts.length > 0) {
+        console.log(`  📋 ${game.away_team} @ ${game.home_team}: ${availableParts.join(', ')} bookmakers`);
+      }
+    });
+    console.log(`✅ Availability cache built for ${availabilityCache.size} games\n`);
+    
     data.forEach((game, gameIndex) => {
       const homeTeam = game.home_team;
       const awayTeam = game.away_team;
