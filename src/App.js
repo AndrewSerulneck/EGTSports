@@ -218,6 +218,38 @@ const ODDS_API_SPORT_KEYS = {
 // Priority order: DraftKings > FanDuel > BetMGM > Pinnacle > WilliamHill
 const BOOKMAKER_PRIORITY = ['draftkings', 'fanduel', 'betmgm', 'pinnacle', 'williamhill_us'];
 
+// Quarter and Halftime Market Keys for US Sports
+const QUARTER_HALFTIME_MARKETS = [
+  'h2h_q1', 'spreads_q1', 'totals_q1',
+  'h2h_q2', 'spreads_q2', 'totals_q2',
+  'h2h_q3', 'spreads_q3', 'totals_q3',
+  'h2h_q4', 'spreads_q4', 'totals_q4',
+  'h2h_h1', 'spreads_h1', 'totals_h1',
+  'h2h_h2', 'spreads_h2', 'totals_h2'
+];
+
+// Period market configuration for parsing quarter/halftime odds
+const PERIOD_MARKET_CONFIG = [
+  { key: 'h2h_q1', type: 'moneyline', period: 'Q1' },
+  { key: 'spreads_q1', type: 'spread', period: 'Q1' },
+  { key: 'totals_q1', type: 'total', period: 'Q1' },
+  { key: 'h2h_q2', type: 'moneyline', period: 'Q2' },
+  { key: 'spreads_q2', type: 'spread', period: 'Q2' },
+  { key: 'totals_q2', type: 'total', period: 'Q2' },
+  { key: 'h2h_q3', type: 'moneyline', period: 'Q3' },
+  { key: 'spreads_q3', type: 'spread', period: 'Q3' },
+  { key: 'totals_q3', type: 'total', period: 'Q3' },
+  { key: 'h2h_q4', type: 'moneyline', period: 'Q4' },
+  { key: 'spreads_q4', type: 'spread', period: 'Q4' },
+  { key: 'totals_q4', type: 'total', period: 'Q4' },
+  { key: 'h2h_h1', type: 'moneyline', period: 'H1' },
+  { key: 'spreads_h1', type: 'spread', period: 'H1' },
+  { key: 'totals_h1', type: 'total', period: 'H1' },
+  { key: 'h2h_h2', type: 'moneyline', period: 'H2' },
+  { key: 'spreads_h2', type: 'spread', period: 'H2' },
+  { key: 'totals_h2', type: 'total', period: 'H2' }
+];
+
 const PROP_BETS_CACHE_DURATION = 2 * 60 * 60 * 1000;
 
 const CACHE_DURATION = 6 * 60 * 60 * 1000;
@@ -2438,7 +2470,9 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
     } else {
       // US Sports: h2h (moneyline), spreads, totals
       // ENHANCED: Include quarter and halftime markets for comprehensive odds coverage
-      markets = 'h2h,spreads,totals,h2h_q1,spreads_q1,totals_q1,h2h_q2,spreads_q2,totals_q2,h2h_q3,spreads_q3,totals_q3,h2h_q4,spreads_q4,totals_q4,h2h_h1,spreads_h1,totals_h1,h2h_h2,spreads_h2,totals_h2';
+      const baseMarkets = ['h2h', 'spreads', 'totals'];
+      const allMarkets = [...baseMarkets, ...QUARTER_HALFTIME_MARKETS];
+      markets = allMarkets.join(',');
     }
     
     // CRITICAL: Explicitly request 'american' odds format
@@ -2914,31 +2948,9 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
       // 10. US SPORTS: Extract Quarter and Halftime markets
       let quarterHalfMarkets = {};
       if (!isCombat && !isSoccer) {
-        // Define the quarter/half markets we want to parse
-        const periodMarkets = [
-          { key: 'h2h_q1', type: 'moneyline', period: 'Q1' },
-          { key: 'spreads_q1', type: 'spread', period: 'Q1' },
-          { key: 'totals_q1', type: 'total', period: 'Q1' },
-          { key: 'h2h_q2', type: 'moneyline', period: 'Q2' },
-          { key: 'spreads_q2', type: 'spread', period: 'Q2' },
-          { key: 'totals_q2', type: 'total', period: 'Q2' },
-          { key: 'h2h_q3', type: 'moneyline', period: 'Q3' },
-          { key: 'spreads_q3', type: 'spread', period: 'Q3' },
-          { key: 'totals_q3', type: 'total', period: 'Q3' },
-          { key: 'h2h_q4', type: 'moneyline', period: 'Q4' },
-          { key: 'spreads_q4', type: 'spread', period: 'Q4' },
-          { key: 'totals_q4', type: 'total', period: 'Q4' },
-          { key: 'h2h_h1', type: 'moneyline', period: 'H1' },
-          { key: 'spreads_h1', type: 'spread', period: 'H1' },
-          { key: 'totals_h1', type: 'total', period: 'H1' },
-          { key: 'h2h_h2', type: 'moneyline', period: 'H2' },
-          { key: 'spreads_h2', type: 'spread', period: 'H2' },
-          { key: 'totals_h2', type: 'total', period: 'H2' }
-        ];
-        
         console.log(`  🔍 Searching for quarter/halftime markets...`);
         
-        periodMarkets.forEach(({ key, type, period }) => {
+        PERIOD_MARKET_CONFIG.forEach(({ key, type, period }) => {
           const result = findBookmakerWithMarket(game.bookmakers, key, homeTeam, awayTeam);
           
           if (result) {
