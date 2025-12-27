@@ -214,6 +214,10 @@ const ODDS_API_SPORT_KEYS = {
   'UFC': 'mma_mixed_martial_arts'
 };
 
+// BOOKMAKER PRIORITY LIST for odds selection
+// Priority order: DraftKings > FanDuel > BetMGM > Pinnacle > WilliamHill
+const BOOKMAKER_PRIORITY = ['draftkings', 'fanduel', 'betmgm', 'pinnacle', 'williamhill_us'];
+
 const PROP_BETS_CACHE_DURATION = 2 * 60 * 60 * 1000;
 
 const CACHE_DURATION = 6 * 60 * 60 * 1000;
@@ -1935,6 +1939,61 @@ function AdminSportRoute({
   );
 }
 
+// ============================================================================
+// BOOKMAKER SELECTION HELPER FUNCTIONS
+// ============================================================================
+
+/**
+ * Normalizes bookmaker name for consistent matching
+ * Removes spaces, converts to lowercase, strips special characters
+ */
+const normalizeBookmakerName = (title) => {
+  if (!title) return '';
+  return title.toLowerCase().replace(/[^a-z0-9]/g, '');
+};
+
+/**
+ * Validates that a market has required data based on market type
+ * @param {Object} market - The market object to validate
+ * @param {string} marketKey - Market type (h2h, spreads, totals, etc.)
+ * @param {string} homeTeam - Home team name for validation
+ * @param {string} awayTeam - Away team name for validation
+ * @returns {boolean} True if market has valid data
+ */
+const validateMarket = (market, marketKey, homeTeam, awayTeam) => {
+  if (!market || !market.outcomes || market.outcomes.length < 2) {
+    return false;
+  }
+  
+  if (marketKey === 'h2h' || marketKey === 'spreads') {
+    // For h2h and spreads, verify we can match both teams
+    const hasHomeTeam = market.outcomes.some(o => 
+      o.name === homeTeam || o.name.toLowerCase().includes(homeTeam.toLowerCase())
+    );
+    const hasAwayTeam = market.outcomes.some(o => 
+      o.name === awayTeam || o.name.toLowerCase().includes(awayTeam.toLowerCase())
+    );
+    return hasHomeTeam && hasAwayTeam;
+  } else if (marketKey === 'totals') {
+    // For totals, verify we have Over/Under outcomes
+    const hasOver = market.outcomes.some(o => o.name === 'Over');
+    const hasUnder = market.outcomes.some(o => o.name === 'Under');
+    return hasOver && hasUnder;
+  } else if (marketKey === 'h2h_go_distance') {
+    // For go distance, verify we have Yes/No outcomes
+    const hasYes = market.outcomes.some(o => o.name === 'Yes');
+    const hasNo = market.outcomes.some(o => o.name === 'No');
+    return hasYes && hasNo;
+  } else {
+    // For other markets (h2h_method, h2h_round), just verify outcomes exist
+    return true;
+  }
+};
+
+// ============================================================================
+// MAIN APP COMPONENT
+// ============================================================================
+
 function App() {
   const navigate = useNavigate();
   const [authState, setAuthState] = useState({
@@ -2022,11 +2081,20 @@ function App() {
   }, [authState.user, authState.isAdmin, fetchUserCredit]);
 
   const hasCompleteOddsData = (game) => {
+    // A game should be displayed if at least ONE market (ML, Spread, or Total) has valid data
     const hasSpread = game.awaySpread && game.homeSpread && 
-                      game.awaySpread !== '' && game.homeSpread !== '';
+                      game.awaySpread !== '' && game.homeSpread !== '' &&
+                      game.awaySpread !== '-' && game.homeSpread !== '-' &&
+                      game.awaySpread !== 'OFF' && game.homeSpread !== 'OFF';
     const hasMoneyline = game.awayMoneyline && game.homeMoneyline && 
-                         game.awayMoneyline !== '' && game.homeMoneyline !== '';
-    return hasSpread || hasMoneyline;
+                         game.awayMoneyline !== '' && game.homeMoneyline !== '' &&
+                         game.awayMoneyline !== '-' && game.homeMoneyline !== '-' &&
+                         game.awayMoneyline !== 'OFF' && game.homeMoneyline !== 'OFF';
+    const hasTotal = game.total && game.total !== '' && 
+                     game.total !== '-' && game.total !== 'OFF';
+    
+    // Return true if ANY market has data (not all three required)
+    return hasSpread || hasMoneyline || hasTotal;
   };
   
   // Helper function to extract mascot from team name (last word)
@@ -2130,16 +2198,48 @@ function App() {
     return { match: false, method: null };
   }, [extractMascotFromName, extractCityFromName]);
   
-  // Helper function to find the first bookmaker that has a specific market with valid data
-  // FIX: This solves the "Bookmaker 0" trap where we only checked the first bookmaker
+  // Helper function to find bookmaker with a specific market using priority order
+  // Uses global BOOKMAKER_PRIORITY constant and helper functions
   const findBookmakerWithMarket = (bookmakers, marketKey, homeTeam, awayTeam) => {
     if (!bookmakers || bookmakers.length === 0) {
       return null;
     }
     
-    // Loop through ALL bookmakers to find the first one with the requested market
+    // PRIORITY SEARCH: Loop through priority list first
+    for (const priorityBook of BOOKMAKER_PRIORITY) {
+      for (let i = 0; i < bookmakers.length; i++) {
+        const bookmaker = bookmakers[i];
+        const normalizedName = normalizeBookmakerName(bookmaker.title || bookmaker.key);
+        
+        // Check if this bookmaker matches the current priority
+        if (normalizedName.includes(priorityBook) || priorityBook.includes(normalizedName)) {
+          if (!bookmaker.markets || bookmaker.markets.length === 0) {
+            continue;
+          }
+          
+          // Check if this bookmaker has the requested market
+          const market = bookmaker.markets.find(m => m.key === marketKey);
+          
+          if (validateMarket(market, marketKey, homeTeam, awayTeam)) {
+            console.log(`  ✅ Found ${marketKey} market in priority bookmaker: ${bookmaker.title}`);
+            return { bookmaker, market };
+          }
+        }
+      }
+    }
+    
+    // FALLBACK: If no priority bookmaker has the market, check remaining bookmakers
     for (let i = 0; i < bookmakers.length; i++) {
       const bookmaker = bookmakers[i];
+      const normalizedName = normalizeBookmakerName(bookmaker.title || bookmaker.key);
+      
+      // Skip if already checked in priority search
+      const isPriorityBook = BOOKMAKER_PRIORITY.some(pb => 
+        normalizedName.includes(pb) || pb.includes(normalizedName)
+      );
+      if (isPriorityBook) {
+        continue;
+      }
       
       if (!bookmaker.markets || bookmaker.markets.length === 0) {
         continue;
@@ -2148,44 +2248,9 @@ function App() {
       // Check if this bookmaker has the requested market
       const market = bookmaker.markets.find(m => m.key === marketKey);
       
-      if (market && market.outcomes && market.outcomes.length >= 2) {
-        // Verify the market has valid data by checking if we can match teams
-        if (marketKey === 'h2h' || marketKey === 'spreads') {
-          // For h2h and spreads, verify we can match both teams
-          const hasHomeTeam = market.outcomes.some(o => 
-            o.name === homeTeam || o.name.toLowerCase().includes(homeTeam.toLowerCase())
-          );
-          const hasAwayTeam = market.outcomes.some(o => 
-            o.name === awayTeam || o.name.toLowerCase().includes(awayTeam.toLowerCase())
-          );
-          
-          if (hasHomeTeam && hasAwayTeam) {
-            console.log(`  ✓ Found ${marketKey} market in bookmaker: ${bookmaker.title} (checked ${i + 1}/${bookmakers.length})`);
-            return { bookmaker, market };
-          }
-        } else if (marketKey === 'totals') {
-          // For totals, just verify we have Over/Under outcomes
-          const hasOver = market.outcomes.some(o => o.name === 'Over');
-          const hasUnder = market.outcomes.some(o => o.name === 'Under');
-          
-          if (hasOver && hasUnder) {
-            console.log(`  ✓ Found ${marketKey} market in bookmaker: ${bookmaker.title} (checked ${i + 1}/${bookmakers.length})`);
-            return { bookmaker, market };
-          }
-        } else if (marketKey === 'h2h_go_distance') {
-          // For go distance, verify we have Yes/No outcomes
-          const hasYes = market.outcomes.some(o => o.name === 'Yes');
-          const hasNo = market.outcomes.some(o => o.name === 'No');
-          
-          if (hasYes && hasNo) {
-            console.log(`  ✓ Found ${marketKey} market in bookmaker: ${bookmaker.title} (checked ${i + 1}/${bookmakers.length})`);
-            return { bookmaker, market };
-          }
-        } else {
-          // For other markets (h2h_method, h2h_round), just verify outcomes exist
-          console.log(`  ✓ Found ${marketKey} market in bookmaker: ${bookmaker.title} (checked ${i + 1}/${bookmakers.length})`);
-          return { bookmaker, market };
-        }
+      if (validateMarket(market, marketKey, homeTeam, awayTeam)) {
+        console.log(`  ✓ Found ${marketKey} market in fallback bookmaker: ${bookmaker.title}`);
+        return { bookmaker, market };
       }
     }
     
@@ -2414,6 +2479,48 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
     console.log(`🏷️ Sport type - Soccer: ${isSoccer}, Combat: ${isCombat}`);
     
     const oddsMap = {};
+    
+    // MARKET AVAILABILITY CACHING: Track which bookmakers have which markets
+    // This prevents redundant array loops and optimizes bookmaker selection
+    const availabilityCache = new Map(); // Key: gameId, Value: { marketKey: [bookmakerNames] }
+    
+    // Pre-scan all games to build availability cache
+    console.log('🔍 Pre-scanning bookmaker availability for all games...');
+    data.forEach((game) => {
+      if (!game.bookmakers || game.bookmakers.length === 0) return;
+      
+      const gameAvailability = {
+        h2h: [],
+        spreads: [],
+        totals: [],
+        h2h_go_distance: [],
+        h2h_method: [],
+        h2h_round: []
+      };
+      
+      game.bookmakers.forEach((bookmaker) => {
+        if (!bookmaker.markets || bookmaker.markets.length === 0) return;
+        
+        bookmaker.markets.forEach((market) => {
+          if (gameAvailability[market.key]) {
+            gameAvailability[market.key].push(bookmaker.title || bookmaker.key);
+          }
+        });
+      });
+      
+      availabilityCache.set(game.id, gameAvailability);
+      
+      // Log availability summary
+      const availableParts = [];
+      if (gameAvailability.h2h.length > 0) availableParts.push(`ML:${gameAvailability.h2h.length}`);
+      if (gameAvailability.spreads.length > 0) availableParts.push(`Spread:${gameAvailability.spreads.length}`);
+      if (gameAvailability.totals.length > 0) availableParts.push(`Total:${gameAvailability.totals.length}`);
+      
+      if (availableParts.length > 0) {
+        console.log(`  📋 ${game.away_team} @ ${game.home_team}: ${availableParts.join(', ')} bookmakers`);
+      }
+    });
+    console.log(`✅ Availability cache built for ${availabilityCache.size} games\n`);
     
     data.forEach((game, gameIndex) => {
       const homeTeam = game.home_team;
@@ -2694,8 +2801,24 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
       
       oddsMap[gameKey] = oddsData;
       
-      // Summary log with value validation
-      console.log(`  ✅ Final odds stored with key: "${gameKey}"`);
+      // ENHANCED DIAGNOSTIC LOGGING: Show which bookmaker provided each market
+      const spreadBookmaker = spreadResult ? spreadResult.bookmaker.title : 'None';
+      const totalBookmaker = totalResult ? totalResult.bookmaker.title : 'None';
+      const h2hBookmaker = h2hResult ? h2hResult.bookmaker.title : 'None';
+      
+      // Check if we have at least one valid market
+      const hasAnyMarket = (awaySpread !== '-' && homeSpread !== '-') || 
+                           total !== '-' || 
+                           (awayMoneyline !== '-' && homeMoneyline !== '-');
+      
+      if (hasAnyMarket) {
+        console.log(`  ✅ ${gameName}: ML via ${h2hBookmaker}, Spread via ${spreadBookmaker}, Total via ${totalBookmaker}`);
+      } else {
+        console.log(`  ❌ ${gameName}: No Odds API match found - checking for naming discrepancies.`);
+      }
+      
+      // Summary log with value validation (keep existing detailed logging)
+      console.log(`  📊 Final odds stored with key: "${gameKey}"`);
       console.log(`     Away Spread: ${awaySpread === '-' ? '❌ Missing' : '✓ ' + awaySpread}`);
       console.log(`     Home Spread: ${homeSpread === '-' ? '❌ Missing' : '✓ ' + homeSpread}`);
       console.log(`     Total: ${total === '-' ? '❌ Missing' : '✓ ' + total}`);
