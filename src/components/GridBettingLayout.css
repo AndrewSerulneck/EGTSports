@@ -208,11 +208,12 @@
 }
 
 .btn-team {
-  font-size: 1.15rem; /* Increased to maximum readable size */
+  font-size: 1.15rem; /* Mascot names */
   font-weight: bold;
   color: #495057;
-  white-space: nowrap;
-  hyphens: auto;
+  white-space: normal; /* NEVER truncate - allow wrapping if needed */
+  word-wrap: break-word;
+  hyphens: none; /* No hyphenation */
   max-width: 100%;
   overflow-wrap: break-word;
   line-height: 1.2;
@@ -220,7 +221,7 @@
 }
 
 .btn-odds {
-  font-size: 1.15rem; /* Increased to maximum readable size */
+  font-size: 1.2rem; /* Odds prices - slightly larger than mascots */
   font-weight: bold;
   color: #333;
   white-space: nowrap; /* Prevents minus sign from separating */

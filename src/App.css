@@ -340,12 +340,10 @@ input[type="number"]:focus {
         display: flex;
         flex-direction: column;
         min-height: -webkit-fill-available; /* iOS fix */
-        overflow: visible; /* CRITICAL: Allow sticky to work */
     }
 
     .main-layout-wrapper {
         flex-direction: column;
-        overflow: visible; /* CRITICAL: Allow sticky to work */
     }
 
     /* Hide desktop sidebar */
@@ -353,24 +351,31 @@ input[type="number"]:focus {
         display: none;
     }
     
-    /* Horizontal Scrollable Menu for Mobile */
+    /* Horizontal Scrollable Menu for Mobile - NOW FIXED POSITION */
     .mobile-sports-menu-wrapper {
         display: block;
-        overflow: visible; /* CRITICAL: Allow sticky to work */
     }
     
     .mobile-sports-menu {
         display: block;
-        position: sticky !important; /* FORCE sticky behavior */
+        position: fixed !important; /* ATOMIC FIX: Changed from sticky to fixed */
         top: 0 !important;
-        background: linear-gradient(135deg, #1a2330 0%, #2d3748 100%);
+        left: 0 !important;
+        right: 0 !important;
+        width: 100vw !important;
+        background: #1a202c; /* Solid background - no bleed through */
         padding: 12px 8px;
         white-space: nowrap;
         overflow-x: auto;
         -webkit-overflow-scrolling: touch; /* Smooth scrolling on iOS */
-        z-index: 1000 !important;
+        z-index: 9999 !important; /* Highest priority */
         box-shadow: 0 2px 8px rgba(0,0,0,0.3);
         border-bottom: 2px solid #4299e1;
+    }
+    
+    /* CRITICAL OFFSET: Add padding to main content so first game isn't hidden */
+    .main-content {
+        padding-top: 70px !important; /* Compensate for fixed menu height */
     }
 
     .mobile-menu-button {
