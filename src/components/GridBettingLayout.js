@@ -103,6 +103,19 @@ function PeriodSelector({ selectedPeriod, onPeriodSelect, sport, availablePeriod
 // Default odds for unavailable markets
 const DEFAULT_DRAW_ODDS = '+250';
 
+// Period ID to field prefix mapping
+const PERIOD_PREFIX_MAP = {
+  'first_quarter': 'Q1',
+  'second_quarter': 'Q2',
+  'third_quarter': 'Q3',
+  'fourth_quarter': 'Q4',
+  'first_half': 'H1',
+  'second_half': 'H2',
+  'first_period': 'P1', // NHL
+  'second_period': 'P2', // NHL
+  'third_period': 'P3' // NHL
+};
+
 function GridBettingLayout({ 
   games, 
   selectedPicks, 
@@ -168,20 +181,7 @@ function GridBettingLayout({
   const hasPeriodData = (game, period) => {
     if (period === 'whole_game') return true; // Whole game always available
     
-    // Map period IDs to field prefixes
-    const periodPrefixMap = {
-      'first_quarter': 'Q1',
-      'second_quarter': 'Q2',
-      'third_quarter': 'Q3',
-      'fourth_quarter': 'Q4',
-      'first_half': 'H1',
-      'second_half': 'H2',
-      'first_period': 'P1', // NHL
-      'second_period': 'P2', // NHL
-      'third_period': 'P3' // NHL
-    };
-    
-    const prefix = periodPrefixMap[period];
+    const prefix = PERIOD_PREFIX_MAP[period];
     if (!prefix) return false;
     
     // Check if any of the period-specific fields exist and have valid data
@@ -507,20 +507,7 @@ function GridBettingLayout({
                     );
                   }
                   
-                  // Map period ID to field prefix
-                  const periodPrefixMap = {
-                    'first_quarter': 'Q1',
-                    'second_quarter': 'Q2',
-                    'third_quarter': 'Q3',
-                    'fourth_quarter': 'Q4',
-                    'first_half': 'H1',
-                    'second_half': 'H2',
-                    'first_period': 'P1',
-                    'second_period': 'P2',
-                    'third_period': 'P3'
-                  };
-                  
-                  const prefix = periodPrefixMap[selectedPeriod];
+                  const prefix = PERIOD_PREFIX_MAP[selectedPeriod];
                   
                   // Get period-specific odds
                   const awaySpread = game[`${prefix}_awaySpread`];

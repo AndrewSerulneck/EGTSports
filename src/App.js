@@ -3114,9 +3114,13 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
  * fetchDetailedOdds - Fetch period-specific odds for a single event
  * Uses The Odds API per-event endpoint to get quarter/half odds
  * 
- * FUTURE ENHANCEMENT: This function can be called as a fallback when the bulk
- * endpoint doesn't return quarter/half odds, or for on-demand fetching of
- * specific events. Currently defined for future use.
+ * TODO: Wire this up as a fallback mechanism when the bulk endpoint doesn't
+ * return quarter/half odds for specific events. The bulk endpoint already
+ * requests these markets, but this per-event fetcher can provide more reliable
+ * results on a game-by-game basis. Potential use cases:
+ * - Refresh button for individual game's quarter/half odds
+ * - Fallback when bulk endpoint returns incomplete period data
+ * - On-demand fetching when user selects a period filter
  * 
  * @param {string} sport - Sport name (e.g., 'NFL', 'NBA')
  * @param {string} eventId - The Odds API event ID
