@@ -214,6 +214,10 @@ const ODDS_API_SPORT_KEYS = {
   'UFC': 'mma_mixed_martial_arts'
 };
 
+// BOOKMAKER PRIORITY LIST for odds selection
+// Priority order: DraftKings > FanDuel > BetMGM > Pinnacle > WilliamHill
+const BOOKMAKER_PRIORITY = ['draftkings', 'fanduel', 'betmgm', 'pinnacle', 'williamhill_us'];
+
 const PROP_BETS_CACHE_DURATION = 2 * 60 * 60 * 1000;
 
 const CACHE_DURATION = 6 * 60 * 60 * 1000;
@@ -1935,6 +1939,61 @@ function AdminSportRoute({
   );
 }
 
+// ============================================================================
+// BOOKMAKER SELECTION HELPER FUNCTIONS
+// ============================================================================
+
+/**
+ * Normalizes bookmaker name for consistent matching
+ * Removes spaces, converts to lowercase, strips special characters
+ */
+const normalizeBookmakerName = (title) => {
+  if (!title) return '';
+  return title.toLowerCase().replace(/[^a-z0-9]/g, '');
+};
+
+/**
+ * Validates that a market has required data based on market type
+ * @param {Object} market - The market object to validate
+ * @param {string} marketKey - Market type (h2h, spreads, totals, etc.)
+ * @param {string} homeTeam - Home team name for validation
+ * @param {string} awayTeam - Away team name for validation
+ * @returns {boolean} True if market has valid data
+ */
+const validateMarket = (market, marketKey, homeTeam, awayTeam) => {
+  if (!market || !market.outcomes || market.outcomes.length < 2) {
+    return false;
+  }
+  
+  if (marketKey === 'h2h' || marketKey === 'spreads') {
+    // For h2h and spreads, verify we can match both teams
+    const hasHomeTeam = market.outcomes.some(o => 
+      o.name === homeTeam || o.name.toLowerCase().includes(homeTeam.toLowerCase())
+    );
+    const hasAwayTeam = market.outcomes.some(o => 
+      o.name === awayTeam || o.name.toLowerCase().includes(awayTeam.toLowerCase())
+    );
+    return hasHomeTeam && hasAwayTeam;
+  } else if (marketKey === 'totals') {
+    // For totals, verify we have Over/Under outcomes
+    const hasOver = market.outcomes.some(o => o.name === 'Over');
+    const hasUnder = market.outcomes.some(o => o.name === 'Under');
+    return hasOver && hasUnder;
+  } else if (marketKey === 'h2h_go_distance') {
+    // For go distance, verify we have Yes/No outcomes
+    const hasYes = market.outcomes.some(o => o.name === 'Yes');
+    const hasNo = market.outcomes.some(o => o.name === 'No');
+    return hasYes && hasNo;
+  } else {
+    // For other markets (h2h_method, h2h_round), just verify outcomes exist
+    return true;
+  }
+};
+
+// ============================================================================
+// MAIN APP COMPONENT
+// ============================================================================
+
 function App() {
   const navigate = useNavigate();
   const [authState, setAuthState] = useState({
@@ -2140,52 +2199,11 @@ function App() {
   }, [extractMascotFromName, extractCityFromName]);
   
   // Helper function to find bookmaker with a specific market using priority order
-  // Priority List: DraftKings > FanDuel > BetMGM > Pinnacle > WilliamHill
+  // Uses global BOOKMAKER_PRIORITY constant and helper functions
   const findBookmakerWithMarket = (bookmakers, marketKey, homeTeam, awayTeam) => {
     if (!bookmakers || bookmakers.length === 0) {
       return null;
     }
-    
-    // BOOKMAKER PRIORITY LIST (case-insensitive matching)
-    const BOOKMAKER_PRIORITY = ['draftkings', 'fanduel', 'betmgm', 'pinnacle', 'williamhill_us'];
-    
-    // Helper to normalize bookmaker name for priority matching
-    const normalizeBookmakerName = (title) => {
-      if (!title) return '';
-      // Remove spaces, convert to lowercase, remove special characters
-      return title.toLowerCase().replace(/[^a-z0-9]/g, '');
-    };
-    
-    // Helper to validate market has required data
-    const validateMarket = (market, marketKey, homeTeam, awayTeam) => {
-      if (!market || !market.outcomes || market.outcomes.length < 2) {
-        return false;
-      }
-      
-      if (marketKey === 'h2h' || marketKey === 'spreads') {
-        // For h2h and spreads, verify we can match both teams
-        const hasHomeTeam = market.outcomes.some(o => 
-          o.name === homeTeam || o.name.toLowerCase().includes(homeTeam.toLowerCase())
-        );
-        const hasAwayTeam = market.outcomes.some(o => 
-          o.name === awayTeam || o.name.toLowerCase().includes(awayTeam.toLowerCase())
-        );
-        return hasHomeTeam && hasAwayTeam;
-      } else if (marketKey === 'totals') {
-        // For totals, verify we have Over/Under outcomes
-        const hasOver = market.outcomes.some(o => o.name === 'Over');
-        const hasUnder = market.outcomes.some(o => o.name === 'Under');
-        return hasOver && hasUnder;
-      } else if (marketKey === 'h2h_go_distance') {
-        // For go distance, verify we have Yes/No outcomes
-        const hasYes = market.outcomes.some(o => o.name === 'Yes');
-        const hasNo = market.outcomes.some(o => o.name === 'No');
-        return hasYes && hasNo;
-      } else {
-        // For other markets (h2h_method, h2h_round), just verify outcomes exist
-        return true;
-      }
-    };
     
     // PRIORITY SEARCH: Loop through priority list first
     for (const priorityBook of BOOKMAKER_PRIORITY) {
