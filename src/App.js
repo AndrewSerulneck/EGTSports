@@ -146,7 +146,7 @@ const ESPN_API_ENDPOINTS = {
   'NFL': 'https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard',
   'NBA': 'https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard',
   'College Football': 'https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard',
-  'College Basketball': 'https://site.api.espn.com/apis/site/v2/sports/basketball/mens-college-basketball/scoreboard?groups=50', // Top 25 filter
+  'College Basketball': 'https://site.api.espn.com/apis/site/v2/sports/basketball/mens-college-basketball/scoreboard?limit=400', // All Division 1 games
   'Major League Baseball': 'https://site.api.espn.com/apis/site/v2/sports/baseball/mlb/scoreboard',
   'NHL': 'https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard',
   'World Cup': 'https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/scoreboard',
@@ -2030,7 +2030,7 @@ function App() {
   };
   
   // Helper function to extract mascot from team name (last word)
-  const extractMascotFromName = (teamName) => {
+  const extractMascotFromName = useCallback((teamName) => {
     if (!teamName) return '';
     
     const cleaned = teamName
@@ -2043,10 +2043,10 @@ function App() {
     const mascot = words[words.length - 1];
     
     return mascot;
-  };
+  }, []);
   
   // Helper function to extract city (first word) from team name
-  const extractCityFromName = (teamName) => {
+  const extractCityFromName = useCallback((teamName) => {
     if (!teamName) return '';
     
     const cleaned = teamName
@@ -2059,15 +2059,15 @@ function App() {
     const city = words[0];
     
     return city;
-  };
+  }, []);
   
-  // Helper function for robust team name matching (The "Mascot Rule")
-  const teamsMatchHelper = (team1, team2) => {
-    if (!team1 || !team2) return false;
+  // Helper function for robust team name matching (The "Mascot Rule") with method tracking
+  const teamsMatchHelper = useCallback((team1, team2) => {
+    if (!team1 || !team2) return { match: false, method: null };
     
     // Exact match (case-insensitive)
     if (team1.toLowerCase() === team2.toLowerCase()) {
-      return true;
+      return { match: true, method: 'Exact' };
     }
     
     // Extract mascots (last word of team name) and cities (first word)
@@ -2085,36 +2085,37 @@ function App() {
         const clean1 = team1.toLowerCase();
         const clean2 = team2.toLowerCase();
         // Check if either contains the other (handles "LA" vs "Los Angeles")
-        return clean1.includes(clean2) || clean2.includes(clean1);
+        if (clean1.includes(clean2) || clean2.includes(clean1)) {
+          return { match: true, method: 'Mascot' };
+        }
       }
-      return false;
+      return { match: false, method: null };
     }
     
     // Standard mascot matching
     if (mascot1 === mascot2 && mascot1.length > 0) {
-      return true;
+      return { match: true, method: 'Mascot' };
     }
     
-    // ENHANCED: City-only name matching (e.g., "Philadelphia" matches "Philadelphia 76ers")
-    // PRIORITY: Try city matching before generic contains
-    const words1 = team1.trim().split(/\s+/);
-    const words2 = team2.trim().split(/\s+/);
-    
-    // If one team is single word (likely just city) OR both have matching cities
-    if ((words1.length === 1 || words2.length === 1) && city1 === city2 && city1.length > 2) {
-      console.log(`    🏙️ City match found: "${city1}" matches both "${team1}" and "${team2}"`);
-      return true;
+    // ENHANCED CITY MATCH: Check if first word of either team name exists within the other
+    // This handles: "Evansville" in "Evansville Purple Aces" and vice versa
+    if (city1.length >= 3 && city2.length >= 3) {
+      const clean1 = team1.toLowerCase();
+      const clean2 = team2.toLowerCase();
+      
+      // Check if city1 is contained in team2 or city2 is contained in team1
+      if (clean1.includes(city2) || clean2.includes(city1)) {
+        return { match: true, method: 'City' };
+      }
     }
     
-    // ENHANCED: Handle partial city matches (e.g., "Southern Illinois" vs "Southern Illinois Salukis")
-    // Match if one name is completely contained within the other (minimum 5 chars for safety)
+    // ENHANCED: Partial name matching for multi-word cities
     const clean1 = team1.toLowerCase().replace(/[^a-z0-9\s]/g, '');
     const clean2 = team2.toLowerCase().replace(/[^a-z0-9\s]/g, '');
     
     if (clean1.length >= 5 && clean2.length >= 5) {
       if (clean1.includes(clean2) || clean2.includes(clean1)) {
-        console.log(`    📝 Partial name match: "${team1}" contains/contained-by "${team2}"`);
-        return true;
+        return { match: true, method: 'City' };
       }
     }
     
@@ -2122,8 +2123,12 @@ function App() {
     const cleanNoSpace1 = team1.toLowerCase().replace(/[^a-z0-9]/g, '');
     const cleanNoSpace2 = team2.toLowerCase().replace(/[^a-z0-9]/g, '');
     
-    return cleanNoSpace1.includes(cleanNoSpace2) || cleanNoSpace2.includes(cleanNoSpace1);
-  };
+    if (cleanNoSpace1.includes(cleanNoSpace2) || cleanNoSpace2.includes(cleanNoSpace1)) {
+      return { match: true, method: 'City' };
+    }
+    
+    return { match: false, method: null };
+  }, [extractMascotFromName, extractCityFromName]);
   
 const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
   try {
@@ -2693,62 +2698,8 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
 };
 
   // Helper function to extract mascot from team name (last word)
-  const extractMascot = useCallback((teamName) => {
-    if (!teamName) return '';
-    
-    // Remove special characters and extra spaces
-    const cleaned = teamName
-      .replace(/[^a-zA-Z0-9\s]/g, '') // Remove special chars
-      .replace(/\s+/g, ' ')            // Normalize spaces
-      .trim()
-      .toLowerCase();
-    
-    // Split into words and get last word (mascot)
-    const words = cleaned.split(' ');
-    const mascot = words[words.length - 1];
-    
-    return mascot;
-  }, []);
 
   // Helper function for robust team name matching (The "Mascot Rule")
-  const teamsMatch = useCallback((team1, team2) => {
-    if (!team1 || !team2) return false;
-    
-    // Exact match (case-insensitive)
-    if (team1.toLowerCase() === team2.toLowerCase()) {
-      return true;
-    }
-    
-    // Extract mascots (last word of team name)
-    const mascot1 = extractMascot(team1);
-    const mascot2 = extractMascot(team2);
-    
-    // Special cases: "Sox" (Red Sox, White Sox) - need city name too
-    const specialCaseMascots = ['sox', 'knicks', 'bulls', 'heat', 'magic', 'jazz', 'thunder'];
-    
-    if (specialCaseMascots.includes(mascot1) || specialCaseMascots.includes(mascot2)) {
-      // For special cases, check if both mascots match AND city is contained
-      if (mascot1 === mascot2) {
-        const clean1 = team1.toLowerCase();
-        const clean2 = team2.toLowerCase();
-        // Check if either contains the other (handles "LA" vs "Los Angeles")
-        return clean1.includes(clean2) || clean2.includes(clean1);
-      }
-      return false;
-    }
-    
-    // Standard mascot matching
-    if (mascot1 === mascot2 && mascot1.length > 0) {
-      return true;
-    }
-    
-    // Fallback: Check if one name contains the other (handles "Lakers" vs "Los Angeles Lakers")
-    const clean1 = team1.toLowerCase().replace(/[^a-z0-9]/g, '');
-    const clean2 = team2.toLowerCase().replace(/[^a-z0-9]/g, '');
-    
-    return clean1.includes(clean2) || clean2.includes(clean1);
-  }, [extractMascot]);
-
   const matchOddsToGame = useCallback((game, oddsMap) => {
     // Default fallback with dash for missing odds
     const defaultOdds = { 
@@ -2761,51 +2712,40 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
     };
     
     if (!oddsMap) {
-      console.warn(`⚠️ matchOddsToGame: No oddsMap provided for ${game.awayTeam} @ ${game.homeTeam}`);
       return defaultOdds;
     }
-    
-    // Debug logging
-    console.log(`🔍 Attempting to match game: ${game.homeTeam} vs ${game.awayTeam}`);
-    console.log(`   Home mascot: "${extractMascot(game.homeTeam)}"`);
-    console.log(`   Away mascot: "${extractMascot(game.awayTeam)}"`);
     
     // Try exact match first
     const gameKey = `${game.awayTeam}|${game.homeTeam}`;
     
     if (oddsMap[gameKey]) {
-      console.log(`✅ Exact match found for: "${gameKey}"`);
-      return oddsMap[gameKey];
+      const odds = oddsMap[gameKey];
+      // Concise diagnostic log
+      console.log(`[${game.awayTeam} @ ${game.homeTeam}] -> ML: ${odds.awayMoneyline !== '-' ? 'Yes' : 'No'} | Spread: ${odds.awaySpread !== '-' ? 'Yes' : 'No'} | Total: ${odds.total !== '-' ? 'Yes' : 'No'} | Match Method: Exact`);
+      return odds;
     }
     
-    console.log(`❌ No exact match for: "${gameKey}"`);
-    console.log(`   Available API teams:`);
-    Object.keys(oddsMap).forEach(key => {
-      const [away, home] = key.split('|');
-      console.log(`     "${away}" vs "${home}"`);
-    });
-    
-    // Try mascot-based fuzzy matching
-    console.log(`🔍 Attempting mascot-based matching...`);
+    // Try mascot-based fuzzy matching with enhanced city fallback
     for (const [key, value] of Object.entries(oddsMap)) {
       const [oddsAway, oddsHome] = key.split('|');
       
-      // Use robust team matcher (mascot rule)
-      const awayMatch = teamsMatch(game.awayTeam, oddsAway);
-      const homeMatch = teamsMatch(game.homeTeam, oddsHome);
+      // Use robust team matcher with method tracking
+      const awayMatchResult = teamsMatchHelper(game.awayTeam, oddsAway);
+      const homeMatchResult = teamsMatchHelper(game.homeTeam, oddsHome);
       
-      if (awayMatch && homeMatch) {
-        console.log(`✅ Mascot match found!`);
-        console.log(`   Game: "${game.awayTeam}" @ "${game.homeTeam}"`);
-        console.log(`   API:  "${oddsAway}" @ "${oddsHome}"`);
+      if (awayMatchResult.match && homeMatchResult.match) {
+        // Determine primary match method (use away team's method as reference)
+        const matchMethod = awayMatchResult.method;
+        // Concise diagnostic log
+        console.log(`[${game.awayTeam} @ ${game.homeTeam}] -> ML: ${value.awayMoneyline !== '-' ? 'Yes' : 'No'} | Spread: ${value.awaySpread !== '-' ? 'Yes' : 'No'} | Total: ${value.total !== '-' ? 'Yes' : 'No'} | Match Method: ${matchMethod}`);
         return value;
       }
     }
     
-    // No match found - return defaults
-    console.warn(`❌ No match found for: "${game.awayTeam}" @ "${game.homeTeam}"`);
+    // No match found - return defaults with diagnostic log
+    console.log(`[${game.awayTeam} @ ${game.homeTeam}] -> ML: No | Spread: No | Total: No | Match Method: None (No API data)`);
     return defaultOdds;
-  }, [extractMascot, teamsMatch]);
+  }, [teamsMatchHelper]);
 
   const fetchPropBets = useCallback(async (sportName) => {
     const cacheKey = sportName;

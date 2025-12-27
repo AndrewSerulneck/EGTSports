@@ -208,7 +208,7 @@
 }
 
 .btn-team {
-  font-size: 1.15rem; /* Mascot names */
+  font-size: 1.2rem; /* All mascot names - bold */
   font-weight: bold;
   color: #495057;
   white-space: normal; /* NEVER truncate - allow wrapping if needed */
@@ -221,7 +221,7 @@
 }
 
 .btn-odds {
-  font-size: 1.2rem; /* Odds prices - slightly larger than mascots */
+  font-size: 1.2rem; /* All odds - bold */
   font-weight: bold;
   color: #333;
   white-space: nowrap; /* Prevents minus sign from separating */

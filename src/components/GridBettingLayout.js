@@ -382,8 +382,8 @@ function GridBettingLayout({
                         </div>
                       )}
                       
-                      {/* Standard Moneyline (Non-Soccer, Non-Combat) */}
-                      {!isSoccer && (
+                      {/* Standard 2-Way Moneyline (Always show for non-soccer, non-combat) */}
+                      {!isSoccer && !isCombat && (
                         <div className="bet-type-group">
                           <div className="bet-type-label">Moneyline</div>
                           <div className="bet-options">
