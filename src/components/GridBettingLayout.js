@@ -382,34 +382,7 @@ function GridBettingLayout({
                         </div>
                       )}
                       
-                      {/* Standard 2-Way Moneyline (Always show for non-soccer, non-combat) */}
-                      {!isSoccer && !isCombat && (
-                        <div className="bet-type-group">
-                          <div className="bet-type-label">Moneyline</div>
-                          <div className="bet-options">
-                            <button
-                              className={`bet-btn ${isSelected(game.id, 'winner', 'away') ? 'selected' : ''} ${game.isFinal ? 'disabled' : ''}`}
-                              onClick={() => !game.isFinal && isValidOdds(game.awayMoneyline) && onSelectPick(game.id, 'winner', 'away')}
-                              disabled={game.isFinal || !isValidOdds(game.awayMoneyline)}
-                              aria-label={`${game.awayTeam} moneyline ${formatOdds(game.awayMoneyline)}`}
-                            >
-                              <span className="btn-team">{extractMascot(game.awayTeam)}</span>
-                              <span className="btn-odds">{formatOdds(game.awayMoneyline)}</span>
-                            </button>
-                            <button
-                              className={`bet-btn ${isSelected(game.id, 'winner', 'home') ? 'selected' : ''} ${game.isFinal ? 'disabled' : ''}`}
-                              onClick={() => !game.isFinal && isValidOdds(game.homeMoneyline) && onSelectPick(game.id, 'winner', 'home')}
-                              disabled={game.isFinal || !isValidOdds(game.homeMoneyline)}
-                              aria-label={`${game.homeTeam} moneyline ${formatOdds(game.homeMoneyline)}`}
-                            >
-                              <span className="btn-team">{extractMascot(game.homeTeam)}</span>
-                              <span className="btn-odds">{formatOdds(game.homeMoneyline)}</span>
-                            </button>
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Spread (Non-Combat only) */}
+                      {/* Spread (Non-Combat only) - MOVED TO FIRST POSITION */}
                       {!isCombat && (
                         <div className="bet-type-group">
                           <div className="bet-type-label">Spread</div>
@@ -436,7 +409,34 @@ function GridBettingLayout({
                         </div>
                       )}
 
-                      {/* Over/Under (Non-Combat only) */}
+                      {/* Standard 2-Way Moneyline (Always show for non-soccer, non-combat) - NOW IN SECOND POSITION */}
+                      {!isSoccer && !isCombat && (
+                        <div className="bet-type-group">
+                          <div className="bet-type-label">Moneyline</div>
+                          <div className="bet-options">
+                            <button
+                              className={`bet-btn ${isSelected(game.id, 'winner', 'away') ? 'selected' : ''} ${game.isFinal ? 'disabled' : ''}`}
+                              onClick={() => !game.isFinal && isValidOdds(game.awayMoneyline) && onSelectPick(game.id, 'winner', 'away')}
+                              disabled={game.isFinal || !isValidOdds(game.awayMoneyline)}
+                              aria-label={`${game.awayTeam} moneyline ${formatOdds(game.awayMoneyline)}`}
+                            >
+                              <span className="btn-team">{extractMascot(game.awayTeam)}</span>
+                              <span className="btn-odds">{formatOdds(game.awayMoneyline)}</span>
+                            </button>
+                            <button
+                              className={`bet-btn ${isSelected(game.id, 'winner', 'home') ? 'selected' : ''} ${game.isFinal ? 'disabled' : ''}`}
+                              onClick={() => !game.isFinal && isValidOdds(game.homeMoneyline) && onSelectPick(game.id, 'winner', 'home')}
+                              disabled={game.isFinal || !isValidOdds(game.homeMoneyline)}
+                              aria-label={`${game.homeTeam} moneyline ${formatOdds(game.homeMoneyline)}`}
+                            >
+                              <span className="btn-team">{extractMascot(game.homeTeam)}</span>
+                              <span className="btn-odds">{formatOdds(game.homeMoneyline)}</span>
+                            </button>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Over/Under (Non-Combat only) - REMAINS IN THIRD POSITION */}
                       {!isCombat && (
                         <div className="bet-type-group">
                           <div className="bet-type-label">O/U</div>
