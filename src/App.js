@@ -2172,6 +2172,19 @@ function App() {
             console.log(`  ✓ Found ${marketKey} market in bookmaker: ${bookmaker.title} (checked ${i + 1}/${bookmakers.length})`);
             return { bookmaker, market };
           }
+        } else if (marketKey === 'h2h_go_distance') {
+          // For go distance, verify we have Yes/No outcomes
+          const hasYes = market.outcomes.some(o => o.name === 'Yes');
+          const hasNo = market.outcomes.some(o => o.name === 'No');
+          
+          if (hasYes && hasNo) {
+            console.log(`  ✓ Found ${marketKey} market in bookmaker: ${bookmaker.title} (checked ${i + 1}/${bookmakers.length})`);
+            return { bookmaker, market };
+          }
+        } else {
+          // For other markets (h2h_method, h2h_round), just verify outcomes exist
+          console.log(`  ✓ Found ${marketKey} market in bookmaker: ${bookmaker.title} (checked ${i + 1}/${bookmakers.length})`);
+          return { bookmaker, market };
         }
       }
     }
@@ -2591,15 +2604,12 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
       }
       
       // 7. COMBAT SPORTS ONLY: Extract method of victory (h2h_method)
-      // Note: For combat sports, we need to find a bookmaker with this specific market
       let methodOfVictory = undefined;
       if (isCombat) {
-        const methodResult = game.bookmakers.find(bm => 
-          bm.markets && bm.markets.some(m => m.key === 'h2h_method')
-        );
+        const methodResult = findBookmakerWithMarket(game.bookmakers, 'h2h_method', homeTeam, awayTeam);
         if (methodResult) {
-          const methodMarket = methodResult.markets.find(m => m.key === 'h2h_method');
-          if (methodMarket?.outcomes && methodMarket.outcomes.length > 0) {
+          const { market: methodMarket } = methodResult;
+          if (methodMarket.outcomes && methodMarket.outcomes.length > 0) {
             console.log(`  🥊 Method of Victory market found with ${methodMarket.outcomes.length} outcomes`);
             methodOfVictory = {};
             methodMarket.outcomes.forEach(outcome => {
@@ -2608,21 +2618,19 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
               methodOfVictory[outcome.name] = methodPrice;
               console.log(`    ✓ ${outcome.name}: ${methodPrice}`);
             });
-          } else {
-            console.log(`  ℹ️ No h2h_method market available for this fight`);
           }
+        } else {
+          console.log(`  ℹ️ No h2h_method market available for this fight`);
         }
       }
       
       // 8. COMBAT SPORTS ONLY: Extract round betting (h2h_round)
       let roundBetting = undefined;
       if (isCombat) {
-        const roundResult = game.bookmakers.find(bm => 
-          bm.markets && bm.markets.some(m => m.key === 'h2h_round')
-        );
+        const roundResult = findBookmakerWithMarket(game.bookmakers, 'h2h_round', homeTeam, awayTeam);
         if (roundResult) {
-          const roundMarket = roundResult.markets.find(m => m.key === 'h2h_round');
-          if (roundMarket?.outcomes && roundMarket.outcomes.length > 0) {
+          const { market: roundMarket } = roundResult;
+          if (roundMarket.outcomes && roundMarket.outcomes.length > 0) {
             console.log(`  🥊 Round Betting market found with ${roundMarket.outcomes.length} outcomes`);
             roundBetting = {};
             roundMarket.outcomes.forEach(outcome => {
@@ -2630,21 +2638,19 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
               roundBetting[outcome.name] = roundPrice;
               console.log(`    ✓ ${outcome.name}: ${roundPrice}`);
             });
-          } else {
-            console.log(`  ℹ️ No h2h_round market available for this fight`);
           }
+        } else {
+          console.log(`  ℹ️ No h2h_round market available for this fight`);
         }
       }
       
       // 9. COMBAT SPORTS ONLY: Extract go distance (h2h_go_distance)
       let goDistance = undefined;
       if (isCombat) {
-        const distanceResult = game.bookmakers.find(bm => 
-          bm.markets && bm.markets.some(m => m.key === 'h2h_go_distance')
-        );
+        const distanceResult = findBookmakerWithMarket(game.bookmakers, 'h2h_go_distance', homeTeam, awayTeam);
         if (distanceResult) {
-          const distanceMarket = distanceResult.markets.find(m => m.key === 'h2h_go_distance');
-          if (distanceMarket?.outcomes && distanceMarket.outcomes.length >= 2) {
+          const { market: distanceMarket } = distanceResult;
+          if (distanceMarket.outcomes && distanceMarket.outcomes.length >= 2) {
             console.log(`  🥊 Go Distance market found with ${distanceMarket.outcomes.length} outcomes`);
             const yesOutcome = distanceMarket.outcomes.find(o => o.name === 'Yes');
             const noOutcome = distanceMarket.outcomes.find(o => o.name === 'No');
@@ -2657,9 +2663,9 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
               goDistance.No = noOutcome.price > 0 ? `+${noOutcome.price}` : String(noOutcome.price);
               console.log(`    ✓ No (Ends Early): ${goDistance.No}`);
             }
-          } else {
-            console.log(`  ℹ️ No h2h_go_distance market available for this fight`);
           }
+        } else {
+          console.log(`  ℹ️ No h2h_go_distance market available for this fight`);
         }
       }
       
