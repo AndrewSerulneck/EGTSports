@@ -1,6 +1,8 @@
 {
   "rules": {
     "spreads": {
+      ".read": true,
+      ".write": "auth != null && auth.token.admin === true",
       "$sport": {
         ".read": true,
         ".write": "auth != null && auth.token.admin === true",
