@@ -7,7 +7,7 @@
         ".read": true,
         ".write": "auth != null && auth.token.admin === true",
         "$gameId": {
-          ".validate": "newData.hasChild('timestamp')",
+          ".validate": "newData.hasChild('timestamp') || data.exists()",
           "timestamp": { 
             ".validate": "newData.isString()" 
           },
@@ -63,7 +63,7 @@
           "H2_awaySpread": { ".validate": "newData.isString()" },
           "H2_total": { ".validate": "newData.isString()" },
           "$other": {
-            ".validate": false
+            ".validate": "newData.isString()"
           }
         }
       }

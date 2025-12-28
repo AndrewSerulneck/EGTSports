@@ -2837,27 +2837,45 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
         console.log(`       Home team from API: "${homeTeam}"`);
         console.log(`       Away team from API: "${awayTeam}"`);
         
-        // IMPROVED: Use fuzzy matching with teamsMatchHelper for more robust name matching
-        // This helps when API returns "LA Lakers" vs ESPN "Los Angeles Lakers"
-        const homeOutcome = h2hMarket.outcomes.find(o => {
-          // Try exact match first
-          if (o.name === homeTeam) return true;
-          // Fall back to mascot-based fuzzy matching
-          return teamsMatchHelper(o.name, homeTeam);
-        });
+        // CRITICAL FIX: Strict matching with outcome tracking to prevent duplicate assignments
+        // First attempt EXACT matches for both teams, then fall back to fuzzy matching
+        // Track used outcomes to ensure home and away don't steal the same odd
         
-        const awayOutcome = h2hMarket.outcomes.find(o => {
-          // Try exact match first
-          if (o.name === awayTeam) return true;
-          // Fall back to mascot-based fuzzy matching
-          return teamsMatchHelper(o.name, awayTeam);
-        });
+        let homeOutcome = null;
+        let awayOutcome = null;
+        
+        // STEP 1: Try exact matches first (case-insensitive)
+        homeOutcome = h2hMarket.outcomes.find(o => 
+          o.name.toLowerCase() === homeTeam.toLowerCase()
+        );
+        awayOutcome = h2hMarket.outcomes.find(o => 
+          o.name.toLowerCase() === awayTeam.toLowerCase()
+        );
+        
+        // STEP 2: If exact matches failed, use fuzzy matching BUT prevent reuse
+        if (!homeOutcome) {
+          homeOutcome = h2hMarket.outcomes.find(o => {
+            // Skip if this outcome was already matched to away team
+            if (awayOutcome && o.name === awayOutcome.name) return false;
+            // Try fuzzy matching
+            return teamsMatchHelper(o.name, homeTeam).match;
+          });
+        }
+        
+        if (!awayOutcome) {
+          awayOutcome = h2hMarket.outcomes.find(o => {
+            // Skip if this outcome was already matched to home team
+            if (homeOutcome && o.name === homeOutcome.name) return false;
+            // Try fuzzy matching
+            return teamsMatchHelper(o.name, awayTeam).match;
+          });
+        }
         
         if (homeOutcome) {
           // Validate price exists and is a number
           if (homeOutcome.price !== undefined && homeOutcome.price !== null && !isNaN(homeOutcome.price)) {
             homeMoneyline = homeOutcome.price > 0 ? `+${homeOutcome.price}` : String(homeOutcome.price);
-            const matchType = homeOutcome.name === homeTeam ? 'exact' : 'fuzzy';
+            const matchType = homeOutcome.name.toLowerCase() === homeTeam.toLowerCase() ? 'exact' : 'fuzzy';
             console.log(`    ✓ ${homeTeam} matched with "${homeOutcome.name}" (${matchType}): ${homeMoneyline}`);
             console.log(`    🔍 API Raw Price for ${game.id} (home): ${homeOutcome.price}`);
             if (matchType === 'fuzzy') {
@@ -2876,7 +2894,7 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
         if (awayOutcome) {
           if (awayOutcome.price !== undefined && awayOutcome.price !== null && !isNaN(awayOutcome.price)) {
             awayMoneyline = awayOutcome.price > 0 ? `+${awayOutcome.price}` : String(awayOutcome.price);
-            const matchType = awayOutcome.name === awayTeam ? 'exact' : 'fuzzy';
+            const matchType = awayOutcome.name.toLowerCase() === awayTeam.toLowerCase() ? 'exact' : 'fuzzy';
             console.log(`    ✓ ${awayTeam} matched with "${awayOutcome.name}" (${matchType}): ${awayMoneyline}`);
             console.log(`    🔍 API Raw Price for ${game.id} (away): ${awayOutcome.price}`);
             if (matchType === 'fuzzy') {
