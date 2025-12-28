@@ -201,6 +201,34 @@ if (!ODDS_API_KEY) {
   console.error('Please add: REACT_APP_THE_ODDS_API_KEY=your_api_key_here');
 }
 
+// JsonOdds API Configuration for Moneyline Odds
+const JSON_ODDS_API_KEY = process.env.REACT_APP_JSON_ODDS_API_KEY;
+
+// Debug: Log JsonOdds API key status
+console.log('🔑 JsonOdds API Key Status:', JSON_ODDS_API_KEY ? '✅ LOADED' : '❌ MISSING');
+if (!JSON_ODDS_API_KEY) {
+  console.error('❌ CRITICAL: REACT_APP_JSON_ODDS_API_KEY is not defined in .env file');
+  console.error('Please add: REACT_APP_JSON_ODDS_API_KEY=your_api_key_here');
+}
+
+// JsonOdds sport keys mapping (from JsonOdds_Documentation.html)
+const JSON_ODDS_SPORT_KEYS = {
+  'NFL': 'NFL',
+  'NBA': 'NBA',
+  'College Football': 'NCAAF',
+  'College Basketball': 'NCAAB',
+  'Major League Baseball': 'MLB',
+  'NHL': 'NHL',
+  'World Cup': 'Soccer',
+  'MLS': 'MLS',
+  'Boxing': 'Boxing',
+  'UFC': 'MMA'
+};
+
+// JsonOdds cache with same structure as Odds API cache
+const jsonOddsCache = {};
+const JSON_ODDS_CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+
 const ODDS_API_SPORT_KEYS = {
   'NFL': 'americanfootball_nfl',
   'NBA': 'basketball_nba',
@@ -3187,6 +3215,185 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
 };
 
 /**
+ * Fetch moneyline odds from JsonOdds API
+ * According to JsonOdds documentation:
+ * - Endpoint: https://jsonodds.com/api/odds/{sport}
+ * - Authentication: x-api-key header
+ * - Data structure: matches array, each with Odds array
+ * - Moneyline fields: MoneyLineHome, MoneyLineAway (directly on odds object)
+ * 
+ * @param {string} sport - Sport name (e.g., 'NFL', 'NBA')
+ * @param {boolean} forceRefresh - Skip cache if true
+ * @returns {object} - Map of game keys to moneyline data { awayMoneyline, homeMoneyline }
+ */
+const fetchMoneylineFromJsonOdds = async (sport, forceRefresh = false) => {
+  try {
+    // CRITICAL: Check hard stop first - prevent any API calls if quota exhausted
+    if (apiQuotaRef.current.hardStop) {
+      console.error('🛑 HARD STOP: API quota exhausted. Skipping JsonOdds call.');
+      return null;
+    }
+    
+    const sportKey = JSON_ODDS_SPORT_KEYS[sport];
+    if (!sportKey) {
+      console.warn(`⚠️ No JsonOdds sport key for: ${sport}`);
+      return null;
+    }
+    
+    // Validate API key
+    if (!JSON_ODDS_API_KEY || JSON_ODDS_API_KEY === 'undefined') {
+      console.error('❌ Error: REACT_APP_JSON_ODDS_API_KEY is not defined in .env');
+      return null;
+    }
+    
+    // Check cache first
+    if (!forceRefresh && jsonOddsCache[sport]) {
+      const cached = jsonOddsCache[sport];
+      if (Date.now() - cached.timestamp < JSON_ODDS_CACHE_DURATION) {
+        console.log(`✅ Using cached JsonOdds data for ${sport}`);
+        return cached.data;
+      }
+    }
+    
+    // Build JsonOdds API URL
+    const url = `https://jsonodds.com/api/odds/${sportKey}`;
+    
+    console.log(`🎰 Fetching moneylines from JsonOdds for ${sport}...`);
+    console.log(`📡 URL: ${url} (key hidden)`);
+    
+    const response = await fetch(url, {
+      headers: {
+        'x-api-key': JSON_ODDS_API_KEY
+      }
+    });
+    
+    if (!response.ok) {
+      if (response.status === 401) {
+        console.error(`❌ 401 UNAUTHORIZED: Invalid JsonOdds API key`);
+      } else if (response.status === 429) {
+        console.error(`❌ 429 RATE LIMIT: Too many requests to JsonOdds`);
+      } else if (response.status === 404) {
+        console.error(`❌ 404 NOT FOUND: Sport key "${sportKey}" may not be valid`);
+      } else {
+        console.error(`❌ JsonOdds returned ${response.status}: ${response.statusText}`);
+      }
+      return null;
+    }
+    
+    const data = await response.json();
+    console.log(`✅ JsonOdds response received for ${sport}`);
+    
+    // Validate response structure
+    if (!data || typeof data !== 'object') {
+      console.error('❌ JsonOdds returned invalid data structure');
+      return null;
+    }
+    
+    // Extract matches array - handle both direct array and wrapped object
+    let matches = [];
+    if (Array.isArray(data)) {
+      matches = data;
+    } else if (data.matches && Array.isArray(data.matches)) {
+      matches = data.matches;
+    } else {
+      console.error('❌ JsonOdds response missing matches array');
+      console.log('Response structure:', Object.keys(data));
+      return null;
+    }
+    
+    console.log(`📊 JsonOdds returned ${matches.length} matches for ${sport}`);
+    
+    // Build moneyline map using same key format as Odds API
+    const moneylineMap = {};
+    
+    matches.forEach((match, idx) => {
+      const homeTeam = match.HomeTeam;
+      const awayTeam = match.AwayTeam;
+      
+      if (!homeTeam || !awayTeam) {
+        console.warn(`  ⚠️ Match ${idx + 1} missing team names`);
+        return;
+      }
+      
+      console.log(`\n🎮 JsonOdds Match ${idx + 1}: ${awayTeam} @ ${homeTeam}`);
+      
+      // Check if Odds array exists
+      if (!match.Odds || !Array.isArray(match.Odds) || match.Odds.length === 0) {
+        console.warn(`  ⚠️ No odds data available`);
+        return;
+      }
+      
+      console.log(`  📊 Found ${match.Odds.length} odds provider(s)`);
+      
+      // Extract moneyline from first available odds provider
+      // Loop through all providers to find valid moneyline data
+      let homeMoneyline = null;
+      let awayMoneyline = null;
+      
+      for (let i = 0; i < match.Odds.length; i++) {
+        const odd = match.Odds[i];
+        
+        // CRITICAL: Convert to string as per user instruction
+        // JsonOdds returns numeric values, we need strings for consistency
+        if (odd.MoneyLineHome !== undefined && odd.MoneyLineHome !== null) {
+          const mlHome = parseInt(odd.MoneyLineHome);
+          if (!isNaN(mlHome) && mlHome >= -10000 && mlHome <= 10000) {
+            homeMoneyline = String(odd.MoneyLineHome);
+            if (mlHome > 0 && !homeMoneyline.startsWith('+')) {
+              homeMoneyline = '+' + homeMoneyline;
+            }
+          }
+        }
+        
+        if (odd.MoneyLineAway !== undefined && odd.MoneyLineAway !== null) {
+          const mlAway = parseInt(odd.MoneyLineAway);
+          if (!isNaN(mlAway) && mlAway >= -10000 && mlAway <= 10000) {
+            awayMoneyline = String(odd.MoneyLineAway);
+            if (mlAway > 0 && !awayMoneyline.startsWith('+')) {
+              awayMoneyline = '+' + awayMoneyline;
+            }
+          }
+        }
+        
+        // If we found both moneylines, stop searching
+        if (homeMoneyline && awayMoneyline) {
+          console.log(`  ✅ Moneylines from provider ${i + 1}: Away ${awayMoneyline}, Home ${homeMoneyline}`);
+          break;
+        }
+      }
+      
+      // Store moneyline data using same key format as Odds API for matching
+      const gameKey = `${awayTeam}|${homeTeam}`;
+      moneylineMap[gameKey] = {
+        awayMoneyline: awayMoneyline || '-',
+        homeMoneyline: homeMoneyline || '-'
+      };
+      
+      console.log(`  📋 Stored with key: "${gameKey}"`);
+      console.log(`     Away ML: ${moneylineMap[gameKey].awayMoneyline}`);
+      console.log(`     Home ML: ${moneylineMap[gameKey].homeMoneyline}`);
+    });
+    
+    console.log(`\n🎉 JsonOdds parsing complete: ${Object.keys(moneylineMap).length} games with moneyline data`);
+    
+    // Cache the results
+    jsonOddsCache[sport] = {
+      data: moneylineMap,
+      timestamp: Date.now()
+    };
+    
+    return moneylineMap;
+    
+  } catch (error) {
+    console.error(`\n❌ EXCEPTION in fetchMoneylineFromJsonOdds for ${sport}:`);
+    console.error(`Error type: ${error.name}`);
+    console.error(`Error message: ${error.message}`);
+    console.error('Stack trace:', error.stack);
+    return null;
+  }
+};
+
+/**
  * fetchDetailedOdds - Fetch period-specific odds for a single event
  * Uses The Odds API per-event endpoint to get quarter/half odds
  * 
@@ -3886,42 +4093,73 @@ const fetchDetailedOdds = async (sport, eventId) => {
           const missingCount = countMissingOdds(formattedGames);
           
           if (missingCount > 0) {
+            // STEP 1: Fetch spreads and totals from The Odds API
             const oddsMap = await fetchOddsFromTheOddsAPI(sport);
             
-            if (oddsMap) {
+            // STEP 2: Fetch moneylines from JsonOdds (PRIMARY SOURCE for ML)
+            const jsonOddsMoneylines = await fetchMoneylineFromJsonOdds(sport);
+            
+            if (oddsMap || jsonOddsMoneylines) {
               const finalFormattedGames = formattedGames.map(game => {
                 if (hasCompleteOddsData(game)) return game;
                 
                 // Log when ESPN is missing moneyline data
                 if (!game.awayMoneyline || !game.homeMoneyline) {
-                  console.log(`📞 ESPN missing moneyline for ${game.awayTeam} @ ${game.homeTeam}, fetching from Odds API...`);
+                  console.log(`📞 ESPN missing moneyline for ${game.awayTeam} @ ${game.homeTeam}`);
                 }
                 
-                const odds = matchOddsToGame(game, oddsMap);
+                // First, get spreads and totals from The Odds API
+                const odds = oddsMap ? matchOddsToGame(game, oddsMap) : {};
                 
-                // Log when Odds API data is applied for moneyline
-                if (odds.awayMoneyline && !game.awayMoneyline) {
-                  console.log(`✅ Applied Odds API moneyline: ${game.awayTeam} ${odds.awayMoneyline}`);
-                }
-                if (odds.homeMoneyline && !game.homeMoneyline) {
-                  console.log(`✅ Applied Odds API moneyline: ${game.homeTeam} ${odds.homeMoneyline}`);
+                // Then, overlay JsonOdds moneylines (PRIORITY OVERRIDE)
+                let jsonOddsML = null;
+                if (jsonOddsMoneylines) {
+                  // Try exact match first
+                  const gameKey = `${game.awayTeam}|${game.homeTeam}`;
+                  jsonOddsML = jsonOddsMoneylines[gameKey];
+                  
+                  // If no exact match, try fuzzy matching
+                  if (!jsonOddsML) {
+                    for (const [key, value] of Object.entries(jsonOddsMoneylines)) {
+                      const [oddsAway, oddsHome] = key.split('|');
+                      const awayMatch = teamsMatchHelper(game.awayTeam, oddsAway);
+                      const homeMatch = teamsMatchHelper(game.homeTeam, oddsHome);
+                      
+                      if (awayMatch.match && homeMatch.match) {
+                        jsonOddsML = value;
+                        console.log(`  🎯 JsonOdds fuzzy match: "${gameKey}" -> "${key}"`);
+                        break;
+                      }
+                    }
+                  }
                 }
                 
-                // Build updated game object with all odds data
+                // Build updated game object with layered data:
+                // 1. Base game data (ESPN)
+                // 2. The Odds API (spreads, totals, fallback moneyline)
+                // 3. JsonOdds (moneyline OVERRIDE)
                 const updatedGame = {
                   ...game,
+                  // Spreads and totals from The Odds API
                   awaySpread: odds.awaySpread || game.awaySpread,
                   homeSpread: odds.homeSpread || game.homeSpread,
                   total: odds.total || game.total,
-                  awayMoneyline: odds.awayMoneyline || game.awayMoneyline,
-                  homeMoneyline: odds.homeMoneyline || game.homeMoneyline,
-                  oddsApiEventId: odds.oddsApiEventId // Add Odds API event ID for prop betting
+                  // Moneyline PRIORITY: JsonOdds > The Odds API > ESPN
+                  awayMoneyline: (jsonOddsML && jsonOddsML.awayMoneyline !== '-') ? jsonOddsML.awayMoneyline : (odds.awayMoneyline || game.awayMoneyline),
+                  homeMoneyline: (jsonOddsML && jsonOddsML.homeMoneyline !== '-') ? jsonOddsML.homeMoneyline : (odds.homeMoneyline || game.homeMoneyline),
+                  oddsApiEventId: odds.oddsApiEventId
                 };
                 
-                // Add drawMoneyline for soccer sports
+                // Log source of moneyline data
+                if (jsonOddsML && jsonOddsML.awayMoneyline !== '-') {
+                  console.log(`✅ Applied JsonOdds moneyline: ${game.awayTeam} ${updatedGame.awayMoneyline}, ${game.homeTeam} ${updatedGame.homeMoneyline}`);
+                } else if (odds.awayMoneyline && !game.awayMoneyline) {
+                  console.log(`✅ Applied Odds API moneyline fallback: ${game.awayTeam} ${odds.awayMoneyline}`);
+                }
+                
+                // Add draw moneyline for soccer sports
                 if (odds.drawMoneyline !== undefined) {
                   updatedGame.drawMoneyline = odds.drawMoneyline;
-                  console.log(`⚽ Added draw odds for ${game.awayTeam} @ ${game.homeTeam}: ${odds.drawMoneyline}`);
                 }
                 
                 // Add quarter/halftime markets if available
@@ -3939,7 +4177,6 @@ const fetchDetailedOdds = async (sport, eventId) => {
                     updatedGame[key] = odds[key];
                   }
                 });
-
                 
                 return updatedGame;
               });
