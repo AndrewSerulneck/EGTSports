@@ -244,7 +244,7 @@ const PROP_BETS_CACHE_DURATION = 2 * 60 * 60 * 1000;
 
 const CACHE_DURATION = 6 * 60 * 60 * 1000;
 const COLLEGE_BASKETBALL_CACHE_DURATION = 6 * 60 * 60 * 1000;
-const ODDS_API_CACHE_DURATION = 24 * 60 * 60 * 1000; // 24 hours to minimize API usage
+const ODDS_API_CACHE_DURATION = 5 * 60 * 1000; // 5 minutes for better data freshness
 const DATA_REFRESH_INTERVAL = 4 * 60 * 60 * 1000; // 4 hours
 const FIREBASE_LISTENER_SETUP_DELAY = 500; // ms
 const GLOBAL_FETCH_THROTTLE = 60 * 1000; // 60 seconds - prevent rapid-fire fetches
@@ -2515,13 +2515,13 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
       markets = 'h2h,spreads,totals';
     }
     
-    // V4 API: Add time parameters to include future games (next 7 days)
+    // V4 API: Add time parameters to include future games (next 14 days)
     // commenceTimeFrom: Current time (now)
-    // commenceTimeTo: 7 days from now
+    // commenceTimeTo: 14 days from now (extended for better coverage)
     const now = new Date();
-    const sevenDaysFromNow = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+    const fourteenDaysFromNow = new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000);
     const commenceTimeFrom = now.toISOString();
-    const commenceTimeTo = sevenDaysFromNow.toISOString();
+    const commenceTimeTo = fourteenDaysFromNow.toISOString();
     
     // CRITICAL: Explicitly request 'american' odds format and include future games
     const url = `${ODDS_API_BASE_URL}/sports/${sportKey}/odds/?apiKey=${ODDS_API_KEY}&regions=us&markets=${markets}&oddsFormat=american&commenceTimeFrom=${commenceTimeFrom}&commenceTimeTo=${commenceTimeTo}`;
@@ -2532,7 +2532,7 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
     console.log(`📡 URL: ${maskedUrl}`);
     console.log(`📋 Markets requested: ${markets}`);
     console.log(`📐 Odds format: american`);
-    console.log(`⏰ Time range: ${commenceTimeFrom} to ${commenceTimeTo} (7 days)`);
+    console.log(`📅 Time window: ${commenceTimeFrom} to ${commenceTimeTo} (14 days)`);
     
     const response = await fetch(url);
     
@@ -2684,6 +2684,10 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
     });
     console.log('');
     
+    // LOG: Confirm we're processing ALL games without time filtering
+    console.log(`✅ Processing all ${data.length} games (no time filtering applied)`);
+    console.log(`⚠️ CRITICAL: Future games will be processed - no commence_time filtering\n`);
+    
     // VALIDATION LOG: Deep inspection of first event structure
     if (data.length > 0 && data[0].bookmakers && data[0].bookmakers.length > 0) {
       console.log('\n🔍 VALIDATION: Deep structure of first event bookmaker:');
@@ -2744,7 +2748,12 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
       const homeTeam = game.home_team;
       const awayTeam = game.away_team;
       
+      // Calculate time until game starts for diagnostic logging
+      const commenceTime = new Date(game.commence_time);
+      const hoursUntilGame = (commenceTime - now) / (1000 * 60 * 60);
+      
       console.log(`\n🎮 Game ${gameIndex + 1}: ${awayTeam} @ ${homeTeam}`);
+      console.log(`   ⏰ Starts in: ${hoursUntilGame.toFixed(1)} hours (${game.commence_time})`);
       
       // THE ODDS API v4 DATA DRILL-DOWN PATH:
       // 1. Check if bookmakers array exists
