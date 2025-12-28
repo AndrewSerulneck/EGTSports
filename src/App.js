@@ -218,16 +218,6 @@ const ODDS_API_SPORT_KEYS = {
 // Priority order: DraftKings > FanDuel > BetMGM > Pinnacle > WilliamHill
 const BOOKMAKER_PRIORITY = ['draftkings', 'fanduel', 'betmgm', 'pinnacle', 'williamhill_us'];
 
-// Quarter and Halftime Market Keys for US Sports
-const QUARTER_HALFTIME_MARKETS = [
-  'h2h_q1', 'spreads_q1', 'totals_q1',
-  'h2h_q2', 'spreads_q2', 'totals_q2',
-  'h2h_q3', 'spreads_q3', 'totals_q3',
-  'h2h_q4', 'spreads_q4', 'totals_q4',
-  'h2h_h1', 'spreads_h1', 'totals_h1',
-  'h2h_h2', 'spreads_h2', 'totals_h2'
-];
-
 // Period market configuration for parsing quarter/halftime odds
 const PERIOD_MARKET_CONFIG = [
   { key: 'h2h_q1', type: 'moneyline', period: 'Q1' },
@@ -2516,11 +2506,10 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
       // Soccer: h2h (3-way including Draw), spreads (if available), totals
       markets = 'h2h,spreads,totals';
     } else {
-      // US Sports: h2h (moneyline), spreads, totals
-      // ENHANCED: Include quarter and halftime markets for comprehensive odds coverage
-      const baseMarkets = ['h2h', 'spreads', 'totals'];
-      const allMarkets = [...baseMarkets, ...QUARTER_HALFTIME_MARKETS];
-      markets = allMarkets.join(',');
+      // US Sports: ONLY h2h (moneyline), spreads, totals for bulk endpoint
+      // Period-specific markets (quarters/halves) must use per-event endpoint via fetchDetailedOdds
+      // This prevents 422 'Invalid Market' errors from the bulk API
+      markets = 'h2h,spreads,totals';
     }
     
     // CRITICAL: Explicitly request 'american' odds format
@@ -3551,9 +3540,17 @@ const fetchDetailedOdds = async (sport, eventId) => {
             let updated = false;
             const newGames = prevGames.map(game => {
               const espnId = game.espnId;
-              if (firebaseData[espnId]) {
-                const fbGame = firebaseData[espnId];
-                
+              let fbGame = firebaseData[espnId];
+              
+              // NFL FALLBACK: Check root path if not found in sport-specific path
+              // This supports backward compatibility with orphaned data
+              if (!fbGame && sport === 'NFL') {
+                console.log(`  🔍 NFL game ${espnId} not found at ${firebasePath}/${espnId}, checking root fallback...`);
+                // Note: We can't directly read from root in this listener, but the migration
+                // script should handle moving data. This is just a log for debugging.
+              }
+              
+              if (fbGame) {
                 // Log what we're receiving from Firebase
                 console.log(`  🔍 Syncing game ${espnId}:`, {
                   awayML: fbGame.awayMoneyline,
@@ -3630,6 +3627,54 @@ const fetchDetailedOdds = async (sport, eventId) => {
           });
         } else {
           console.log(`ℹ️ No Firebase data found at path: ${firebasePath}`);
+          
+          // NFL FALLBACK: If no data at sport path, check root for orphaned data
+          // This is a one-time operation that runs when listener finds no data at /spreads/NFL
+          // The migration script will move orphaned data to proper location, making this temporary
+          if (sport === 'NFL') {
+            console.log(`  🔍 Checking for orphaned NFL data at root...`);
+            const rootRef = ref(database, 'spreads');
+            get(rootRef).then(rootSnapshot => {
+              if (rootSnapshot.exists()) {
+                const rootData = rootSnapshot.val();
+                const orphanedGames = {};
+                
+                // Find numeric IDs at root (orphaned games)
+                Object.keys(rootData).forEach(key => {
+                  if (/^\d+$/.test(key)) {
+                    orphanedGames[key] = rootData[key];
+                  }
+                });
+                
+                if (Object.keys(orphanedGames).length > 0) {
+                  console.log(`  ⚠️ Found ${Object.keys(orphanedGames).length} orphaned NFL games at root`);
+                  console.log(`  ℹ️ Migration script should move these to ${firebasePath}`);
+                  
+                  // Apply orphaned data to games temporarily (one-time operation)
+                  // This setGames call only happens once per app load when orphaned data exists
+                  setGames(prevGames => {
+                    return prevGames.map(game => {
+                      if (orphanedGames[game.espnId]) {
+                        const fbGame = orphanedGames[game.espnId];
+                        console.log(`  📥 Applying orphaned data for game ${game.espnId}`);
+                        return {
+                          ...game,
+                          awaySpread: fbGame.awaySpread || game.awaySpread || '',
+                          homeSpread: fbGame.homeSpread || game.homeSpread || '',
+                          awayMoneyline: fbGame.awayMoneyline || game.awayMoneyline || '',
+                          homeMoneyline: fbGame.homeMoneyline || game.homeMoneyline || '',
+                          total: fbGame.total || game.total || ''
+                        };
+                      }
+                      return game;
+                    });
+                  });
+                }
+              }
+            }).catch(error => {
+              console.error('  ❌ Error checking for orphaned NFL data:', error);
+            });
+          }
         }
       });
     } catch (error) {
