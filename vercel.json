@@ -11,6 +11,10 @@
   },
   "rewrites": [
     {
+      "source": "/api/jsonodds/:path*",
+      "destination": "https://jsonodds.com/api/:path*"
+    },
+    {
       "source": "/(.*)",
       "destination": "/index.html"
     }
