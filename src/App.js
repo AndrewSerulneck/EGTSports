@@ -472,7 +472,10 @@ function AdminPanel({ user, games, setGames, isSyncing, setIsSyncing, recentlyUp
       const spreadsData = {};
       validGames.forEach(game => {
         const gameData = {
-          timestamp: new Date().toISOString()
+          timestamp: new Date().toISOString(),
+          // MANUAL OVERRIDE FLAG: Mark data as manually edited by admin
+          // This prevents API from overwriting these odds automatically
+          isManual: true
         };
         
         // Only add fields if they have valid values (not empty strings or null)
@@ -511,7 +514,7 @@ function AdminPanel({ user, games, setGames, isSyncing, setIsSyncing, recentlyUp
         spreadsData[game.espnId] = gameData;
       });
       
-      console.log(`💾 Saving ${Object.keys(spreadsData).length} games to Firebase path: spreads/${sport}`);
+      console.log(`💾 Saving ${Object.keys(spreadsData).length} games to Firebase path: spreads/${sport} with isManual=true`);
       
       // CRITICAL FIX: Use update() instead of set() to preserve existing data
       // This allows full game and quarter/half odds to coexist in same Firebase entry
@@ -521,7 +524,7 @@ function AdminPanel({ user, games, setGames, isSyncing, setIsSyncing, recentlyUp
         await update(ref(database, path), gameData);
       }
       
-      alert('✅ Spreads saved! All devices will update in real-time.');
+      alert('✅ Spreads saved! All devices will update in real-time. Manual override flag set.');
       setIsSyncing(false);
     } catch (error) {
       console.error('❌ Error saving spreads:', error);
@@ -2512,8 +2515,16 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
       markets = 'h2h,spreads,totals';
     }
     
-    // CRITICAL: Explicitly request 'american' odds format
-    const url = `${ODDS_API_BASE_URL}/sports/${sportKey}/odds/?apiKey=${ODDS_API_KEY}&regions=us&markets=${markets}&oddsFormat=american`;
+    // V4 API: Add time parameters to include future games (next 7 days)
+    // commenceTimeFrom: Current time (now)
+    // commenceTimeTo: 7 days from now
+    const now = new Date();
+    const sevenDaysFromNow = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+    const commenceTimeFrom = now.toISOString();
+    const commenceTimeTo = sevenDaysFromNow.toISOString();
+    
+    // CRITICAL: Explicitly request 'american' odds format and include future games
+    const url = `${ODDS_API_BASE_URL}/sports/${sportKey}/odds/?apiKey=${ODDS_API_KEY}&regions=us&markets=${markets}&oddsFormat=american&commenceTimeFrom=${commenceTimeFrom}&commenceTimeTo=${commenceTimeTo}`;
     
     // DEBUG: Log URL with masked API key for security
     const maskedUrl = url.replace(ODDS_API_KEY, '***KEY_HIDDEN***');
@@ -2521,6 +2532,7 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
     console.log(`📡 URL: ${maskedUrl}`);
     console.log(`📋 Markets requested: ${markets}`);
     console.log(`📐 Odds format: american`);
+    console.log(`⏰ Time range: ${commenceTimeFrom} to ${commenceTimeTo} (7 days)`);
     
     const response = await fetch(url);
     
@@ -3607,7 +3619,8 @@ const fetchDetailedOdds = async (sport, eventId) => {
                   homeSpread: fbGame.homeSpread || game.homeSpread || '',
                   awayMoneyline: fbGame.awayMoneyline || game.awayMoneyline || '',
                   homeMoneyline: fbGame.homeMoneyline || game.homeMoneyline || '',
-                  total: fbGame.total || game.total || ''
+                  total: fbGame.total || game.total || '',
+                  isManual: fbGame.isManual || false // Preserve manual override flag
                 };
                 
                 // Add quarter/halftime fields if present in Firebase
@@ -4105,21 +4118,69 @@ const fetchDetailedOdds = async (sport, eventId) => {
   }, [loadAllSports, setupFirebaseListener]);
 
   useEffect(() => {
-    // Load initial data for non-admin users, but only once
-    // This prevents duplicate calls with the onAuthStateChanged effect above
-    const shouldLoadSportsData = authState.user && 
+    // Auto-populate data for ANY authenticated user if Firebase data is stale (> 5 minutes)
+    // This ensures members can trigger updates and see fresh odds
+    const shouldCheckForUpdate = authState.user && 
                                  !authState.loading && 
-                                 !authState.isAdmin && 
                                  !sportsDataLoadedRef.current;
     
-    if (shouldLoadSportsData) {
+    if (shouldCheckForUpdate) {
       sportsDataLoadedRef.current = true;
-      loadAllSports('NFL', true).catch(() => {
-        // Reset flag on error to allow retry
-        sportsDataLoadedRef.current = false;
-      });
+      
+      // Check Firebase timestamp to determine if refresh is needed
+      const checkFirebaseTimestamp = async () => {
+        try {
+          const spreadsRef = ref(database, 'spreads/NFL');
+          const snapshot = await get(spreadsRef);
+          
+          if (snapshot.exists()) {
+            const data = snapshot.val();
+            const gameIds = Object.keys(data);
+            
+            if (gameIds.length > 0) {
+              // Check the first game's timestamp
+              const firstGame = data[gameIds[0]];
+              if (firstGame.timestamp) {
+                const lastUpdate = new Date(firstGame.timestamp);
+                const now = new Date();
+                const minutesSinceUpdate = (now - lastUpdate) / (1000 * 60);
+                
+                console.log(`⏰ Last Firebase update: ${minutesSinceUpdate.toFixed(1)} minutes ago`);
+                
+                // Only fetch if data is older than 5 minutes
+                if (minutesSinceUpdate > 5) {
+                  console.log('🔄 Data is stale (> 5 min), fetching fresh odds...');
+                  loadAllSports('NFL', true).catch(() => {
+                    sportsDataLoadedRef.current = false;
+                  });
+                } else {
+                  console.log('✅ Data is fresh (< 5 min), using existing Firebase data');
+                  loadAllSports('NFL', false).catch(() => {
+                    sportsDataLoadedRef.current = false;
+                  });
+                }
+                return;
+              }
+            }
+          }
+          
+          // No data or no timestamp found, fetch fresh
+          console.log('📭 No existing Firebase data found, fetching fresh odds...');
+          loadAllSports('NFL', true).catch(() => {
+            sportsDataLoadedRef.current = false;
+          });
+        } catch (error) {
+          console.error('Error checking Firebase timestamp:', error);
+          // Fallback: load without forcing refresh
+          loadAllSports('NFL', false).catch(() => {
+            sportsDataLoadedRef.current = false;
+          });
+        }
+      };
+      
+      checkFirebaseTimestamp();
     }
-  }, [authState.user, authState.loading, authState.isAdmin, loadAllSports]);
+  }, [authState.user, authState.loading, loadAllSports]);
 
   useEffect(() => {
     const stored = localStorage.getItem('marcs-parlays-submissions');

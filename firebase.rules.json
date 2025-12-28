@@ -2,14 +2,14 @@
   "rules": {
     "spreads": {
       ".read": true,
-      ".write": "auth != null && auth.token.admin === true",
+      ".write": "auth != null",
       "$sport": {
         ".read": true,
-        ".write": "auth != null && auth.token.admin === true",
+        ".write": "auth != null",
         "$gameId": {
           ".validate": "newData.hasChild('timestamp') || data.exists()",
           "timestamp": { 
-            ".validate": "newData.isString()" 
+            ".validate": "newData.isString() || newData.isNumber()" 
           },
           "awaySpread": { 
             ".validate": "newData.isString()" 
@@ -31,6 +31,9 @@
           },
           "oddsApiEventId": { 
             ".validate": "newData.isString()" 
+          },
+          "isManual": {
+            ".validate": "newData.isBoolean()"
           },
           "Q1_homeMoneyline": { ".validate": "newData.isString()" },
           "Q1_awayMoneyline": { ".validate": "newData.isString()" },
