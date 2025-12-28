@@ -3381,8 +3381,7 @@ const fetchMoneylineFromJsonOdds = async (sport, forceRefresh = false, oddType =
     
     console.log(`\n🎉 JsonOdds parsing complete: ${Object.keys(moneylineMap).length} games with moneyline data`);
     
-    // Cache the results (use cacheKey that includes oddType if specified)
-    const cacheKey = oddType ? `${sport}_${oddType}` : sport;
+    // Cache the results (reuse cacheKey from above)
     jsonOddsCache[cacheKey] = {
       data: moneylineMap,
       timestamp: Date.now()
