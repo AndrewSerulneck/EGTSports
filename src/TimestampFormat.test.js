@@ -66,7 +66,7 @@ describe('API Timestamp Format', () => {
   });
   
   test('Migration script should add timestamp to orphaned data', () => {
-    const gameData = {
+    const originalGameData = {
       espnId: '401772635',
       awaySpread: '+3.5',
       homeSpread: '-3.5',
@@ -74,10 +74,10 @@ describe('API Timestamp Format', () => {
       homeMoneyline: '-180'
     };
     
-    // Simulate migration script logic
-    if (!gameData.timestamp) {
-      gameData.timestamp = new Date().toISOString();
-    }
+    // Simulate migration script logic with immutable update
+    const gameData = !originalGameData.timestamp 
+      ? { ...originalGameData, timestamp: new Date().toISOString() }
+      : originalGameData;
     
     // Verify timestamp was added
     expect(gameData.timestamp).toBeDefined();
@@ -104,11 +104,11 @@ describe('API Timestamp Format', () => {
     };
     
     // New data must have timestamp
-    const hasTimestamp = newGameData.hasOwnProperty('timestamp');
+    const hasTimestamp = Object.prototype.hasOwnProperty.call(newGameData, 'timestamp');
     expect(hasTimestamp).toBe(true);
     
     // Existing data check (simulated by presence of other fields)
-    const dataExists = existingGameData.hasOwnProperty('awaySpread');
+    const dataExists = Object.prototype.hasOwnProperty.call(existingGameData, 'awaySpread');
     expect(dataExists).toBe(true);
   });
 });
