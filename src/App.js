@@ -2518,10 +2518,12 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
     // V4 API: Add time parameters to include future games (next 14 days)
     // commenceTimeFrom: Current time (now)
     // commenceTimeTo: 14 days from now (extended for better coverage)
+    // CRITICAL: Strip milliseconds from timestamps to avoid 422 errors from The Odds API
+    // Format must be YYYY-MM-DDTHH:MM:SSZ (whole seconds only, no .milliseconds)
     const now = new Date();
     const fourteenDaysFromNow = new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000);
-    const commenceTimeFrom = now.toISOString();
-    const commenceTimeTo = fourteenDaysFromNow.toISOString();
+    const commenceTimeFrom = now.toISOString().split('.')[0] + 'Z';
+    const commenceTimeTo = fourteenDaysFromNow.toISOString().split('.')[0] + 'Z';
     
     // CRITICAL: Explicitly request 'american' odds format and include future games
     const url = `${ODDS_API_BASE_URL}/sports/${sportKey}/odds/?apiKey=${ODDS_API_KEY}&regions=us&markets=${markets}&oddsFormat=american&commenceTimeFrom=${commenceTimeFrom}&commenceTimeTo=${commenceTimeTo}`;
@@ -4020,6 +4022,13 @@ const fetchDetailedOdds = async (sport, eventId) => {
         for (const espnId of orphanedIds) {
           try {
             const gameData = rootData[espnId];
+            
+            // CRITICAL: Add timestamp to satisfy Firebase rules validation
+            // Rules require either existing data or newData.hasChild('timestamp')
+            if (!gameData.timestamp) {
+              gameData.timestamp = new Date().toISOString();
+              console.log(`  ⏰ Added timestamp to game ${espnId}`);
+            }
             
             // Move to proper location
             const newPath = `spreads/${targetSport}/${espnId}`;
