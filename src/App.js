@@ -3629,6 +3629,8 @@ const fetchDetailedOdds = async (sport, eventId) => {
           console.log(`ℹ️ No Firebase data found at path: ${firebasePath}`);
           
           // NFL FALLBACK: If no data at sport path, check root for orphaned data
+          // This is a one-time operation that runs when listener finds no data at /spreads/NFL
+          // The migration script will move orphaned data to proper location, making this temporary
           if (sport === 'NFL') {
             console.log(`  🔍 Checking for orphaned NFL data at root...`);
             const rootRef = ref(database, 'spreads');
@@ -3648,7 +3650,8 @@ const fetchDetailedOdds = async (sport, eventId) => {
                   console.log(`  ⚠️ Found ${Object.keys(orphanedGames).length} orphaned NFL games at root`);
                   console.log(`  ℹ️ Migration script should move these to ${firebasePath}`);
                   
-                  // Apply orphaned data to games temporarily
+                  // Apply orphaned data to games temporarily (one-time operation)
+                  // This setGames call only happens once per app load when orphaned data exists
                   setGames(prevGames => {
                     return prevGames.map(game => {
                       if (orphanedGames[game.espnId]) {
