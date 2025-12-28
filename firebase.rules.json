@@ -1,0 +1,111 @@
+{
+  "rules": {
+    "spreads": {
+      "$sport": {
+        ".read": true,
+        ".write": "auth != null && auth.token.admin === true",
+        "$gameId": {
+          ".validate": "newData.hasChild('timestamp')",
+          "timestamp": { 
+            ".validate": "newData.isString()" 
+          },
+          "awaySpread": { 
+            ".validate": "newData.isString()" 
+          },
+          "homeSpread": { 
+            ".validate": "newData.isString()" 
+          },
+          "total": { 
+            ".validate": "newData.isString()" 
+          },
+          "awayMoneyline": { 
+            ".validate": "newData.isString()" 
+          },
+          "homeMoneyline": { 
+            ".validate": "newData.isString()" 
+          },
+          "drawMoneyline": { 
+            ".validate": "newData.isString()" 
+          },
+          "oddsApiEventId": { 
+            ".validate": "newData.isString()" 
+          },
+          "Q1_homeMoneyline": { ".validate": "newData.isString()" },
+          "Q1_awayMoneyline": { ".validate": "newData.isString()" },
+          "Q1_homeSpread": { ".validate": "newData.isString()" },
+          "Q1_awaySpread": { ".validate": "newData.isString()" },
+          "Q1_total": { ".validate": "newData.isString()" },
+          "Q2_homeMoneyline": { ".validate": "newData.isString()" },
+          "Q2_awayMoneyline": { ".validate": "newData.isString()" },
+          "Q2_homeSpread": { ".validate": "newData.isString()" },
+          "Q2_awaySpread": { ".validate": "newData.isString()" },
+          "Q2_total": { ".validate": "newData.isString()" },
+          "Q3_homeMoneyline": { ".validate": "newData.isString()" },
+          "Q3_awayMoneyline": { ".validate": "newData.isString()" },
+          "Q3_homeSpread": { ".validate": "newData.isString()" },
+          "Q3_awaySpread": { ".validate": "newData.isString()" },
+          "Q3_total": { ".validate": "newData.isString()" },
+          "Q4_homeMoneyline": { ".validate": "newData.isString()" },
+          "Q4_awayMoneyline": { ".validate": "newData.isString()" },
+          "Q4_homeSpread": { ".validate": "newData.isString()" },
+          "Q4_awaySpread": { ".validate": "newData.isString()" },
+          "Q4_total": { ".validate": "newData.isString()" },
+          "H1_homeMoneyline": { ".validate": "newData.isString()" },
+          "H1_awayMoneyline": { ".validate": "newData.isString()" },
+          "H1_homeSpread": { ".validate": "newData.isString()" },
+          "H1_awaySpread": { ".validate": "newData.isString()" },
+          "H1_total": { ".validate": "newData.isString()" },
+          "H2_homeMoneyline": { ".validate": "newData.isString()" },
+          "H2_awayMoneyline": { ".validate": "newData.isString()" },
+          "H2_homeSpread": { ".validate": "newData.isString()" },
+          "H2_awaySpread": { ".validate": "newData.isString()" },
+          "H2_total": { ".validate": "newData.isString()" },
+          "$other": {
+            ".validate": false
+          }
+        }
+      }
+    },
+    "admins": { 
+      ".read": "auth != null", 
+      ".write": false 
+    },
+    "submissions": { 
+      ".read": true, 
+      "$ticketNumber": { 
+        ".write": true 
+      } 
+    },
+    "analytics": { 
+      ".read": "auth != null && auth.token.admin === true", 
+      "$entry": { 
+        ".write": true 
+      } 
+    },
+    "users": {
+      ".read": "auth != null",
+      ".write": "auth != null && auth.token.admin === true",
+      "$userId": {
+        "totalWagered": { 
+          ".write": "auth != null && auth.uid === $userId" 
+        }
+      }
+    },
+    "wagers": {
+      ".read": "auth != null",
+      "$wagerId": { 
+        ".write": "auth != null" 
+      }
+    },
+    "artifacts": {
+      "$appId": {
+        "users": {
+          "$userId": {
+            ".read": "auth != null && auth.uid === $userId",
+            ".write": "auth != null && auth.uid === $userId"
+          }
+        }
+      }
+    }
+  }
+}
