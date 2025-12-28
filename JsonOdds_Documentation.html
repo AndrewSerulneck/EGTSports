@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<!-- saved from url=(0041)https://jsonodds.com/documentation#sports -->
+<html lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="">
+    <meta name="author" content="">
+
+    <title>JsonOdds</title>
+
+    <!-- Bootstrap core CSS -->
+    <link href="./JsonOdds_Documentation_files/normalize.css" rel="stylesheet" media="screen">
+    <link href="./JsonOdds_Documentation_files/bootstrap.css" rel="stylesheet" media="screen">
+    <link href="./JsonOdds_Documentation_files/jsonodds.css" rel="stylesheet" media="screen">
+    <link href="./JsonOdds_Documentation_files/pricingtable.css" rel="stylesheet" media="screen">
+
+    <!-- Just for debugging purposes. Don't actually copy this line! -->
+    <!--[if lt IE 9]><script src="../../assets/js/ie8-responsive-file-warning.js"></script><![endif]-->
+
+    <!-- HTML5 shim and Respond.js IE8 support of HTML5 elements and media queries -->
+    <!--[if lt IE 9]>
+      <script src="https://oss.maxcdn.com/libs/html5shiv/3.7.0/html5shiv.js"></script>
+      <script src="https://oss.maxcdn.com/libs/respond.js/1.4.2/respond.min.js"></script>
+    <![endif]-->
+    <script type="text/javascript" async="" src="./JsonOdds_Documentation_files/js"></script><script async="" src="./JsonOdds_Documentation_files/analytics.js"></script><script>
+      (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+      (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+      m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+      })(window,document,'script','//www.google-analytics.com/analytics.js','ga');
+
+      ga('create', 'UA-48422844-1', 'jsonodds.com');
+      ga('send', 'pageview');
+
+    </script>
+  </head>
+<body>
+    
+
+
+<div class="navbar navbar-fixed-top navbar-default" role="navigation"><div class="container"><div class="navbar-header"><button type="button" class="navbar-toggle" data-toggle="collapse" data-target=".navbar-collapse"><span class="sr-only">Toggle navigation</span><span class="icon-bar"></span><span class="icon-bar"></span><span class="icon-bar"></span></button><a class="navbar-brand" href="https://jsonodds.com/home/" )"="">JsonOdds</a></div><div class="navbar-collapse collapse"><ul class="nav navbar-nav navbar-right"><li class="active"><a href="https://jsonodds.com/documentation/">Documentation</a></li><li><a href="https://jsonodds.com/pricing/" )"="">Pricing</a></li><li><a href="https://jsonodds.com/faq/">FAQ</a></li><li><a href="https://jsonodds.com/contact/" )"="">Contact</a></li><li><button type="button" class="btn btn-default navbar-btn" onclick="GoLogin()">Login</button></li><li><button type="button" class="btn btn-default navbar-btn" onclick="GoSignUp()">Sign Up</button></li></ul></div><!--/.navbar-collapse --></div></div>
+
+    <div class="container">
+      <div class="row documentation-row">
+        <div class="col-md-2 documentation-left-menu">
+            <ul class="nav nav-pills nav-stacked affix">
+                <li><a href="https://jsonodds.com/documentation#api-overview">API Overview</a></li>
+                <li><a href="https://jsonodds.com/documentation#gaining-access">Gaining Access</a></li>
+                <li><a href="https://jsonodds.com/documentation#sports">Sports</a></li>
+                <li class="dropdown">
+                    <a class="dropdown-toggle" data-toggle="dropdown" href="https://jsonodds.com/documentation#">
+                        Entities <span class="caret"></span>
+                    </a>
+                    <ul class="dropdown-menu" role="menu">
+                        <li><a href="https://jsonodds.com/documentation#matches">Matches</a></li>
+                        <li><a href="https://jsonodds.com/documentation#odds">Odds</a></li>
+                        <li><a href="https://jsonodds.com/documentation#oddtype">OddType</a></li>
+                        <li><a href="https://jsonodds.com/documentation#results">Results</a></li>
+                    </ul>
+                </li>
+                
+                <li><a href="https://jsonodds.com/documentation#sources">Source</a></li>
+                <li><a href="https://jsonodds.com/documentation#test-data">Test Data</a></li>
+                <li><a href="https://jsonodds.com/documentation#test-data">Usage</a></li>
+                <li><a href="https://jsonodds.com/documentation#resources">Sample Code</a></li>
+            </ul>
+        </div><!--/left-side nav -->
+
+        <div class="col-md-6 documentation-info-container">
+            <div class="col-md-6 api-overview" id="api-overview">
+                <h1 class="big-title">API Overview</h1>
+                <p class="documentation-content">JsonOdds API provides restful access to matches, teams, odds, and results. JsonOdds features pre-match moneyline, total, and point spread odds, results, and in-game scores. </p>
+            </div>
+            <div class="col-md-6 gaining-access" id="gaining-access">
+                <h1 class="big-title">Gaining Access</h1>
+                <p class="documentation-content">Access to the API is restricted to only users who have an API Key.</p>
+            </div>
+            <div class="col-md-6 sports">
+                <h1 class="big-title">Sports</h1>
+                <p id="sports" class="documentation-content">
+                    JsonOdds supports <strong>NFL, NCAAF, NCAAB, NBA, MLB, NHL, WNBA, MMA (UFC), CFL, XFL, Golf, KHL, AHL, SHL, HockeyAllsvenskan, Czech Republic Extraliga, Finland Liiga,  WBC, CBS, LIDOM, LVBP. </strong><br>
+                    <strong> Soccer: </strong> World Cup, MLS, Premier League, UEFA Champions League, English Championship, English FA Cup, Spanish La Liga, Copa del Rey, Mexican Liga MX, France Ligue 1, German Bundesliga, Scottish Premiership, and more.<br>
+                    <strong> Tennis: </strong> Australian Open, French Open, Wimbledon, US Open.
+                </p>
+                <small>Note: Soccer is not enabled by default, please contact us to have soccer enabled for your api-key.</small>
+
+                
+            </div>
+
+            <h1>Entities</h1>
+            <p id="entities" class="documentation-content">
+                An entity is a distinct item from the API. JsonOdds was developed for ease of use and therefore there are only a few entities.
+                There are just six entity types currently.
+            </p>
+            <h3 id="matches">Match</h3>
+            <p class="documentation-content">A match is an event which has odds. </p>
+            <div class="col-md-4 col-md-offset-1 entity-desc">
+                <p><span class="entity-prop">ID:</span> <span class="entity-prop-desc">The ID of the entity</span></p>
+                <p><span class="entity-prop">HomeTeam:</span> <span class="entity-prop-desc">The home team of the match-up</span></p>
+                <p><span class="entity-prop">AwayTeam:</span> <span class="entity-prop-desc">The away team of the match-up</span></p>
+                <p><span class="entity-prop">Sport:</span> <span class="entity-prop-desc">An enumeration of a sport. See the sports entity for more information</span></p>
+                <p><span class="entity-prop">MatchTime:</span> <span class="entity-prop-desc">The date and time of the match-up in UTC</span></p>
+                <p><span class="entity-prop">Odds:</span> <span class="entity-prop-desc">An array of odds for this match-up</span></p>
+                <p><span class="entity-prop">League:</span><span class="entity-prop-desc">League of match, only used for soccer</span></p>
+                <p><span class="entity-prop">DisplayRegion:</span><span class="entity-prop-desc">Region of match, only used for soccer</span></p>
+                <p><span class="entity-prop">HomeROT</span><span class="entity-prop-desc">ROT # for home team</span></p>
+                <p><span class="entity-prop">AwayROT</span><span class="entity-prop-desc">ROT # for away team</span></p>
+                <p><span class="entity-prop">HomePitcher</span><span class="entity-prop-desc">MLB only: home pitcher</span></p>
+                <p><span class="entity-prop">AwayPitcher</span><span class="entity-prop-desc">MLB only: away pitcher</span></p>
+                <p><span class="entity-prop">Preseason</span><span class="entity-prop-desc">True if preseason</span></p>
+            </div>
+            <h3 id="odds">Odds</h3>
+            <p class="documentation-content">
+                The odds for a match. A match can contain several odds objects.
+                Odds cannot be accessed directly through the API only as part of a match. Soccer matches can be retrieved by league or region using the following endpoints
+                /api/odds/byleague or /api/odds/byregion. See the examples requests to the right for more information.
+            </p>
+            <div class="col-md-4 col-md-offset-1 entity-desc">
+                <p><span class="entity-prop">ID:</span> <span class="entity-prop-desc">The ID of the entity</span></p>
+                <p><span class="entity-prop">EventID:</span> <span class="entity-prop-desc">The match-up id foreign key</span></p>
+                <p><span class="entity-prop">SiteID:</span> <span class="entity-prop-desc">The odds source. See sources for more information</span></p>
+                <p><span class="entity-prop">MoneyLineHome:</span> <span class="entity-prop-desc">Moneyline for home team</span></p>
+                <p><span class="entity-prop">MoneyLineAway:</span> <span class="entity-prop-desc">Moneyline for away team</span></p>
+                <p><span class="entity-prop">DrawLine:</span> <span class="entity-prop-desc">Moneyline for a draw</span></p>
+                <p><span class="entity-prop">PointSpreadHome:</span> <span class="entity-prop-desc">Point spread for home team</span></p>
+                <p><span class="entity-prop">PointSpreadAway:</span> <span class="entity-prop-desc">Point spread for away team</span></p>
+                <p><span class="entity-prop">PointSpreadHomeLine:</span> <span class="entity-prop-desc">Line for home point spread</span></p>
+                <p><span class="entity-prop">PointSpreadAwayLine:</span> <span class="entity-prop-desc">Line for away point spread</span></p>
+                <p><span class="entity-prop">TotalNumber:</span> <span class="entity-prop-desc">The total</span></p>
+                <p><span class="entity-prop">OverLine:</span> <span class="entity-prop-desc">Odds for the over</span></p>
+                <p><span class="entity-prop">UnderLine:</span> <span class="entity-prop-desc">Odds for the under</span></p>
+                <p><span class="entity-prop">LastUpdated:</span> <span class="entity-prop-desc">The last time these odds were updated</span></p>
+                <p><span class="entity-prop">OddType:</span> <span class="entity-prop-desc">The type of odd, ie Game/FirstHalf/FirstQuarter</span></p>
+                <p><span class="entity-prop">Participant: </span><span class="entity-prop-desc">For non-two team sports (Golf) contains properties for name and position</span></p>
+            </div>
+            <div class="col-md-12 odds-endpoints">
+                <h6>Endpoints:</h6>
+                <ul>
+                    <li>api/odds (GET) Optional URL Parameters: Source, Sport, OddType, OddFormat(American or Decimal)</li>
+                    <li>api/odds/byleague (POST) Data: LeagueRequest {LeagueName: string, Source: int, Sport: string, OddType: string}</li>
+                    <li>api/odds/byleagues (POST) Data: LeagueArrayRequest {LeagueNames: string[], Source: int, Sport: string, OddType: string}</li>
+                    <li>api/odds/byregion (POST) Data: RegionRequest {RegionName: string, Source: int, Sport: string, OddType: string}</li>
+                    <li>api/odds/bygames (POST) Data: GamesRequest {GameIDs: string[], Sport: string, OddType: string}</li>
+                </ul>
+            </div>
+            <h3 id="oddtype">OddType</h3>
+            <p class="documentation-content">An enumeration of odd types, including Game, First Half, Second Half, Quarter, and Period durations</p>
+            <div class="col-md-12">
+                <h6>Endpoints:</h6>
+                <ul>
+                    <li>api/oddtype (GET)</li>
+                </ul>
+            </div>
+            <h3 id="oddtype">FinalType</h3>
+            <p class="documentation-content">An enumeration of final types such as Finished, Postponed, Canceled, etc</p>
+            <div class="col-md-12">
+                <h6>Endpoints:</h6>
+                <ul>
+                    <li>api/finaltype (GET)</li>
+                </ul>
+            </div>
+            <h3 id="oddtype">OddFormat</h3>
+            <p class="documentation-content">An enumeration of odd formats, can be passed to the /api/odds endpoint ?oddFormat=decimal</p>
+            <div class="col-md-12">
+                <h6>Endpoints:</h6>
+                <ul>
+                    <li>api/oddFormat (GET)</li>
+                </ul>
+            </div>
+            <h3 id="results">Result</h3>
+            <p class="documentation-content">
+                The result entity will show the score of a match entity.
+                This endpoint can be polled to view a live in-game score of a match.
+            </p>
+            <div class="col-md-4 col-md-offset-1 entity-desc">
+                <p><span class="entity-prop">ID:</span> <span class="entity-prop-desc">The ID of the entity. For game odd types, this will link to a match-up id</span></p>
+                <p><span class="entity-prop">HomeScore:</span> <span class="entity-prop-desc">The home score</span></p>
+                <p><span class="entity-prop">AwayScore:</span> <span class="entity-prop-desc">The away score</span></p>
+                <p><span class="entity-prop">OddType:</span> <span class="entity-prop-desc">OddType for this result</span></p>
+                <p><span class="entity-prop">Final:</span> <span class="entity-prop-desc">A boolean which returns true if the game is final</span></p>
+                
+                <p><span class="entity-prop">AETScore:</span> <span class="entity-prop-desc">After Extra Time score for Soccer matches only</span></p>
+                <p><span class="entity-prop">PKScore:</span> <span class="entity-prop-desc">Golden Goal/Penalty kicks score for Soccer matches only</span></p>
+                <p><span class="entity-prop">FinalType:</span> <span class="entity-prop-desc">The type of final including Finished, Postponed, Canceled, etc</span></p>
+                <p><span class="entity-prop">Name:</span> <span class="entity-prop-desc">Only for participant sports, example: Golfer name</span></p>
+                <p><span class="entity-prop">Position:</span> <span class="entity-prop-desc"></span>Only for participant sports</p>
+                <p><span class="entity-prop">FinalPosition:</span> <span class="entity-prop-desc">Only for participant sports, final position</span></p>
+                <p><span class="entity-prop">BinaryScore:</span> <span class="entity-prop-desc">Binary 1/0 for result Ex: "1-0" (HomeWin-AwayWin)</span></p>
+            </div>
+            <div class="col-md-12">
+                <h6>Endpoints:</h6>
+                <ul>
+                    <li>api/results (GET) URL Parameters: Sport, ID, Final and OddType</li>
+                    <li>api/results/getbyeventid/ (GET) URL Parameters: ID, Final, and OddType</li>
+                    <li>api/results/byleague (POST) Data: LeagueRequest {LeagueName: string, Source: int, Sport, OddType?: string}</li>
+                    <li>api/results/byregion (POST) Data: RegionRequest {RegionName: string, Source: int, Sport, OddType?: string}</li>
+
+                </ul>
+            </div>
+            
+            
+            <div class="col-md-6 sources">
+                <h1 class="big-title">White Label Odds Source</h1>
+                <p id="sources" class="documentation-content">JsonOdds aggregates and consolidates data to create a white label odds source.</p>
+                <h3 id="source">Source</h3>
+                <div class="col-md-4 col-md-offset-1 entity-desc">
+                    <p><span class="entity-prop">ID:</span> <span class="entity-prop-desc">The ID of the entity</span></p>
+                    <p><span class="entity-prop">Description:</span> <span class="entity-prop-desc">A description of the odds source</span></p>
+                </div>
+            </div>
+
+            <div class="col-md-6 test-data" id="test-data">
+                <h1 class="big-title">Test Data</h1>
+                <p class="documentation-content">JsonOdds does provide free accessible test data to evaluate the api. Please use the urls to the right to pull down some test data.</p>
+            </div><!--/sources-->
+
+            <div class="col-md-6 usage" id="usage">
+                <h1 class="big-title">Usage</h1>
+                <p class="documentation-content">Check your usage activity for the month.</p>
+            </div><!--/sources-->
+            <div class="col-md-12">
+                <h6>Endpoint:</h6>
+                <ul>
+                    <li>api/usage (GET) </li>
+                </ul>
+            </div>
+
+            <div class="col-md-6 resources" id="resources">
+                <h1 class="big-title">Sample Code</h1>
+                <a href="https://jsonodds.com/samplecode/downloadnode">NodeJs</a> <br>
+                <a href="https://jsonodds.com/samplecode/downloadphp">PHP</a>
+                <p></p>
+            </div><!--/sources-->
+        </div> <!--/documentation-info-->
+
+        <div class="col-md-4 terminal-container">
+          <div class="col-md-4 gaining-access-term">
+            <h4>Gaining Access</h4>
+            <h5>Sample Request</h5>
+            <p>curl -X GET -G https://jsonodds.com/api/odds -H "x-api-key: yourapikey" -L</p>
+            <div class="expected-response">
+              <h5>Expected Response</h5>
+              <p>http code 200</p>
+              <p>{</p>
+              <div class="response-body">
+                <p class="object-term">matches: </p>
+                <p>[</p>
+                <p>{object} </p>
+                <p class="object-term">odds: [</p>
+                <p>{object} ]</p>
+                <p class="object-term">] </p>
+              </div>
+              <p>}</p>
+            </div>
+          </div> <!--/gaining-access-->
+          <div class="col-md-4 sports-term">
+            <h4>Sports</h4>
+            <h5>Sample Request</h5>
+            <p>curl -X GET https://jsonodds.com/api/sports -H "x-api-key: yourapikey" -L</p>
+            <div class="expected-response">
+              <h5>Expected Response</h5>
+              <p>http code 200</p>
+              <p>{</p>
+              <div class="response-body">
+                <p class="object-term">sports: </p>
+                <p>[</p>
+                <p>{object} </p>
+                <p>]</p>
+              </div>
+              <p>}</p>
+            </div>
+          </div> <!--/sports-term-->
+          <div class="col-md-4 matches-term">
+            <h4>Matches/Odds</h4>
+            <h5>Sample Request</h5>
+            <p>curl -X GET https://jsonodds.com/api/odds/nfl -H "x-api-key: yourapikey" -L</p>
+            <div class="expected-response">
+              <h5>Expected Response</h5>
+              <p>http code 200</p>
+              <p>{</p>
+              <div class="response-body">
+                <p class="object-term">matches: </p>
+                <p>[</p>
+                <p>{object} </p>
+                <p class="object-term">odds: [</p>
+                <p>{object} ]</p>
+                <p class="object-term">] </p>
+              </div>
+              <p>}</p>
+            </div>
+              <div class="example-requests">
+                <h5>Example Requests</h5>
+                <p>Get all odds for a sport</p>
+                <p>curl -X GET https://jsonodds.com/api/odds/{string: sport} -H "x-api-key: yourapikey" -L</p>
+                <p>Get all odds</p>
+                <p>curl -X GET https://jsonodds.com/api/odds/ -H "x-api-key: yourapikey" -L</p>
+                <p>Get all odds for game durations only</p>
+                <p>curl -X GET https://jsonodds.com/api/odds/{string: sport}?oddType=Game -H "x-api-key: yourapikey" -L</p>
+                <p>Get all odds for a particular sport for game durations only with the format in decimal</p>
+                  <p>curl -X GET https://jsonodds.com/api/odds?oddType=Game&amp;oddFormat=decimal -H "x-api-key: yourapikey" -L</p>
+                
+              </div>
+            </div>
+            <div class="col-md-4 oddtype-term">
+                <h4>Odd Types</h4>
+                <h5>Sample Request</h5>
+                <p>curl -X GET https://jsonodds.com/api/oddtype -H "x-api-key: yourapikey" -L</p>
+            </div>
+            <div class="col-md-4 resulttype-term">
+                <h4>Final Types</h4>
+                <h5>Sample Request</h5>
+                <p>curl -X GET https://jsonodds.com/api/finaltype -H "x-api-key: yourapikey" -L</p>
+            </div>
+           <div class="col-md-4 results-term">
+                    <h4>Results</h4>
+                    <h5>Sample Request</h5>
+                    <p>curl -X GET https://jsonodds.com/api/results/nfl -H "x-api-key: yourapikey" -L</p>
+                    <div class="expected-response">
+                        <h5>Expected Response</h5>
+                        <p>http code 200</p>
+                        <p>{</p>
+                        <div class="response-body">
+                            <p class="object-term">results: </p>
+                            <p>[</p>
+                            <p>{object} </p>
+                            <p>] </p>
+                        </div>
+                        <p>}</p>
+                    </div>
+                    <div class="example-requests">
+                        <h5>Example Requests</h5>
+                        <p>Get all results for a sport</p>
+                        <p>curl -X GET https://jsonodds.com/api/results/{string: sport} -H "x-api-key: yourapikey" -L</p>
+                        <p>Get all final results for a sport</p>
+                        <p>curl -X GET https://jsonodds.com/api/results/{string: sport}?final=true -H "x-api-key: yourapikey" -L</p>
+                        <p>Get only game results for a sport</p>
+                        <p>curl -X GET https://jsonodds.com/api/results/{string: sport}?oddType=Game -H "x-api-key: yourapikey" -L</p>
+                        <p>Get result for a specific game</p>
+                        <p>curl -X GET https://jsonodds.com/api/results/{Match.ID} -H "x-api-key: yourapikey" -L</p>
+                        <p>Get all types of results for a specific game</p>
+                        <p>curl -X GET https://jsonodds.com/api/results/getbyeventid/{Match.ID} -H "x-api-key: yourapikey" -L</p>
+                    </div>
+                </div> <!--/results-term-->
+                
+                
+                <div class="col-md-4 test-data-term">
+                    <h4>Test-Data</h4>
+                    <h5>Sample Request</h5>
+                    <p>curl -X GET https://jsonodds.com/api/test/odds -L</p>
+                    <p>curl -X GET https://jsonodds.com/api/test/results -L</p>
+                </div> <!--/test-data-term-->
+                <div class="col-md-4 resources-term">
+                    <h4>The End</h4>
+                </div> <!--/resources-term-->
+            </div><!--/terminal-->
+      </div><!--/row -->
+
+
+      <hr>
+
+      <footer>
+        <p>© JsonOdds 2013-2018</p>
+      </footer>
+    </div> <!-- /container -->
+
+    <script src="./JsonOdds_Documentation_files/jquery.min.js"></script>
+    <script type="text/javascript" src="./JsonOdds_Documentation_files/bootstrap.min.js"></script>
+    <script type="text/javascript" src="./JsonOdds_Documentation_files/jsonoddscustom.js"></script>
+
+
+
+</body></html>
