@@ -238,6 +238,45 @@ const JSON_ODDS_CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
  */
 const getGameKey = (away, home) => `${away.trim()}|${home.trim()}`;
 
+/**
+ * Helper to find matching odds for a game using exact match or fuzzy matching.
+ * Uses bidirectional substring matching with minimum 3-char length check.
+ * @param {object} oddsMap - Map of gameKeys to odds data
+ * @param {string} awayTeam - Away team name from game
+ * @param {string} homeTeam - Home team name from game
+ * @returns {object|null} - Matched odds data or null
+ */
+const findOddsForGame = (oddsMap, awayTeam, homeTeam) => {
+  if (!oddsMap) return null;
+  
+  const gameKey = getGameKey(awayTeam, homeTeam);
+  let match = oddsMap[gameKey];
+  
+  // If exact match found, return it
+  if (match) return match;
+  
+  // Try fuzzy matching with bidirectional substring check
+  for (const [key, value] of Object.entries(oddsMap)) {
+    const [oddsAway, oddsHome] = key.split('|');
+    const awayLower = awayTeam.toLowerCase();
+    const homeLower = homeTeam.toLowerCase();
+    const oddsAwayLower = oddsAway.toLowerCase();
+    const oddsHomeLower = oddsHome.toLowerCase();
+    
+    // Substring match with minimum length check (3 chars)
+    const awaySubstringMatch = (oddsAwayLower.length >= 3 && awayLower.includes(oddsAwayLower)) || 
+                                (awayLower.length >= 3 && oddsAwayLower.includes(awayLower));
+    const homeSubstringMatch = (oddsHomeLower.length >= 3 && homeLower.includes(oddsHomeLower)) || 
+                                (homeLower.length >= 3 && oddsHomeLower.includes(homeLower));
+    
+    if (awaySubstringMatch && homeSubstringMatch) {
+      return value;
+    }
+  }
+  
+  return null;
+};
+
 const ODDS_API_SPORT_KEYS = {
   'NFL': 'americanfootball_nfl',
   'NBA': 'basketball_nba',
@@ -4259,37 +4298,10 @@ const fetchDetailedOdds = async (sport, eventId) => {
                 });
                 
                 // Apply JsonOdds FirstHalf and FirstQuarter moneylines (OVERRIDE)
-                // Helper to find matching period odds using same fuzzy logic as game odds
-                const findPeriodOdds = (periodOddsMap) => {
-                  if (!periodOddsMap) return null;
-                  
-                  const gameKey = getGameKey(game.awayTeam, game.homeTeam);
-                  let match = periodOddsMap[gameKey];
-                  
-                  if (!match) {
-                    for (const [key, value] of Object.entries(periodOddsMap)) {
-                      const [oddsAway, oddsHome] = key.split('|');
-                      const awayLower = game.awayTeam.toLowerCase();
-                      const homeLower = game.homeTeam.toLowerCase();
-                      const oddsAwayLower = oddsAway.toLowerCase();
-                      const oddsHomeLower = oddsHome.toLowerCase();
-                      
-                      const awaySubstringMatch = (oddsAwayLower.length >= 3 && awayLower.includes(oddsAwayLower)) || 
-                                                  (awayLower.length >= 3 && oddsAwayLower.includes(awayLower));
-                      const homeSubstringMatch = (oddsHomeLower.length >= 3 && homeLower.includes(oddsHomeLower)) || 
-                                                  (homeLower.length >= 3 && oddsHomeLower.includes(homeLower));
-                      
-                      if (awaySubstringMatch && homeSubstringMatch) {
-                        match = value;
-                        break;
-                      }
-                    }
-                  }
-                  return match;
-                };
+                // Using reusable findOddsForGame helper for consistent fuzzy matching
                 
                 // Apply FirstHalf odds (H1_)
-                const firstHalfOdds = findPeriodOdds(jsonOddsFirstHalf);
+                const firstHalfOdds = findOddsForGame(jsonOddsFirstHalf, game.awayTeam, game.homeTeam);
                 if (firstHalfOdds) {
                   if (firstHalfOdds.awayMoneyline && firstHalfOdds.awayMoneyline !== '-') {
                     updatedGame.H1_awayMoneyline = firstHalfOdds.awayMoneyline;
@@ -4300,7 +4312,7 @@ const fetchDetailedOdds = async (sport, eventId) => {
                 }
                 
                 // Apply FirstQuarter odds (Q1_)
-                const firstQuarterOdds = findPeriodOdds(jsonOddsFirstQuarter);
+                const firstQuarterOdds = findOddsForGame(jsonOddsFirstQuarter, game.awayTeam, game.homeTeam);
                 if (firstQuarterOdds) {
                   if (firstQuarterOdds.awayMoneyline && firstQuarterOdds.awayMoneyline !== '-') {
                     updatedGame.Q1_awayMoneyline = firstQuarterOdds.awayMoneyline;
