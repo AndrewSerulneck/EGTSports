@@ -1,6 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import './GridBettingLayout.css';
 
+// Debug flag for diagnostic logging (set to false in production)
+const DEBUG_JSONODDS_FLOW = process.env.NODE_ENV === 'development';
+
 /**
  * PeriodSelector Component - Single-select toggle for game periods
  * Sport-specific periods with mobile-first "Pyramid" layout
@@ -126,6 +129,30 @@ function GridBettingLayout({
   // State for period selection (single-select, default to whole_game)
   const [selectedPeriod, setSelectedPeriod] = useState('whole_game');
   
+  // Helper to format odds - replace N/A with dash
+  const formatOdds = (odds) => {
+    if (!odds || odds === '' || odds === 'undefined') return '-';
+    if (odds === 'OFF') return 'OFF';
+    if (odds === 'N/A') return '-';
+    return odds;
+  };
+  
+  // Diagnostic logging for moneyline data
+  useEffect(() => {
+    if (DEBUG_JSONODDS_FLOW) {
+      console.log(`\n🎨 GridBettingLayout rendered for ${sport} with ${games.length} games`);
+      games.forEach((game, idx) => {
+        if (idx < 3) { // Log first 3 games to avoid spam
+          console.log(`  Game ${idx + 1}: ${game.awayTeam} @ ${game.homeTeam}`, {
+            awayMoneyline: game.awayMoneyline || 'MISSING',
+            homeMoneyline: game.homeMoneyline || 'MISSING',
+            willDisplay: formatOdds(game.awayMoneyline) + ' / ' + formatOdds(game.homeMoneyline)
+          });
+        }
+      });
+    }
+  }, [games, sport]);
+  
   // Reset to whole_game when sport changes
   useEffect(() => {
     setSelectedPeriod('whole_game');
@@ -160,14 +187,6 @@ function GridBettingLayout({
     // Return the last word (mascot), capitalize first letter
     const mascot = words[words.length - 1];
     return mascot.charAt(0).toUpperCase() + mascot.slice(1);
-  };
-
-  // Helper to format odds - replace N/A with dash
-  const formatOdds = (odds) => {
-    if (!odds || odds === '' || odds === 'undefined') return '-';
-    if (odds === 'OFF') return 'OFF';
-    if (odds === 'N/A') return '-';
-    return odds;
   };
 
   // Helper to check if odds are valid (not N/A, OFF, or empty)
