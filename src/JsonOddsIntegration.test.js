@@ -396,4 +396,163 @@ describe('JsonOdds API Integration', () => {
       expect(gameCache).not.toBe(quarterCache);
     });
   });
+  
+  describe('getGameKey Helper Function', () => {
+    // Replicate the helper function for testing
+    const getGameKey = (away, home) => `${away.trim()}|${home.trim()}`;
+    
+    test('should create consistent game key with pipe separator', () => {
+      const key = getGameKey('Lakers', 'Celtics');
+      expect(key).toBe('Lakers|Celtics');
+    });
+    
+    test('should trim whitespace from team names', () => {
+      const key = getGameKey('  Lakers  ', '  Celtics  ');
+      expect(key).toBe('Lakers|Celtics');
+    });
+    
+    test('should handle team names with spaces', () => {
+      const key = getGameKey('Los Angeles Lakers', 'Boston Celtics');
+      expect(key).toBe('Los Angeles Lakers|Boston Celtics');
+    });
+    
+    test('should produce same key when used for storing and retrieving', () => {
+      const awayTeam = 'Philadelphia 76ers';
+      const homeTeam = 'New York Knicks';
+      
+      // Simulate storing with getGameKey
+      const storeKey = getGameKey(awayTeam, homeTeam);
+      
+      // Simulate retrieving with getGameKey
+      const retrieveKey = getGameKey(awayTeam, homeTeam);
+      
+      expect(storeKey).toBe(retrieveKey);
+      expect(storeKey).toBe('Philadelphia 76ers|New York Knicks');
+    });
+    
+    test('should be used consistently in moneyline map creation', () => {
+      const mockJsonOddsMatch = {
+        HomeTeam: 'Lakers',
+        AwayTeam: 'Celtics',
+        Odds: [{ MoneyLineHome: 150, MoneyLineAway: -175 }]
+      };
+      
+      const gameKey = getGameKey(mockJsonOddsMatch.AwayTeam, mockJsonOddsMatch.HomeTeam);
+      const moneylineMap = {
+        [gameKey]: {
+          awayMoneyline: '-175',
+          homeMoneyline: '+150'
+        }
+      };
+      
+      // Verify retrieval using same helper
+      const retrieveKey = getGameKey('Celtics', 'Lakers');
+      expect(moneylineMap[retrieveKey]).toBeDefined();
+      expect(moneylineMap[retrieveKey].awayMoneyline).toBe('-175');
+    });
+  });
+  
+  describe('Enhanced Fuzzy Matching', () => {
+    test('should match when API team name is substring of local team name (min 3 chars)', () => {
+      // Simulate: API returns "Rams", local data has "Los Angeles Rams"
+      const localTeam = 'Los Angeles Rams';
+      const apiTeam = 'Rams';
+      
+      // Test with minimum length check
+      const match = apiTeam.length >= 3 && localTeam.toLowerCase().includes(apiTeam.toLowerCase());
+      expect(match).toBe(true);
+    });
+    
+    test('should match when local team name is substring of API team name (min 3 chars)', () => {
+      // Simulate: API returns "Los Angeles Rams", local data has "Rams"
+      const localTeam = 'Rams';
+      const apiTeam = 'Los Angeles Rams';
+      
+      // Test with minimum length check
+      const match = localTeam.length >= 3 && apiTeam.toLowerCase().includes(localTeam.toLowerCase());
+      expect(match).toBe(true);
+    });
+    
+    test('should match bidirectionally for both away and home teams', () => {
+      // Simulating the actual scenario:
+      // gameAwayLocal = game.awayTeam (local data)
+      // apiAwayTeam = oddsAway (API data)
+      const gameAwayLocal = 'Los Angeles Rams'; // awayLower in code
+      const gameHomeLocal = 'San Francisco 49ers'; // homeLower in code
+      const apiAwayTeam = 'Rams'; // oddsAwayLower in code
+      const apiHomeTeam = '49ers'; // oddsHomeLower in code
+      
+      // Match implementation logic exactly:
+      // Check if API name (3+ chars) is in local name OR local name (3+ chars) is in API name
+      const awayMatchA = apiAwayTeam.length >= 3 && gameAwayLocal.toLowerCase().includes(apiAwayTeam.toLowerCase());
+      const awayMatchB = gameAwayLocal.length >= 3 && apiAwayTeam.toLowerCase().includes(gameAwayLocal.toLowerCase());
+      const awayMatch = awayMatchA || awayMatchB;
+      
+      const homeMatchA = apiHomeTeam.length >= 3 && gameHomeLocal.toLowerCase().includes(apiHomeTeam.toLowerCase());
+      const homeMatchB = gameHomeLocal.length >= 3 && apiHomeTeam.toLowerCase().includes(gameHomeLocal.toLowerCase());
+      const homeMatch = homeMatchA || homeMatchB;
+      
+      // Should match because apiAwayTeam "Rams" (4 chars) is in gameAwayLocal "Los Angeles Rams"
+      expect(awayMatch).toBe(true);
+      // Should match because apiHomeTeam "49ers" (5 chars) is in gameHomeLocal "San Francisco 49ers"
+      expect(homeMatch).toBe(true);
+    });
+    
+    test('should not match unrelated team names', () => {
+      const localTeam = 'Lakers';
+      const apiTeam = 'Celtics';
+      
+      // With minimum length check - neither should be substring of the other
+      const matchA = apiTeam.length >= 3 && localTeam.toLowerCase().includes(apiTeam.toLowerCase());
+      const matchB = localTeam.length >= 3 && apiTeam.toLowerCase().includes(localTeam.toLowerCase());
+      const match = matchA || matchB;
+      
+      expect(match).toBe(false);
+    });
+    
+    test('should match when local has full name and API has short name', () => {
+      // Scenario: API returns "Rams", local has "Los Angeles Rams"
+      const localTeam = 'Los Angeles Rams';
+      const apiTeam = 'Rams';
+      
+      // First condition should match: apiTeam.length >= 3 && localTeam.includes(apiTeam)
+      const matchA = apiTeam.length >= 3 && localTeam.toLowerCase().includes(apiTeam.toLowerCase());
+      const matchB = localTeam.length >= 3 && apiTeam.toLowerCase().includes(localTeam.toLowerCase());
+      const match = matchA || matchB;
+      
+      expect(matchA).toBe(true); // "Rams" (4 chars) is in "Los Angeles Rams"
+      expect(matchB).toBe(false); // "Los Angeles Rams" is NOT in "Rams"
+      expect(match).toBe(true); // Overall match succeeds
+    });
+    
+    test('should match when API has full name and local has short name', () => {
+      // Scenario: API returns "Los Angeles Lakers", local has "Lakers"
+      const localTeam = 'Lakers';
+      const apiTeam = 'Los Angeles Lakers';
+      
+      // Second condition should match: localTeam.length >= 3 && apiTeam.includes(localTeam)
+      const matchA = apiTeam.length >= 3 && localTeam.toLowerCase().includes(apiTeam.toLowerCase());
+      const matchB = localTeam.length >= 3 && apiTeam.toLowerCase().includes(localTeam.toLowerCase());
+      const match = matchA || matchB;
+      
+      expect(matchA).toBe(false); // "Los Angeles Lakers" is NOT in "Lakers"
+      expect(matchB).toBe(true); // "Lakers" (6 chars) is in "Los Angeles Lakers"
+      expect(match).toBe(true); // Overall match succeeds
+    });
+    
+    test('should prevent false positives with short names (< 3 chars)', () => {
+      // Simulate: "LA" should NOT match "LAkers" due to minimum length check
+      const localTeam = 'LAkers';
+      const apiTeam = 'LA';
+      
+      // Should fail due to apiTeam being too short
+      const matchA = apiTeam.length >= 3 && localTeam.toLowerCase().includes(apiTeam.toLowerCase());
+      const matchB = localTeam.length >= 3 && apiTeam.toLowerCase().includes(localTeam.toLowerCase());
+      const match = matchA || matchB;
+      
+      expect(matchA).toBe(false); // apiTeam "LA" only has 2 chars, fails length check
+      expect(matchB).toBe(false); // localTeam passes length check, but apiTeam "LA" doesn't contain "lakers"
+      expect(match).toBe(false); // Overall match fails - prevents "LA" from matching "LAkers"
+    });
+  });
 });

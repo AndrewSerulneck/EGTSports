@@ -229,6 +229,15 @@ const JSON_ODDS_SPORT_KEYS = {
 const jsonOddsCache = {};
 const JSON_ODDS_CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
 
+/**
+ * Helper function to create consistent game keys for both storing and retrieving odds data.
+ * This ensures that odds stored from JsonOdds can be matched with games from ESPN/local data.
+ * @param {string} away - Away team name
+ * @param {string} home - Home team name
+ * @returns {string} - Game key in format "away|home"
+ */
+const getGameKey = (away, home) => `${away.trim()}|${home.trim()}`;
+
 const ODDS_API_SPORT_KEYS = {
   'NFL': 'americanfootball_nfl',
   'NBA': 'basketball_nba',
@@ -3367,8 +3376,8 @@ const fetchMoneylineFromJsonOdds = async (sport, forceRefresh = false, oddType =
         }
       }
       
-      // Store moneyline data using same key format as Odds API for matching
-      const gameKey = `${awayTeam}|${homeTeam}`;
+      // Store moneyline data using getGameKey helper for consistent matching
+      const gameKey = getGameKey(awayTeam, homeTeam);
       moneylineMap[gameKey] = {
         awayMoneyline: awayMoneyline || '-',
         homeMoneyline: homeMoneyline || '-'
@@ -3395,6 +3404,54 @@ const fetchMoneylineFromJsonOdds = async (sport, forceRefresh = false, oddType =
     console.error(`Error message: ${error.message}`);
     console.error('Stack trace:', error.stack);
     return null;
+  }
+};
+
+/**
+ * fetchAllPeriodOdds - Fetch moneylines for all period types in parallel
+ * Fetches Game, FirstHalf, and FirstQuarter odds from JsonOdds API
+ * 
+ * TODO: Wire this function into the game enrichment logic to fetch period-specific odds.
+ * Currently available but not used. See JSONODDS_GAME_KEY_FIX.md for integration plan.
+ * 
+ * @param {string} sport - Sport name (e.g., 'NFL', 'NBA')
+ * @returns {object} - Object with period keys: { Game: {...}, FirstHalf: {...}, FirstQuarter: {...} }
+ */
+// eslint-disable-next-line no-unused-vars
+const fetchAllPeriodOdds = async (sport) => {
+  try {
+    // Only fetch period odds for US sports that have quarters/halves
+    const isSoccer = sport === 'World Cup' || sport === 'MLS';
+    const isCombat = sport === 'Boxing' || sport === 'UFC';
+    
+    if (isSoccer || isCombat) {
+      // For soccer and combat, only fetch Game odds
+      const gameOdds = await fetchMoneylineFromJsonOdds(sport, false, null);
+      return gameOdds ? { Game: gameOdds } : {};
+    }
+    
+    // For other sports, fetch all period types in parallel
+    const periods = ['Game', 'FirstHalf', 'FirstQuarter'];
+    const results = {};
+    
+    const fetchPromises = periods.map(async (oddType) => {
+      const data = await fetchMoneylineFromJsonOdds(sport, false, oddType === 'Game' ? null : oddType);
+      return { oddType, data };
+    });
+    
+    const responses = await Promise.all(fetchPromises);
+    
+    responses.forEach(({ oddType, data }) => {
+      if (data && Object.keys(data).length > 0) {
+        results[oddType] = data;
+        console.log(`✅ Period odds fetched for ${oddType}: ${Object.keys(data).length} games`);
+      }
+    });
+    
+    return results;
+  } catch (error) {
+    console.error(`❌ Error fetching period odds for ${sport}:`, error);
+    return {};
   }
 };
 
@@ -4119,18 +4176,34 @@ const fetchDetailedOdds = async (sport, eventId) => {
                 // Then, overlay JsonOdds moneylines (PRIORITY OVERRIDE)
                 let jsonOddsML = null;
                 if (jsonOddsMoneylines) {
-                  // Try exact match first
-                  const gameKey = `${game.awayTeam}|${game.homeTeam}`;
+                  // Try exact match first using getGameKey helper
+                  const gameKey = getGameKey(game.awayTeam, game.homeTeam);
                   jsonOddsML = jsonOddsMoneylines[gameKey];
                   
-                  // If no exact match, try fuzzy matching
+                  // If no exact match, try fuzzy matching with bidirectional substring check
                   if (!jsonOddsML) {
                     for (const [key, value] of Object.entries(jsonOddsMoneylines)) {
                       const [oddsAway, oddsHome] = key.split('|');
-                      const awayMatch = teamsMatchHelper(game.awayTeam, oddsAway);
-                      const homeMatch = teamsMatchHelper(game.homeTeam, oddsHome);
                       
-                      if (awayMatch.match && homeMatch.match) {
+                      // Enhanced fuzzy matching: check if API team name is contained in local name OR vice versa
+                      // e.g., 'Rams' should match 'Los Angeles Rams' and 'Los Angeles Rams' should match 'Rams'
+                      // Minimum 3-char length for substring matching prevents false positives (e.g., 'LA' matching 'LAkers')
+                      // Both away AND home must match to confirm a game match, reducing false positive risk
+                      const awayLower = game.awayTeam.toLowerCase();
+                      const homeLower = game.homeTeam.toLowerCase();
+                      const oddsAwayLower = oddsAway.toLowerCase();
+                      const oddsHomeLower = oddsHome.toLowerCase();
+                      
+                      // Substring match with minimum length check (3 chars) OR use sophisticated teamsMatchHelper
+                      const awaySubstringMatch = (oddsAwayLower.length >= 3 && awayLower.includes(oddsAwayLower)) || 
+                                                  (awayLower.length >= 3 && oddsAwayLower.includes(awayLower));
+                      const homeSubstringMatch = (oddsHomeLower.length >= 3 && homeLower.includes(oddsHomeLower)) || 
+                                                  (homeLower.length >= 3 && oddsHomeLower.includes(homeLower));
+                      
+                      const awayMatch = awaySubstringMatch || teamsMatchHelper(game.awayTeam, oddsAway).match;
+                      const homeMatch = homeSubstringMatch || teamsMatchHelper(game.homeTeam, oddsHome).match;
+                      
+                      if (awayMatch && homeMatch) {
                         jsonOddsML = value;
                         console.log(`  🎯 JsonOdds fuzzy match: "${gameKey}" -> "${key}"`);
                         break;
