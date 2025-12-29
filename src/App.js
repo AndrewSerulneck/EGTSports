@@ -3411,9 +3411,13 @@ const fetchMoneylineFromJsonOdds = async (sport, forceRefresh = false, oddType =
  * fetchAllPeriodOdds - Fetch moneylines for all period types in parallel
  * Fetches Game, FirstHalf, and FirstQuarter odds from JsonOdds API
  * 
+ * TODO: Wire this function into the game enrichment logic to fetch period-specific odds.
+ * Currently available but not used. See JSONODDS_GAME_KEY_FIX.md for integration plan.
+ * 
  * @param {string} sport - Sport name (e.g., 'NFL', 'NBA')
  * @returns {object} - Object with period keys: { Game: {...}, FirstHalf: {...}, FirstQuarter: {...} }
  */
+// eslint-disable-next-line no-unused-vars
 const fetchAllPeriodOdds = async (sport) => {
   try {
     // Only fetch period odds for US sports that have quarters/halves
