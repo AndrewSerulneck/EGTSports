@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import './GridBettingLayout.css';
 
-// Debug flag for diagnostic logging (set to false in production)
-const DEBUG_JSONODDS_FLOW = process.env.NODE_ENV === 'development';
+// Debug flag for diagnostic logging - ENABLED for production moneyline diagnostics
+const DEBUG_JSONODDS_FLOW = true;
 
 /**
  * PeriodSelector Component - Single-select toggle for game periods
