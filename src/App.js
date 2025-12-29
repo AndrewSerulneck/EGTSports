@@ -3411,13 +3411,11 @@ const fetchMoneylineFromJsonOdds = async (sport, forceRefresh = false, oddType =
  * fetchAllPeriodOdds - Fetch moneylines for all period types in parallel
  * Fetches Game, FirstHalf, and FirstQuarter odds from JsonOdds API
  * 
- * TODO: Wire this function into the game enrichment logic to fetch period-specific odds.
- * Currently available but not used. See JSONODDS_GAME_KEY_FIX.md for integration plan.
+ * Used by the game enrichment logic to fetch period-specific odds.
  * 
  * @param {string} sport - Sport name (e.g., 'NFL', 'NBA')
  * @returns {object} - Object with period keys: { Game: {...}, FirstHalf: {...}, FirstQuarter: {...} }
  */
-// eslint-disable-next-line no-unused-vars
 const fetchAllPeriodOdds = async (sport) => {
   try {
     // Only fetch period odds for US sports that have quarters/halves
@@ -4159,7 +4157,11 @@ const fetchDetailedOdds = async (sport, eventId) => {
             const oddsMap = await fetchOddsFromTheOddsAPI(sport);
             
             // STEP 2: Fetch moneylines from JsonOdds (PRIMARY SOURCE for ML)
-            const jsonOddsMoneylines = await fetchMoneylineFromJsonOdds(sport);
+            // Now fetching Game, FirstHalf, and FirstQuarter odds
+            const jsonOddsPeriodData = await fetchAllPeriodOdds(sport);
+            const jsonOddsMoneylines = jsonOddsPeriodData?.Game || null;
+            const jsonOddsFirstHalf = jsonOddsPeriodData?.FirstHalf || null;
+            const jsonOddsFirstQuarter = jsonOddsPeriodData?.FirstQuarter || null;
             
             if (oddsMap || jsonOddsMoneylines) {
               const finalFormattedGames = formattedGames.map(game => {
@@ -4255,6 +4257,58 @@ const fetchDetailedOdds = async (sport, eventId) => {
                     updatedGame[key] = odds[key];
                   }
                 });
+                
+                // Apply JsonOdds FirstHalf and FirstQuarter moneylines (OVERRIDE)
+                // Helper to find matching period odds using same fuzzy logic as game odds
+                const findPeriodOdds = (periodOddsMap) => {
+                  if (!periodOddsMap) return null;
+                  
+                  const gameKey = getGameKey(game.awayTeam, game.homeTeam);
+                  let match = periodOddsMap[gameKey];
+                  
+                  if (!match) {
+                    for (const [key, value] of Object.entries(periodOddsMap)) {
+                      const [oddsAway, oddsHome] = key.split('|');
+                      const awayLower = game.awayTeam.toLowerCase();
+                      const homeLower = game.homeTeam.toLowerCase();
+                      const oddsAwayLower = oddsAway.toLowerCase();
+                      const oddsHomeLower = oddsHome.toLowerCase();
+                      
+                      const awaySubstringMatch = (oddsAwayLower.length >= 3 && awayLower.includes(oddsAwayLower)) || 
+                                                  (awayLower.length >= 3 && oddsAwayLower.includes(awayLower));
+                      const homeSubstringMatch = (oddsHomeLower.length >= 3 && homeLower.includes(oddsHomeLower)) || 
+                                                  (homeLower.length >= 3 && oddsHomeLower.includes(homeLower));
+                      
+                      if (awaySubstringMatch && homeSubstringMatch) {
+                        match = value;
+                        break;
+                      }
+                    }
+                  }
+                  return match;
+                };
+                
+                // Apply FirstHalf odds (H1_)
+                const firstHalfOdds = findPeriodOdds(jsonOddsFirstHalf);
+                if (firstHalfOdds) {
+                  if (firstHalfOdds.awayMoneyline && firstHalfOdds.awayMoneyline !== '-') {
+                    updatedGame.H1_awayMoneyline = firstHalfOdds.awayMoneyline;
+                  }
+                  if (firstHalfOdds.homeMoneyline && firstHalfOdds.homeMoneyline !== '-') {
+                    updatedGame.H1_homeMoneyline = firstHalfOdds.homeMoneyline;
+                  }
+                }
+                
+                // Apply FirstQuarter odds (Q1_)
+                const firstQuarterOdds = findPeriodOdds(jsonOddsFirstQuarter);
+                if (firstQuarterOdds) {
+                  if (firstQuarterOdds.awayMoneyline && firstQuarterOdds.awayMoneyline !== '-') {
+                    updatedGame.Q1_awayMoneyline = firstQuarterOdds.awayMoneyline;
+                  }
+                  if (firstQuarterOdds.homeMoneyline && firstQuarterOdds.homeMoneyline !== '-') {
+                    updatedGame.Q1_homeMoneyline = firstQuarterOdds.homeMoneyline;
+                  }
+                }
                 
                 return updatedGame;
               });

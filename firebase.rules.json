@@ -102,6 +102,12 @@
         ".write": "auth != null" 
       }
     },
+    "transactions": {
+      "$userId": {
+        ".read": "auth != null && auth.uid === $userId",
+        ".write": false
+      }
+    },
     "artifacts": {
       "$appId": {
         "users": {
