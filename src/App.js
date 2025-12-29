@@ -18,6 +18,7 @@ import GridBettingLayout from './components/GridBettingLayout';
 import PropBetsView from './components/PropBetsView';
 import BettingSlip from './components/BettingSlip';
 import MemberContainer from './components/MemberContainer';
+import { getStandardId } from './utils/normalization';
 
 function SportsMenu({ currentSport, onSelectSport, allSportsGames, onSignOut, onManualRefresh, isRefreshing, onNavigateToDashboard }) {
     const sportOrder = ['NFL', 'College Football', 'NBA', 'College Basketball', 'Major League Baseball', 'NHL', 'World Cup', 'MLS', 'Boxing', 'UFC'];
@@ -240,84 +241,6 @@ const JSON_ODDS_CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
  * @param {string} home - Home team name
  * @returns {string} - Standardized key in format "away|home"
  */
-const getStandardizedKey = (away, home) => {
-  /**
-   * Remove common mascots/nicknames from team name
-   * Comprehensive list based on college and professional sports teams
-   * IMPORTANT: Multi-word mascots must come BEFORE single-word mascots in the regex
-   */
-  const stripMascot = (name) => {
-    if (!name) return '';
-    const trimmed = name.trim(); // Trim first so $ anchor works correctly
-    // Multi-word mascots first, then single-word mascots
-    return trimmed.replace(/\s+(Red Raiders|Crimson Tide|Fighting Irish|Blue Devils|Tar Heels|Demon Deacons|Yellow Jackets|Black Knights|Golden Eagles|Red Storm|River Hawks|Mountain Hawks|Ragin Cajuns|Red Wolves|Golden Panthers|Mean Green|Trail Blazers|Nittany Lions|Scarlet Knights|Eagles|Bulldogs|Panthers|Tigers|Bears|Lions|Wildcats|Spartans|Trojans|Bruins|Huskies|Cardinals|Cowboys|Indians|Terrapins|Volunteers|Gators|Buckeyes|Wolverines|Sooners|Longhorns|Aggies|Rebels|Commodores|RedHawks|Rams|Falcons|Saints|Chiefs|49ers|Seahawks|Steelers|Ravens|Browns|Bengals|Texans|Colts|Jaguars|Titans|Patriots|Bills|Dolphins|Jets|Broncos|Raiders|Chargers|Packers|Vikings|Giants|Commanders|Buccaneers|76ers|Celtics|Nets|Knicks|Raptors|Warriors|Clippers|Lakers|Suns|Kings|Jazz|Nuggets|Timberwolves|Thunder|Mavericks|Rockets|Spurs|Grizzlies|Pelicans|Heat|Magic|Hawks|Hornets|Wizards|Pacers|Pistons|Bucks|Cavaliers|Hokies|Orange|Midshipmen|Friars|Pirates|Hoyas|Colonials|Minutemen|Leopards|Engineers|Dutchmen|Pride|Greyhounds|Mocs|Catamounts|Warhawks|Owls|Hilltoppers|Blazers|Knights|Phoenix|Roadrunners|Anteaters|Gauchos|Tritons|Highlanders|Matadors|Beach|Waves|Cougars|Hurricanes|Seminoles|Gamecocks|Badgers|Cornhuskers|Boilermakers|Illini|Hawkeyes)$/i, '').trim();
-  };
-  
-  /**
-   * Normalize abbreviations and standardize formatting
-   * Converts common abbreviations to full words and lowercases
-   */
-  const normalize = (name) => {
-    if (!name) return '';
-    return name
-      .replace(/\s+\(.*?\)/, '') // Remove parentheses (e.g., "Miami (OH)")
-      .replace(/\bSt\b\.?/gi, 'State') // St -> State
-      .replace(/\bN\b\.?/gi, 'North') // N -> North
-      .replace(/\bS\b\.?/gi, 'South') // S -> South
-      .replace(/\bE\b\.?/gi, 'East') // E -> East
-      .replace(/\bW\b\.?/gi, 'West') // W -> West
-      .replace(/\bCent\b\.?/gi, 'Central') // Cent -> Central
-      .replace(/\s+/g, ' ') // Normalize whitespace
-      .toLowerCase()
-      .trim();
-  };
-  
-  const awayStandardized = normalize(stripMascot(away));
-  const homeStandardized = normalize(stripMascot(home));
-  
-  return `${awayStandardized}|${homeStandardized}`;
-};
-
-/**
- * Helper to find matching odds for a game using exact match or fuzzy matching.
- * Uses bidirectional substring matching with minimum 3-char length check.
- * @param {object} oddsMap - Map of gameKeys to odds data
- * @param {string} awayTeam - Away team name from game
- * @param {string} homeTeam - Home team name from game
- * @returns {object|null} - Matched odds data or null
- */
-const findOddsForGame = (oddsMap, awayTeam, homeTeam) => {
-  if (!oddsMap) return null;
-  
-  // Use standardized key for consistent matching
-  const gameKey = getStandardizedKey(awayTeam, homeTeam);
-  let match = oddsMap[gameKey];
-  
-  // If exact match found, return it
-  if (match) return match;
-  
-  // Try fuzzy matching as fallback
-  for (const [key, value] of Object.entries(oddsMap)) {
-    const [oddsAway, oddsHome] = key.split('|');
-    const awayLower = awayTeam.toLowerCase();
-    const homeLower = homeTeam.toLowerCase();
-    const oddsAwayLower = oddsAway.toLowerCase();
-    const oddsHomeLower = oddsHome.toLowerCase();
-    
-    // Substring match with minimum length check (3 chars)
-    const awaySubstringMatch = (oddsAwayLower.length >= 3 && awayLower.includes(oddsAwayLower)) || 
-                                (awayLower.length >= 3 && oddsAwayLower.includes(awayLower));
-    const homeSubstringMatch = (oddsHomeLower.length >= 3 && homeLower.includes(oddsHomeLower)) || 
-                                (homeLower.length >= 3 && oddsHomeLower.includes(homeLower));
-    
-    if (awaySubstringMatch && homeSubstringMatch) {
-      return value;
-    }
-  }
-  
-  return null;
-};
-
 const ODDS_API_SPORT_KEYS = {
   'NFL': 'americanfootball_nfl',
   'NBA': 'basketball_nba',
@@ -2867,6 +2790,10 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
       const homeTeam = game.home_team;
       const awayTeam = game.away_team;
       
+      // Normalize team names to ESPN IDs for consistent keying
+      const homeTeamId = getStandardId(homeTeam);
+      const awayTeamId = getStandardId(awayTeam);
+      
       // Calculate time until game starts for diagnostic logging
       const commenceTime = new Date(game.commence_time);
       const hoursUntilGame = (commenceTime - now) / (1000 * 60 * 60);
@@ -2874,12 +2801,20 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
       console.log(`\n🎮 Game ${gameIndex + 1}: ${awayTeam} @ ${homeTeam}`);
       console.log(`   ⏰ Starts in: ${hoursUntilGame.toFixed(1)} hours (${game.commence_time})`);
       
+      // Check if we can normalize both teams to IDs
+      if (!homeTeamId || !awayTeamId) {
+        console.warn(`  ⚠️ Cannot normalize team names to IDs: Away="${awayTeam}" (ID: ${awayTeamId}), Home="${homeTeam}" (ID: ${homeTeamId})`);
+        return; // Skip this game if we can't normalize
+      }
+      
+      console.log(`   🆔 Normalized IDs: Away=${awayTeamId}, Home=${homeTeamId}`);
+      
       // THE ODDS API v4 DATA DRILL-DOWN PATH:
       // 1. Check if bookmakers array exists
       if (!game.bookmakers || game.bookmakers.length === 0) {
         console.warn(`  ⚠️ No bookmakers data available`);
-        // Store empty odds with fallback values
-        const gameKey = `${awayTeam}|${homeTeam}`;
+        // Store empty odds with fallback values using ID-based key
+        const gameKey = `${homeTeamId}|${awayTeamId}`;
         oddsMap[gameKey] = { 
           awaySpread: 'OFF', 
           homeSpread: 'OFF', 
@@ -3229,7 +3164,8 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
       }
       
       // 11. Assemble final odds object for this game
-      const gameKey = `${awayTeam}|${homeTeam}`;
+      // Use ID-based key for consistent lookups
+      const gameKey = `${homeTeamId}|${awayTeamId}`;
       const oddsData = { 
         awaySpread, 
         homeSpread, 
@@ -3421,6 +3357,18 @@ const fetchMoneylineFromJsonOdds = async (sport, forceRefresh = false, oddType =
       
       console.log(`\n🎮 JsonOdds Match ${idx + 1}: ${awayTeam} @ ${homeTeam}`);
       
+      // Normalize team names to ESPN IDs for consistent keying
+      const homeTeamId = getStandardId(homeTeam);
+      const awayTeamId = getStandardId(awayTeam);
+      
+      // Check if we can normalize both teams to IDs
+      if (!homeTeamId || !awayTeamId) {
+        console.warn(`  ⚠️ Cannot normalize team names to IDs: Away="${awayTeam}" (ID: ${awayTeamId}), Home="${homeTeam}" (ID: ${homeTeamId})`);
+        return; // Skip this game if we can't normalize
+      }
+      
+      console.log(`   🆔 Normalized IDs: Away=${awayTeamId}, Home=${homeTeamId}`);
+      
       // Check if Odds array exists
       if (!match.Odds || !Array.isArray(match.Odds) || match.Odds.length === 0) {
         console.warn(`  ⚠️ No odds data available`);
@@ -3466,16 +3414,16 @@ const fetchMoneylineFromJsonOdds = async (sport, forceRefresh = false, oddType =
         }
       }
       
-      // Store moneyline data using getStandardizedKey for consistent matching
-      // This standardization strips mascots and normalizes abbreviations
-      const gameKey = getStandardizedKey(awayTeam, homeTeam);
+      // Store moneyline data using ID-based key for consistent matching
+      const gameKey = `${homeTeamId}|${awayTeamId}`;
       moneylineMap[gameKey] = {
         awayMoneyline: awayMoneyline || '-',
         homeMoneyline: homeMoneyline || '-'
       };
       
-      console.log(`  📋 Stored with standardized key: "${gameKey}"`);
+      console.log(`  📋 Stored with ID-based key: "${gameKey}"`);
       console.log(`     Original teams: ${awayTeam} @ ${homeTeam}`);
+      console.log(`     Normalized IDs: Away=${awayTeamId}, Home=${homeTeamId}`);
       console.log(`     Away ML: ${moneylineMap[gameKey].awayMoneyline}`);
       console.log(`     Home ML: ${moneylineMap[gameKey].homeMoneyline}`);
     });
@@ -3698,9 +3646,7 @@ const fetchDetailedOdds = async (sport, eventId) => {
   }
 };
 
-  // Helper function to extract mascot from team name (last word)
-
-  // Helper function for robust team name matching (The "Mascot Rule")
+  // Helper function for ID-based odds matching
   const matchOddsToGame = useCallback((game, oddsMap) => {
     // Default fallback with dash for missing odds
     const defaultOdds = { 
@@ -3716,37 +3662,26 @@ const fetchDetailedOdds = async (sport, eventId) => {
       return defaultOdds;
     }
     
-    // Try exact match first
-    const gameKey = `${game.awayTeam}|${game.homeTeam}`;
+    // Use ID-based lookup for consistent matching
+    // Game object already has awayTeamId and homeTeamId from ESPN data
+    if (!game.homeTeamId || !game.awayTeamId) {
+      console.log(`[${game.awayTeam} @ ${game.homeTeam}] -> ML: No | Spread: No | Total: No | Match Method: Missing Team IDs`);
+      return defaultOdds;
+    }
+    
+    const gameKey = `${game.homeTeamId}|${game.awayTeamId}`;
     
     if (oddsMap[gameKey]) {
       const odds = oddsMap[gameKey];
       // Concise diagnostic log
-      console.log(`[${game.awayTeam} @ ${game.homeTeam}] -> ML: ${odds.awayMoneyline !== '-' ? 'Yes' : 'No'} | Spread: ${odds.awaySpread !== '-' ? 'Yes' : 'No'} | Total: ${odds.total !== '-' ? 'Yes' : 'No'} | Match Method: Exact`);
+      console.log(`[${game.awayTeam} @ ${game.homeTeam}] (IDs: ${game.awayTeamId}|${game.homeTeamId}) -> ML: ${odds.awayMoneyline !== '-' ? 'Yes' : 'No'} | Spread: ${odds.awaySpread !== '-' ? 'Yes' : 'No'} | Total: ${odds.total !== '-' ? 'Yes' : 'No'} | Match Method: ID-Based`);
       return odds;
     }
     
-    // Try mascot-based fuzzy matching with enhanced city fallback
-    for (const [key, value] of Object.entries(oddsMap)) {
-      const [oddsAway, oddsHome] = key.split('|');
-      
-      // Use robust team matcher with method tracking
-      const awayMatchResult = teamsMatchHelper(game.awayTeam, oddsAway);
-      const homeMatchResult = teamsMatchHelper(game.homeTeam, oddsHome);
-      
-      if (awayMatchResult.match && homeMatchResult.match) {
-        // Determine primary match method (use away team's method as reference)
-        const matchMethod = awayMatchResult.method;
-        // Concise diagnostic log
-        console.log(`[${game.awayTeam} @ ${game.homeTeam}] -> ML: ${value.awayMoneyline !== '-' ? 'Yes' : 'No'} | Spread: ${value.awaySpread !== '-' ? 'Yes' : 'No'} | Total: ${value.total !== '-' ? 'Yes' : 'No'} | Match Method: ${matchMethod}`);
-        return value;
-      }
-    }
-    
     // No match found - return defaults with diagnostic log
-    console.log(`[${game.awayTeam} @ ${game.homeTeam}] -> ML: No | Spread: No | Total: No | Match Method: None (No API data)`);
+    console.log(`[${game.awayTeam} @ ${game.homeTeam}] (IDs: ${game.awayTeamId}|${game.homeTeamId}) -> ML: No | Spread: No | Total: No | Match Method: None (No API data for these IDs)`);
     return defaultOdds;
-  }, [teamsMatchHelper]);
+  }, []);
 
   const fetchPropBets = useCallback(async (sportName) => {
     const cacheKey = sportName;
@@ -4230,8 +4165,8 @@ const fetchDetailedOdds = async (sport, eventId) => {
             time: new Date(event.date).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }) + ' ET',
             awayTeam: awayTeam.team.displayName,
             homeTeam: homeTeam.team.displayName,
-            awayTeamId: awayTeam.id,
-            homeTeamId: homeTeam.id,
+            awayTeamId: awayTeam.team.id,
+            homeTeamId: homeTeam.team.id,
             awayScore: awayTeam.score || '0',
             homeScore: homeTeam.score || '0',
             awaySpread,
@@ -4282,74 +4217,22 @@ const fetchDetailedOdds = async (sport, eventId) => {
                 // Then, overlay JsonOdds moneylines (PRIORITY OVERRIDE)
                 let jsonOddsML = null;
                 if (jsonOddsMoneylines) {
-                  // Try exact match first using getStandardizedKey for consistent matching
-                  const gameKey = getStandardizedKey(game.awayTeam, game.homeTeam);
-                  jsonOddsML = jsonOddsMoneylines[gameKey];
-                  
-                  if (DEBUG_JSONODDS_FLOW) {
-                    console.log(`🔍 Looking up JsonOdds for standardized key: "${gameKey}"`, {
-                      originalTeams: `${game.awayTeam} @ ${game.homeTeam}`,
-                      found: !!jsonOddsML,
-                      data: jsonOddsML || 'NOT FOUND'
-                    });
-                  }
-                  
-                  // If no exact match, try fuzzy matching with strict validation
-                  // NOTE: With standardized keys, exact matches should work most of the time
-                  // This is a fallback for edge cases
-                  if (!jsonOddsML) {
+                  // Use ID-based lookup for consistent matching
+                  if (game.homeTeamId && game.awayTeamId) {
+                    const gameKey = `${game.homeTeamId}|${game.awayTeamId}`;
+                    jsonOddsML = jsonOddsMoneylines[gameKey];
+                    
                     if (DEBUG_JSONODDS_FLOW) {
-                      console.log(`⚠️ No exact match for standardized key "${gameKey}". Trying fuzzy match...`);
-                      console.log(`   Available keys in JsonOdds:`, Object.keys(jsonOddsMoneylines));
+                      console.log(`🔍 Looking up JsonOdds for ID-based key: "${gameKey}"`, {
+                        originalTeams: `${game.awayTeam} @ ${game.homeTeam}`,
+                        teamIds: `Away=${game.awayTeamId}, Home=${game.homeTeamId}`,
+                        found: !!jsonOddsML,
+                        data: jsonOddsML || 'NOT FOUND'
+                      });
                     }
-                    
-                    let bestMatch = null;
-                    let bestScore = 0;
-                    
-                    for (const [key, value] of Object.entries(jsonOddsMoneylines)) {
-                      const [oddsAway, oddsHome] = key.split('|');
-                      
-                      // Calculate similarity score using teamsMatchHelper
-                      const awayResult = teamsMatchHelper(game.awayTeam, oddsAway);
-                      const homeResult = teamsMatchHelper(game.homeTeam, oddsHome);
-                      
-                      // Only consider if BOTH teams match
-                      if (awayResult.match && homeResult.match) {
-                        // Calculate a combined score (1.0 = perfect match)
-                        // Give higher weight to Exact and Mascot matches
-                        const awayScore = awayResult.method === 'Exact' ? 1.0 : 
-                                         awayResult.method === 'Mascot' ? 0.95 : 
-                                         awayResult.method === 'City' ? 0.90 : 0.85;
-                        const homeScore = homeResult.method === 'Exact' ? 1.0 : 
-                                         homeResult.method === 'Mascot' ? 0.95 : 
-                                         homeResult.method === 'City' ? 0.90 : 0.85;
-                        const combinedScore = (awayScore + homeScore) / 2;
-                        
-                        // Require minimum threshold of 0.9 to avoid false positives
-                        // Better to show "-" than incorrect odds
-                        if (combinedScore >= 0.9 && combinedScore > bestScore) {
-                          // Additional validation: check if key words are present
-                          const gameKeyWords = gameKey.split('|').join(' ').split(/\s+/).filter(w => w.length >= 4);
-                          const oddsKeyWords = key.split(/\s+/).filter(w => w.length >= 4);
-                          
-                          // At least one significant word from each team must match
-                          const hasCommonWords = gameKeyWords.some(gw => 
-                            oddsKeyWords.some(ow => gw.includes(ow) || ow.includes(gw))
-                          );
-                          
-                          if (hasCommonWords) {
-                            bestScore = combinedScore;
-                            bestMatch = { key, value };
-                          }
-                        }
-                      }
-                    }
-                    
-                    if (bestMatch) {
-                      jsonOddsML = bestMatch.value;
-                      console.log(`  🎯 JsonOdds fuzzy match (score: ${bestScore.toFixed(2)}): "${gameKey}" -> "${bestMatch.key}"`);
-                    } else if (DEBUG_JSONODDS_FLOW) {
-                      console.log(`  ❌ No suitable fuzzy match found (threshold: 0.9)`);
+                  } else {
+                    if (DEBUG_JSONODDS_FLOW) {
+                      console.log(`⚠️ Missing team IDs for ${game.awayTeam} @ ${game.homeTeam}, cannot lookup JsonOdds`);
                     }
                   }
                 }
@@ -4417,27 +4300,33 @@ const fetchDetailedOdds = async (sport, eventId) => {
                 });
                 
                 // Apply JsonOdds FirstHalf and FirstQuarter moneylines (OVERRIDE)
-                // Using reusable findOddsForGame helper for consistent fuzzy matching
+                // Use ID-based lookup for consistent matching
                 
                 // Apply FirstHalf odds (H1_)
-                const firstHalfOdds = findOddsForGame(jsonOddsFirstHalf, game.awayTeam, game.homeTeam);
-                if (firstHalfOdds) {
-                  if (firstHalfOdds.awayMoneyline && firstHalfOdds.awayMoneyline !== '-') {
-                    updatedGame.H1_awayMoneyline = firstHalfOdds.awayMoneyline;
-                  }
-                  if (firstHalfOdds.homeMoneyline && firstHalfOdds.homeMoneyline !== '-') {
-                    updatedGame.H1_homeMoneyline = firstHalfOdds.homeMoneyline;
+                if (jsonOddsFirstHalf && game.homeTeamId && game.awayTeamId) {
+                  const gameKey = `${game.homeTeamId}|${game.awayTeamId}`;
+                  const firstHalfOdds = jsonOddsFirstHalf[gameKey];
+                  if (firstHalfOdds) {
+                    if (firstHalfOdds.awayMoneyline && firstHalfOdds.awayMoneyline !== '-') {
+                      updatedGame.H1_awayMoneyline = firstHalfOdds.awayMoneyline;
+                    }
+                    if (firstHalfOdds.homeMoneyline && firstHalfOdds.homeMoneyline !== '-') {
+                      updatedGame.H1_homeMoneyline = firstHalfOdds.homeMoneyline;
+                    }
                   }
                 }
                 
                 // Apply FirstQuarter odds (Q1_)
-                const firstQuarterOdds = findOddsForGame(jsonOddsFirstQuarter, game.awayTeam, game.homeTeam);
-                if (firstQuarterOdds) {
-                  if (firstQuarterOdds.awayMoneyline && firstQuarterOdds.awayMoneyline !== '-') {
-                    updatedGame.Q1_awayMoneyline = firstQuarterOdds.awayMoneyline;
-                  }
-                  if (firstQuarterOdds.homeMoneyline && firstQuarterOdds.homeMoneyline !== '-') {
-                    updatedGame.Q1_homeMoneyline = firstQuarterOdds.homeMoneyline;
+                if (jsonOddsFirstQuarter && game.homeTeamId && game.awayTeamId) {
+                  const gameKey = `${game.homeTeamId}|${game.awayTeamId}`;
+                  const firstQuarterOdds = jsonOddsFirstQuarter[gameKey];
+                  if (firstQuarterOdds) {
+                    if (firstQuarterOdds.awayMoneyline && firstQuarterOdds.awayMoneyline !== '-') {
+                      updatedGame.Q1_awayMoneyline = firstQuarterOdds.awayMoneyline;
+                    }
+                    if (firstQuarterOdds.homeMoneyline && firstQuarterOdds.homeMoneyline !== '-') {
+                      updatedGame.Q1_homeMoneyline = firstQuarterOdds.homeMoneyline;
+                    }
                   }
                 }
                 
