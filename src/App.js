@@ -4218,9 +4218,6 @@ const fetchDetailedOdds = async (sport, eventId) => {
             }
             
             if (oddsMap || jsonOddsMoneylines) {
-              // Cache available keys outside the map loop for efficiency
-              const availableJsonOddsKeys = jsonOddsMoneylines ? Object.keys(jsonOddsMoneylines) : [];
-              
               const finalFormattedGames = formattedGames.map(game => {
                 if (hasCompleteOddsData(game)) return game;
                 
@@ -4250,7 +4247,7 @@ const fetchDetailedOdds = async (sport, eventId) => {
                   if (!jsonOddsML) {
                     if (DEBUG_JSONODDS_FLOW) {
                       console.log(`⚠️ No exact match for "${gameKey}". Trying fuzzy match...`);
-                      console.log(`   Available keys in JsonOdds:`, availableJsonOddsKeys);
+                      console.log(`   Available keys in JsonOdds:`, Object.keys(jsonOddsMoneylines));
                     }
                     for (const [key, value] of Object.entries(jsonOddsMoneylines)) {
                       const [oddsAway, oddsHome] = key.split('|');
