@@ -19,11 +19,14 @@ import nflTeams from '../data/nfl-teams.json';
 /**
  * Get the standardized ESPN team ID for a given team name
  * 
- * This function performs fuzzy matching to find the team in the mapping file:
+ * This function performs robust matching to find the team in the mapping file:
  * 1. Normalizes input (case-insensitive, trimmed)
  * 2. Checks canonical name for exact match
- * 3. Checks all aliases in the aliases array
+ * 3. Checks all aliases in the aliases array for exact match
  * 4. Returns the ESPN team ID when found
+ * 
+ * Note: This uses exact string matching (after normalization), not fuzzy matching algorithms.
+ * The comprehensive alias list provides flexibility without needing fuzzy logic.
  * 
  * @param {string} teamName - Team name from any source (e.g., "Rams", "LAR", "Los Angeles Rams")
  * @returns {string|null} - ESPN team ID (e.g., "14") or null if no match found
