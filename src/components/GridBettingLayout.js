@@ -1,6 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import './GridBettingLayout.css';
 
+// Debug flag for diagnostic logging (set to false in production)
+const DEBUG_JSONODDS_FLOW = process.env.NODE_ENV === 'development';
+
 /**
  * PeriodSelector Component - Single-select toggle for game periods
  * Sport-specific periods with mobile-first "Pyramid" layout
@@ -136,16 +139,18 @@ function GridBettingLayout({
   
   // Diagnostic logging for moneyline data
   useEffect(() => {
-    console.log(`\n🎨 GridBettingLayout rendered for ${sport} with ${games.length} games`);
-    games.forEach((game, idx) => {
-      if (idx < 3) { // Log first 3 games to avoid spam
-        console.log(`  Game ${idx + 1}: ${game.awayTeam} @ ${game.homeTeam}`, {
-          awayMoneyline: game.awayMoneyline || 'MISSING',
-          homeMoneyline: game.homeMoneyline || 'MISSING',
-          willDisplay: formatOdds(game.awayMoneyline) + ' / ' + formatOdds(game.homeMoneyline)
-        });
-      }
-    });
+    if (DEBUG_JSONODDS_FLOW) {
+      console.log(`\n🎨 GridBettingLayout rendered for ${sport} with ${games.length} games`);
+      games.forEach((game, idx) => {
+        if (idx < 3) { // Log first 3 games to avoid spam
+          console.log(`  Game ${idx + 1}: ${game.awayTeam} @ ${game.homeTeam}`, {
+            awayMoneyline: game.awayMoneyline || 'MISSING',
+            homeMoneyline: game.homeMoneyline || 'MISSING',
+            willDisplay: formatOdds(game.awayMoneyline) + ' / ' + formatOdds(game.homeMoneyline)
+          });
+        }
+      });
+    }
   }, [games, sport]);
   
   // Reset to whole_game when sport changes

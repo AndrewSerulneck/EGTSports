@@ -141,6 +141,9 @@ function MobileBottomNav({ onSignOut, onNavigateToDashboard, onNavigateHome, onN
     );
 }
 
+// Debug flag for diagnostic logging (set to false in production)
+const DEBUG_JSONODDS_FLOW = process.env.NODE_ENV === 'development';
+
 // ESPN API Endpoints for all sports
 const ESPN_API_ENDPOINTS = {
   'NFL': 'https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard',
@@ -3428,7 +3431,10 @@ const fetchMoneylineFromJsonOdds = async (sport, forceRefresh = false, oddType =
     });
     
     console.log(`\n🎉 JsonOdds parsing complete: ${Object.keys(moneylineMap).length} games with moneyline data`);
-    console.log(`📦 RETURNING MONEYLINE MAP with keys:`, Object.keys(moneylineMap));
+    
+    if (DEBUG_JSONODDS_FLOW) {
+      console.log(`📦 RETURNING MONEYLINE MAP with keys:`, Object.keys(moneylineMap));
+    }
     
     // Cache the results using the cacheKey variable defined at the beginning of the function
     jsonOddsCache[cacheKey] = {
@@ -4203,13 +4209,18 @@ const fetchDetailedOdds = async (sport, eventId) => {
             const jsonOddsFirstHalf = jsonOddsPeriodData?.FirstHalf || null;
             const jsonOddsFirstQuarter = jsonOddsPeriodData?.FirstQuarter || null;
             
-            console.log(`\n📦 JsonOdds data received for ${sport}:`, {
-              hasGameOdds: !!jsonOddsMoneylines,
-              gameCount: jsonOddsMoneylines ? Object.keys(jsonOddsMoneylines).length : 0,
-              gameKeys: jsonOddsMoneylines ? Object.keys(jsonOddsMoneylines) : []
-            });
+            if (DEBUG_JSONODDS_FLOW) {
+              console.log(`\n📦 JsonOdds data received for ${sport}:`, {
+                hasGameOdds: !!jsonOddsMoneylines,
+                gameCount: jsonOddsMoneylines ? Object.keys(jsonOddsMoneylines).length : 0,
+                gameKeys: jsonOddsMoneylines ? Object.keys(jsonOddsMoneylines) : []
+              });
+            }
             
             if (oddsMap || jsonOddsMoneylines) {
+              // Cache available keys outside the map loop for efficiency
+              const availableJsonOddsKeys = jsonOddsMoneylines ? Object.keys(jsonOddsMoneylines) : [];
+              
               const finalFormattedGames = formattedGames.map(game => {
                 if (hasCompleteOddsData(game)) return game;
                 
@@ -4228,15 +4239,19 @@ const fetchDetailedOdds = async (sport, eventId) => {
                   const gameKey = getGameKey(game.awayTeam, game.homeTeam);
                   jsonOddsML = jsonOddsMoneylines[gameKey];
                   
-                  console.log(`🔍 Looking up JsonOdds for: "${gameKey}"`, {
-                    found: !!jsonOddsML,
-                    data: jsonOddsML || 'NOT FOUND'
-                  });
+                  if (DEBUG_JSONODDS_FLOW) {
+                    console.log(`🔍 Looking up JsonOdds for: "${gameKey}"`, {
+                      found: !!jsonOddsML,
+                      data: jsonOddsML || 'NOT FOUND'
+                    });
+                  }
                   
                   // If no exact match, try fuzzy matching with bidirectional substring check
                   if (!jsonOddsML) {
-                    console.log(`⚠️ No exact match for "${gameKey}". Trying fuzzy match...`);
-                    console.log(`   Available keys in JsonOdds:`, Object.keys(jsonOddsMoneylines));
+                    if (DEBUG_JSONODDS_FLOW) {
+                      console.log(`⚠️ No exact match for "${gameKey}". Trying fuzzy match...`);
+                      console.log(`   Available keys in JsonOdds:`, availableJsonOddsKeys);
+                    }
                     for (const [key, value] of Object.entries(jsonOddsMoneylines)) {
                       const [oddsAway, oddsHome] = key.split('|');
                       
@@ -4283,11 +4298,13 @@ const fetchDetailedOdds = async (sport, eventId) => {
                   oddsApiEventId: odds.oddsApiEventId
                 };
                 
-                console.log(`📋 Final game object for ${game.awayTeam} @ ${game.homeTeam}:`, {
-                  awayMoneyline: updatedGame.awayMoneyline,
-                  homeMoneyline: updatedGame.homeMoneyline,
-                  source: jsonOddsML ? 'JsonOdds' : (odds.awayMoneyline ? 'OddsAPI' : 'ESPN')
-                });
+                if (DEBUG_JSONODDS_FLOW) {
+                  console.log(`📋 Final game object for ${game.awayTeam} @ ${game.homeTeam}:`, {
+                    awayMoneyline: updatedGame.awayMoneyline,
+                    homeMoneyline: updatedGame.homeMoneyline,
+                    source: jsonOddsML ? 'JsonOdds' : (odds.awayMoneyline ? 'OddsAPI' : 'ESPN')
+                  });
+                }
                 
                 // Log source of moneyline data
                 if (jsonOddsML && jsonOddsML.awayMoneyline !== '-') {
@@ -4367,10 +4384,12 @@ const fetchDetailedOdds = async (sport, eventId) => {
       }
     }));
     
-    console.log(`\n🏁 Setting allSportsGames state with data for ${Object.keys(sportsData).length} sports`);
-    Object.keys(sportsData).forEach(sport => {
-      console.log(`  ${sport}: ${sportsData[sport].length} games`);
-    });
+    if (DEBUG_JSONODDS_FLOW) {
+      console.log(`\n🏁 Setting allSportsGames state with data for ${Object.keys(sportsData).length} sports`);
+      Object.keys(sportsData).forEach(sport => {
+        console.log(`  ${sport}: ${sportsData[sport].length} games`);
+      });
+    }
     
     setAllSportsGames(sportsData);
     const currentSport = currentViewSportRef.current;
