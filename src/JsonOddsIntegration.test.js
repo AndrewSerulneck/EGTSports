@@ -453,21 +453,23 @@ describe('JsonOdds API Integration', () => {
   });
   
   describe('Enhanced Fuzzy Matching', () => {
-    test('should match when API team name is substring of local team name', () => {
+    test('should match when API team name is substring of local team name (min 3 chars)', () => {
       // Simulate: API returns "Rams", local data has "Los Angeles Rams"
       const localTeam = 'Los Angeles Rams';
       const apiTeam = 'Rams';
       
-      const match = localTeam.toLowerCase().includes(apiTeam.toLowerCase());
+      // Test with minimum length check
+      const match = apiTeam.length >= 3 && localTeam.toLowerCase().includes(apiTeam.toLowerCase());
       expect(match).toBe(true);
     });
     
-    test('should match when local team name is substring of API team name', () => {
+    test('should match when local team name is substring of API team name (min 3 chars)', () => {
       // Simulate: API returns "Los Angeles Rams", local data has "Rams"
       const localTeam = 'Rams';
       const apiTeam = 'Los Angeles Rams';
       
-      const match = apiTeam.toLowerCase().includes(localTeam.toLowerCase());
+      // Test with minimum length check
+      const match = localTeam.length >= 3 && apiTeam.toLowerCase().includes(localTeam.toLowerCase());
       expect(match).toBe(true);
     });
     
@@ -477,12 +479,13 @@ describe('JsonOdds API Integration', () => {
       const apiAwayTeam = 'Los Angeles Rams';
       const apiHomeTeam = 'San Francisco 49ers';
       
-      const awayMatchA = gameAwayLocal.toLowerCase().includes(apiAwayTeam.toLowerCase());
-      const awayMatchB = apiAwayTeam.toLowerCase().includes(gameAwayLocal.toLowerCase());
+      // With minimum length check (3 chars)
+      const awayMatchA = apiAwayTeam.toLowerCase().length >= 3 && gameAwayLocal.toLowerCase().includes(apiAwayTeam.toLowerCase());
+      const awayMatchB = gameAwayLocal.toLowerCase().length >= 3 && apiAwayTeam.toLowerCase().includes(gameAwayLocal.toLowerCase());
       const awayMatch = awayMatchA || awayMatchB;
       
-      const homeMatchA = gameHomeLocal.toLowerCase().includes(apiHomeTeam.toLowerCase());
-      const homeMatchB = apiHomeTeam.toLowerCase().includes(gameHomeLocal.toLowerCase());
+      const homeMatchA = apiHomeTeam.toLowerCase().length >= 3 && gameHomeLocal.toLowerCase().includes(apiHomeTeam.toLowerCase());
+      const homeMatchB = gameHomeLocal.toLowerCase().length >= 3 && apiHomeTeam.toLowerCase().includes(gameHomeLocal.toLowerCase());
       const homeMatch = homeMatchA || homeMatchB;
       
       expect(awayMatch).toBe(true);
@@ -493,9 +496,21 @@ describe('JsonOdds API Integration', () => {
       const localTeam = 'Lakers';
       const apiTeam = 'Celtics';
       
-      const matchA = localTeam.toLowerCase().includes(apiTeam.toLowerCase());
-      const matchB = apiTeam.toLowerCase().includes(localTeam.toLowerCase());
+      // With minimum length check
+      const matchA = apiTeam.length >= 3 && localTeam.toLowerCase().includes(apiTeam.toLowerCase());
+      const matchB = localTeam.length >= 3 && apiTeam.toLowerCase().includes(localTeam.toLowerCase());
       const match = matchA || matchB;
+      
+      expect(match).toBe(false);
+    });
+    
+    test('should prevent false positives with short names (< 3 chars)', () => {
+      // Simulate: "LA" should NOT match "LAkers" due to minimum length check
+      const localTeam = 'LAkers';
+      const apiTeam = 'LA';
+      
+      // Should fail due to minimum length requirement
+      const match = apiTeam.length >= 3 && localTeam.toLowerCase().includes(apiTeam.toLowerCase());
       
       expect(match).toBe(false);
     });

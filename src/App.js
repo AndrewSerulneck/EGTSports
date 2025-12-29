@@ -4187,17 +4187,21 @@ const fetchDetailedOdds = async (sport, eventId) => {
                       
                       // Enhanced fuzzy matching: check if API team name is contained in local name OR vice versa
                       // e.g., 'Rams' should match 'Los Angeles Rams' and 'Los Angeles Rams' should match 'Rams'
+                      // Minimum 3-char length for substring matching prevents false positives (e.g., 'LA' matching 'LAkers')
+                      // Both away AND home must match to confirm a game match, reducing false positive risk
                       const awayLower = game.awayTeam.toLowerCase();
                       const homeLower = game.homeTeam.toLowerCase();
                       const oddsAwayLower = oddsAway.toLowerCase();
                       const oddsHomeLower = oddsHome.toLowerCase();
                       
-                      const awayMatch = awayLower.includes(oddsAwayLower) || 
-                                        oddsAwayLower.includes(awayLower) ||
-                                        teamsMatchHelper(game.awayTeam, oddsAway).match;
-                      const homeMatch = homeLower.includes(oddsHomeLower) || 
-                                        oddsHomeLower.includes(homeLower) ||
-                                        teamsMatchHelper(game.homeTeam, oddsHome).match;
+                      // Substring match with minimum length check (3 chars) OR use sophisticated teamsMatchHelper
+                      const awaySubstringMatch = (oddsAwayLower.length >= 3 && awayLower.includes(oddsAwayLower)) || 
+                                                  (awayLower.length >= 3 && oddsAwayLower.includes(awayLower));
+                      const homeSubstringMatch = (oddsHomeLower.length >= 3 && homeLower.includes(oddsHomeLower)) || 
+                                                  (homeLower.length >= 3 && oddsHomeLower.includes(homeLower));
+                      
+                      const awayMatch = awaySubstringMatch || teamsMatchHelper(game.awayTeam, oddsAway).match;
+                      const homeMatch = homeSubstringMatch || teamsMatchHelper(game.homeTeam, oddsHome).match;
                       
                       if (awayMatch && homeMatch) {
                         jsonOddsML = value;
