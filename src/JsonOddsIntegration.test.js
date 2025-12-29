@@ -545,14 +545,14 @@ describe('JsonOdds API Integration', () => {
       const localTeam = 'LAkers';
       const apiTeam = 'LA';
       
-      // Should fail due to minimum length requirement on apiTeam
+      // Should fail due to apiTeam being too short
       const matchA = apiTeam.length >= 3 && localTeam.toLowerCase().includes(apiTeam.toLowerCase());
       const matchB = localTeam.length >= 3 && apiTeam.toLowerCase().includes(localTeam.toLowerCase());
       const match = matchA || matchB;
       
       expect(matchA).toBe(false); // apiTeam "LA" only has 2 chars, fails length check
-      expect(matchB).toBe(false); // Even though "LA" is in "LAkers", apiTeam length check fails
-      expect(match).toBe(false); // Overall match fails
+      expect(matchB).toBe(false); // localTeam passes length check, but apiTeam "LA" doesn't contain "lakers"
+      expect(match).toBe(false); // Overall match fails - prevents "LA" from matching "LAkers"
     });
   });
 });
