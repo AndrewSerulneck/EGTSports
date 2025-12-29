@@ -3226,7 +3226,7 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
  * @param {boolean} forceRefresh - Skip cache if true
  * @returns {object} - Map of game keys to moneyline data { awayMoneyline, homeMoneyline }
  */
-const fetchMoneylineFromJsonOdds = async (sport, forceRefresh = false) => {
+const fetchMoneylineFromJsonOdds = async (sport, forceRefresh = false, oddType = null) => {
   try {
     // CRITICAL: Check hard stop first - prevent any API calls if quota exhausted
     if (apiQuotaRef.current.hardStop) {
@@ -3246,20 +3246,25 @@ const fetchMoneylineFromJsonOdds = async (sport, forceRefresh = false) => {
       return null;
     }
     
-    // Check cache first
-    if (!forceRefresh && jsonOddsCache[sport]) {
-      const cached = jsonOddsCache[sport];
+    // Check cache first (cache key includes oddType if specified)
+    const cacheKey = oddType ? `${sport}_${oddType}` : sport;
+    if (!forceRefresh && jsonOddsCache[cacheKey]) {
+      const cached = jsonOddsCache[cacheKey];
       if (Date.now() - cached.timestamp < JSON_ODDS_CACHE_DURATION) {
-        console.log(`✅ Using cached JsonOdds data for ${sport}`);
+        console.log(`✅ Using cached JsonOdds data for ${sport}${oddType ? ` (${oddType})` : ''}`);
         return cached.data;
       }
     }
     
-    // Build JsonOdds API URL
-    const url = `https://jsonodds.com/api/odds/${sportKey}`;
+    // Build JsonOdds API URL using Vercel proxy
+    // Proxy rewrites /api/jsonodds/* to https://jsonodds.com/api/*
+    let url = `/api/jsonodds/odds/${sportKey}`;
+    if (oddType) {
+      url += `?oddType=${oddType}`;
+    }
     
-    console.log(`🎰 Fetching moneylines from JsonOdds for ${sport}...`);
-    console.log(`📡 URL: ${url} (key hidden)`);
+    console.log(`🎰 Fetching moneylines from JsonOdds for ${sport}${oddType ? ` (${oddType})` : ''}...`);
+    console.log(`📡 URL: ${url} (via proxy)`);
     
     const response = await fetch(url, {
       headers: {
@@ -3376,8 +3381,8 @@ const fetchMoneylineFromJsonOdds = async (sport, forceRefresh = false) => {
     
     console.log(`\n🎉 JsonOdds parsing complete: ${Object.keys(moneylineMap).length} games with moneyline data`);
     
-    // Cache the results
-    jsonOddsCache[sport] = {
+    // Cache the results using the cacheKey variable defined at the beginning of the function
+    jsonOddsCache[cacheKey] = {
       data: moneylineMap,
       timestamp: Date.now()
     };

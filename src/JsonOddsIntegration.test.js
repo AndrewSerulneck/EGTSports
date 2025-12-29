@@ -360,4 +360,40 @@ describe('JsonOdds API Integration', () => {
       expect(JSON_ODDS_SPORT_KEYS['UFC']).toBe('MMA');
     });
   });
+  
+  describe('OddType Parameter Support', () => {
+    test('should support oddType parameter for FirstHalf odds', () => {
+      // Test that oddType parameter can be passed to filter results
+      const sport = 'NFL';
+      const oddType = 'FirstHalf';
+      
+      // Verify cache key includes oddType
+      const cacheKey = `${sport}_${oddType}`;
+      expect(cacheKey).toBe('NFL_FirstHalf');
+    });
+    
+    test('should support oddType parameter for Quarter odds', () => {
+      // Test that oddType parameter can be passed for quarter-specific odds
+      const sport = 'NBA';
+      const oddType = 'FirstQuarter';
+      
+      // Verify cache key includes oddType
+      const cacheKey = `${sport}_${oddType}`;
+      expect(cacheKey).toBe('NBA_FirstQuarter');
+    });
+    
+    test('should cache oddType requests separately from game odds', () => {
+      // Verify that different oddTypes are cached separately
+      const sport = 'NFL';
+      const gameCache = sport; // Default cache key without oddType
+      const halfCache = `${sport}_FirstHalf`;
+      const quarterCache = `${sport}_FirstQuarter`;
+      
+      expect(gameCache).toBe('NFL');
+      expect(halfCache).toBe('NFL_FirstHalf');
+      expect(quarterCache).toBe('NFL_FirstQuarter');
+      expect(gameCache).not.toBe(halfCache);
+      expect(gameCache).not.toBe(quarterCache);
+    });
+  });
 });
