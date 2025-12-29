@@ -141,8 +141,8 @@ function MobileBottomNav({ onSignOut, onNavigateToDashboard, onNavigateHome, onN
     );
 }
 
-// Debug flag for diagnostic logging (set to false in production)
-const DEBUG_JSONODDS_FLOW = process.env.NODE_ENV === 'development';
+// Debug flag for diagnostic logging - ENABLED for production moneyline diagnostics
+const DEBUG_JSONODDS_FLOW = true;
 
 // ESPN API Endpoints for all sports
 const ESPN_API_ENDPOINTS = {
@@ -2932,8 +2932,12 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
       
       const h2hResult = findBookmakerWithMarket(game.bookmakers, 'h2h', homeTeam, awayTeam);
       if (h2hResult) {
-        const { market: h2hMarket } = h2hResult;
+        const { market: h2hMarket, bookmaker: selectedBookmaker } = h2hResult;
         console.log(`  💰 Moneyline (h2h) market found with ${h2hMarket.outcomes.length} outcomes`);
+        if (DEBUG_JSONODDS_FLOW) {
+          console.log(`    📚 Bookmaker: ${selectedBookmaker.title || selectedBookmaker.key}`);
+          console.log(`    📊 Market key: h2h`);
+        }
         console.log(`    Raw outcomes:`, h2hMarket.outcomes.map(o => ({ name: o.name, price: o.price })));
         console.log(`    🔍 Attempting to match against:`);
         console.log(`       Home team from API: "${homeTeam}"`);
@@ -2980,6 +2984,9 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
             const matchType = homeOutcome.name.toLowerCase() === homeTeam.toLowerCase() ? 'exact' : 'fuzzy';
             console.log(`    ✓ ${homeTeam} matched with "${homeOutcome.name}" (${matchType}): ${homeMoneyline}`);
             console.log(`    🔍 API Raw Price for ${game.id} (home): ${homeOutcome.price}`);
+            if (DEBUG_JSONODDS_FLOW) {
+              console.log(`    🎯 The Odds API h2h extraction: Home team "${homeTeam}" -> ${homeMoneyline}`);
+            }
             if (matchType === 'fuzzy') {
               console.log(`    ✅ Successfully matched API name '${homeOutcome.name}' to Local name '${homeTeam}'`);
             }
@@ -2999,6 +3006,9 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
             const matchType = awayOutcome.name.toLowerCase() === awayTeam.toLowerCase() ? 'exact' : 'fuzzy';
             console.log(`    ✓ ${awayTeam} matched with "${awayOutcome.name}" (${matchType}): ${awayMoneyline}`);
             console.log(`    🔍 API Raw Price for ${game.id} (away): ${awayOutcome.price}`);
+            if (DEBUG_JSONODDS_FLOW) {
+              console.log(`    🎯 The Odds API h2h extraction: Away team "${awayTeam}" -> ${awayMoneyline}`);
+            }
             if (matchType === 'fuzzy') {
               console.log(`    ✅ Successfully matched API name '${awayOutcome.name}' to Local name '${awayTeam}'`);
             }
@@ -4296,11 +4306,21 @@ const fetchDetailedOdds = async (sport, eventId) => {
                 };
                 
                 if (DEBUG_JSONODDS_FLOW) {
+                  const source = jsonOddsML ? 'JsonOdds' : (odds.awayMoneyline ? 'OddsAPI' : 'ESPN');
                   console.log(`📋 Final game object for ${game.awayTeam} @ ${game.homeTeam}:`, {
                     awayMoneyline: updatedGame.awayMoneyline,
                     homeMoneyline: updatedGame.homeMoneyline,
-                    source: jsonOddsML ? 'JsonOdds' : (odds.awayMoneyline ? 'OddsAPI' : 'ESPN')
+                    source: source
                   });
+                  
+                  // Log fallback chain
+                  if (!jsonOddsML && !odds.awayMoneyline && !game.awayMoneyline) {
+                    console.warn(`    ⚠️ No moneyline data found from any source (will display as "-")`);
+                  } else if (!jsonOddsML && odds.awayMoneyline) {
+                    console.log(`    ℹ️ Using The Odds API moneyline as fallback (JsonOdds not available)`);
+                  } else if (!jsonOddsML && !odds.awayMoneyline && game.awayMoneyline) {
+                    console.log(`    ℹ️ Using ESPN moneyline as fallback (JsonOdds and Odds API not available)`);
+                  }
                 }
                 
                 // Log source of moneyline data
