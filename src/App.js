@@ -242,6 +242,51 @@ const JSON_ODDS_CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
 const getGameKey = (away, home) => `${away.trim()}|${home.trim()}`;
 
 /**
+ * Standardize team name for consistent key matching between JsonOdds API and UI
+ * Strips mascots, normalizes abbreviations, and lowercases for reliable matching
+ * @param {string} away - Away team name
+ * @param {string} home - Home team name
+ * @returns {string} - Standardized key in format "away|home"
+ */
+const getStandardizedKey = (away, home) => {
+  /**
+   * Remove common mascots/nicknames from team name
+   * Comprehensive list based on college and professional sports teams
+   * IMPORTANT: Multi-word mascots must come BEFORE single-word mascots in the regex
+   */
+  const stripMascot = (name) => {
+    if (!name) return '';
+    const trimmed = name.trim(); // Trim first so $ anchor works correctly
+    // Multi-word mascots first, then single-word mascots
+    return trimmed.replace(/\s+(Red Raiders|Crimson Tide|Fighting Irish|Blue Devils|Tar Heels|Demon Deacons|Yellow Jackets|Black Knights|Golden Eagles|Red Storm|River Hawks|Mountain Hawks|Ragin Cajuns|Red Wolves|Golden Panthers|Mean Green|Trail Blazers|Nittany Lions|Scarlet Knights|Eagles|Bulldogs|Panthers|Tigers|Bears|Lions|Wildcats|Spartans|Trojans|Bruins|Huskies|Cardinals|Cowboys|Indians|Terrapins|Volunteers|Gators|Buckeyes|Wolverines|Sooners|Longhorns|Aggies|Rebels|Commodores|RedHawks|Rams|Falcons|Saints|Chiefs|49ers|Seahawks|Steelers|Ravens|Browns|Bengals|Texans|Colts|Jaguars|Titans|Patriots|Bills|Dolphins|Jets|Broncos|Raiders|Chargers|Packers|Vikings|Giants|Commanders|Buccaneers|76ers|Celtics|Nets|Knicks|Raptors|Warriors|Clippers|Lakers|Suns|Kings|Jazz|Nuggets|Timberwolves|Thunder|Mavericks|Rockets|Spurs|Grizzlies|Pelicans|Heat|Magic|Hawks|Hornets|Wizards|Pacers|Pistons|Bucks|Cavaliers|Hokies|Orange|Midshipmen|Friars|Pirates|Hoyas|Colonials|Minutemen|Leopards|Engineers|Dutchmen|Pride|Greyhounds|Mocs|Catamounts|Warhawks|Owls|Hilltoppers|Blazers|Knights|Phoenix|Roadrunners|Anteaters|Gauchos|Tritons|Highlanders|Matadors|Beach|Waves|Cougars|Hurricanes|Seminoles|Gamecocks|Badgers|Cornhuskers|Boilermakers|Illini|Hawkeyes)$/i, '').trim();
+  };
+  
+  /**
+   * Normalize abbreviations and standardize formatting
+   * Converts common abbreviations to full words and lowercases
+   */
+  const normalize = (name) => {
+    if (!name) return '';
+    return name
+      .replace(/\s+\(.*?\)/, '') // Remove parentheses (e.g., "Miami (OH)")
+      .replace(/\bSt\b\.?/gi, 'State') // St -> State
+      .replace(/\bN\b\.?/gi, 'North') // N -> North
+      .replace(/\bS\b\.?/gi, 'South') // S -> South
+      .replace(/\bE\b\.?/gi, 'East') // E -> East
+      .replace(/\bW\b\.?/gi, 'West') // W -> West
+      .replace(/\bCent\b\.?/gi, 'Central') // Cent -> Central
+      .replace(/\s+/g, ' ') // Normalize whitespace
+      .toLowerCase()
+      .trim();
+  };
+  
+  const awayStandardized = normalize(stripMascot(away));
+  const homeStandardized = normalize(stripMascot(home));
+  
+  return `${awayStandardized}|${homeStandardized}`;
+};
+
+/**
  * Helper to find matching odds for a game using exact match or fuzzy matching.
  * Uses bidirectional substring matching with minimum 3-char length check.
  * @param {object} oddsMap - Map of gameKeys to odds data
@@ -252,13 +297,14 @@ const getGameKey = (away, home) => `${away.trim()}|${home.trim()}`;
 const findOddsForGame = (oddsMap, awayTeam, homeTeam) => {
   if (!oddsMap) return null;
   
-  const gameKey = getGameKey(awayTeam, homeTeam);
+  // Use standardized key for consistent matching
+  const gameKey = getStandardizedKey(awayTeam, homeTeam);
   let match = oddsMap[gameKey];
   
   // If exact match found, return it
   if (match) return match;
   
-  // Try fuzzy matching with bidirectional substring check
+  // Try fuzzy matching as fallback
   for (const [key, value] of Object.entries(oddsMap)) {
     const [oddsAway, oddsHome] = key.split('|');
     const awayLower = awayTeam.toLowerCase();
@@ -3428,14 +3474,16 @@ const fetchMoneylineFromJsonOdds = async (sport, forceRefresh = false, oddType =
         }
       }
       
-      // Store moneyline data using getGameKey helper for consistent matching
-      const gameKey = getGameKey(awayTeam, homeTeam);
+      // Store moneyline data using getStandardizedKey for consistent matching
+      // This standardization strips mascots and normalizes abbreviations
+      const gameKey = getStandardizedKey(awayTeam, homeTeam);
       moneylineMap[gameKey] = {
         awayMoneyline: awayMoneyline || '-',
         homeMoneyline: homeMoneyline || '-'
       };
       
-      console.log(`  📋 Stored with key: "${gameKey}"`);
+      console.log(`  📋 Stored with standardized key: "${gameKey}"`);
+      console.log(`     Original teams: ${awayTeam} @ ${homeTeam}`);
       console.log(`     Away ML: ${moneylineMap[gameKey].awayMoneyline}`);
       console.log(`     Home ML: ${moneylineMap[gameKey].homeMoneyline}`);
     });
@@ -4242,49 +4290,74 @@ const fetchDetailedOdds = async (sport, eventId) => {
                 // Then, overlay JsonOdds moneylines (PRIORITY OVERRIDE)
                 let jsonOddsML = null;
                 if (jsonOddsMoneylines) {
-                  // Try exact match first using getGameKey helper
-                  const gameKey = getGameKey(game.awayTeam, game.homeTeam);
+                  // Try exact match first using getStandardizedKey for consistent matching
+                  const gameKey = getStandardizedKey(game.awayTeam, game.homeTeam);
                   jsonOddsML = jsonOddsMoneylines[gameKey];
                   
                   if (DEBUG_JSONODDS_FLOW) {
-                    console.log(`🔍 Looking up JsonOdds for: "${gameKey}"`, {
+                    console.log(`🔍 Looking up JsonOdds for standardized key: "${gameKey}"`, {
+                      originalTeams: `${game.awayTeam} @ ${game.homeTeam}`,
                       found: !!jsonOddsML,
                       data: jsonOddsML || 'NOT FOUND'
                     });
                   }
                   
-                  // If no exact match, try fuzzy matching with bidirectional substring check
+                  // If no exact match, try fuzzy matching with strict validation
+                  // NOTE: With standardized keys, exact matches should work most of the time
+                  // This is a fallback for edge cases
                   if (!jsonOddsML) {
                     if (DEBUG_JSONODDS_FLOW) {
-                      console.log(`⚠️ No exact match for "${gameKey}". Trying fuzzy match...`);
+                      console.log(`⚠️ No exact match for standardized key "${gameKey}". Trying fuzzy match...`);
                       console.log(`   Available keys in JsonOdds:`, Object.keys(jsonOddsMoneylines));
                     }
+                    
+                    let bestMatch = null;
+                    let bestScore = 0;
+                    
                     for (const [key, value] of Object.entries(jsonOddsMoneylines)) {
                       const [oddsAway, oddsHome] = key.split('|');
                       
-                      // Enhanced fuzzy matching: check if API team name is contained in local name OR vice versa
-                      // e.g., 'Rams' should match 'Los Angeles Rams' and 'Los Angeles Rams' should match 'Rams'
-                      // Minimum 3-char length for substring matching prevents false positives (e.g., 'LA' matching 'LAkers')
-                      // Both away AND home must match to confirm a game match, reducing false positive risk
-                      const awayLower = game.awayTeam.toLowerCase();
-                      const homeLower = game.homeTeam.toLowerCase();
-                      const oddsAwayLower = oddsAway.toLowerCase();
-                      const oddsHomeLower = oddsHome.toLowerCase();
+                      // Calculate similarity score using teamsMatchHelper
+                      const awayResult = teamsMatchHelper(game.awayTeam, oddsAway);
+                      const homeResult = teamsMatchHelper(game.homeTeam, oddsHome);
                       
-                      // Substring match with minimum length check (3 chars) OR use sophisticated teamsMatchHelper
-                      const awaySubstringMatch = (oddsAwayLower.length >= 3 && awayLower.includes(oddsAwayLower)) || 
-                                                  (awayLower.length >= 3 && oddsAwayLower.includes(awayLower));
-                      const homeSubstringMatch = (oddsHomeLower.length >= 3 && homeLower.includes(oddsHomeLower)) || 
-                                                  (homeLower.length >= 3 && oddsHomeLower.includes(homeLower));
-                      
-                      const awayMatch = awaySubstringMatch || teamsMatchHelper(game.awayTeam, oddsAway).match;
-                      const homeMatch = homeSubstringMatch || teamsMatchHelper(game.homeTeam, oddsHome).match;
-                      
-                      if (awayMatch && homeMatch) {
-                        jsonOddsML = value;
-                        console.log(`  🎯 JsonOdds fuzzy match: "${gameKey}" -> "${key}"`);
-                        break;
+                      // Only consider if BOTH teams match
+                      if (awayResult.match && homeResult.match) {
+                        // Calculate a combined score (1.0 = perfect match)
+                        // Give higher weight to Exact and Mascot matches
+                        const awayScore = awayResult.method === 'Exact' ? 1.0 : 
+                                         awayResult.method === 'Mascot' ? 0.95 : 
+                                         awayResult.method === 'City' ? 0.90 : 0.85;
+                        const homeScore = homeResult.method === 'Exact' ? 1.0 : 
+                                         homeResult.method === 'Mascot' ? 0.95 : 
+                                         homeResult.method === 'City' ? 0.90 : 0.85;
+                        const combinedScore = (awayScore + homeScore) / 2;
+                        
+                        // Require minimum threshold of 0.9 to avoid false positives
+                        // Better to show "-" than incorrect odds
+                        if (combinedScore >= 0.9 && combinedScore > bestScore) {
+                          // Additional validation: check if key words are present
+                          const gameKeyWords = gameKey.split('|').join(' ').split(/\s+/).filter(w => w.length >= 4);
+                          const oddsKeyWords = key.split(/\s+/).filter(w => w.length >= 4);
+                          
+                          // At least one significant word from each team must match
+                          const hasCommonWords = gameKeyWords.some(gw => 
+                            oddsKeyWords.some(ow => gw.includes(ow) || ow.includes(gw))
+                          );
+                          
+                          if (hasCommonWords) {
+                            bestScore = combinedScore;
+                            bestMatch = { key, value };
+                          }
+                        }
                       }
+                    }
+                    
+                    if (bestMatch) {
+                      jsonOddsML = bestMatch.value;
+                      console.log(`  🎯 JsonOdds fuzzy match (score: ${bestScore.toFixed(2)}): "${gameKey}" -> "${bestMatch.key}"`);
+                    } else if (DEBUG_JSONODDS_FLOW) {
+                      console.log(`  ❌ No suitable fuzzy match found (threshold: 0.9)`);
                     }
                   }
                 }
