@@ -233,17 +233,9 @@ const jsonOddsCache = {};
 const JSON_ODDS_CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
 
 /**
- * Helper function to create consistent game keys for both storing and retrieving odds data.
- * This ensures that odds stored from JsonOdds can be matched with games from ESPN/local data.
- * @param {string} away - Away team name
- * @param {string} home - Home team name
- * @returns {string} - Game key in format "away|home"
- */
-const getGameKey = (away, home) => `${away.trim()}|${home.trim()}`;
-
-/**
  * Standardize team name for consistent key matching between JsonOdds API and UI
  * Strips mascots, normalizes abbreviations, and lowercases for reliable matching
+ * This replaces the old getGameKey function for better team name matching
  * @param {string} away - Away team name
  * @param {string} home - Home team name
  * @returns {string} - Standardized key in format "away|home"
