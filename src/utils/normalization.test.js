@@ -6,6 +6,7 @@
  */
 
 import { getStandardId, isValidTeamName, getCanonicalName } from './normalization';
+import nflTeams from '../data/nfl-teams.json';
 
 describe('Team Name Normalization Utility', () => {
   // Test 1: Basic functionality - canonical name matching
@@ -203,44 +204,10 @@ describe('Team Name Normalization Utility', () => {
 
   // Test 8: All 32 NFL teams validation
   describe('getStandardId coverage for all 32 NFL teams', () => {
-    const allTeams = [
-      { name: 'Atlanta Falcons', id: '1' },
-      { name: 'Buffalo Bills', id: '2' },
-      { name: 'Chicago Bears', id: '3' },
-      { name: 'Cincinnati Bengals', id: '4' },
-      { name: 'Cleveland Browns', id: '5' },
-      { name: 'Dallas Cowboys', id: '6' },
-      { name: 'Denver Broncos', id: '7' },
-      { name: 'Detroit Lions', id: '8' },
-      { name: 'Green Bay Packers', id: '9' },
-      { name: 'Tennessee Titans', id: '10' },
-      { name: 'Indianapolis Colts', id: '11' },
-      { name: 'Kansas City Chiefs', id: '12' },
-      { name: 'Las Vegas Raiders', id: '13' },
-      { name: 'Los Angeles Rams', id: '14' },
-      { name: 'Miami Dolphins', id: '15' },
-      { name: 'Minnesota Vikings', id: '16' },
-      { name: 'New England Patriots', id: '17' },
-      { name: 'New Orleans Saints', id: '18' },
-      { name: 'New York Giants', id: '19' },
-      { name: 'New York Jets', id: '20' },
-      { name: 'Philadelphia Eagles', id: '21' },
-      { name: 'Arizona Cardinals', id: '22' },
-      { name: 'Pittsburgh Steelers', id: '23' },
-      { name: 'Los Angeles Chargers', id: '24' },
-      { name: 'San Francisco 49ers', id: '25' },
-      { name: 'Seattle Seahawks', id: '26' },
-      { name: 'Tampa Bay Buccaneers', id: '27' },
-      { name: 'Washington Commanders', id: '28' },
-      { name: 'Carolina Panthers', id: '29' },
-      { name: 'Jacksonville Jaguars', id: '30' },
-      { name: 'Baltimore Ravens', id: '33' },
-      { name: 'Houston Texans', id: '34' },
-    ];
-
-    allTeams.forEach(team => {
-      test(`should match ${team.name}`, () => {
-        expect(getStandardId(team.name)).toBe(team.id);
+    // Use actual nfl-teams.json data to ensure tests stay in sync
+    nflTeams.forEach(team => {
+      test(`should match ${team.canonical}`, () => {
+        expect(getStandardId(team.canonical)).toBe(team.id);
       });
     });
   });

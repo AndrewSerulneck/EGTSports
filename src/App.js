@@ -241,84 +241,6 @@ const JSON_ODDS_CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
  * @param {string} home - Home team name
  * @returns {string} - Standardized key in format "away|home"
  */
-const getStandardizedKey = (away, home) => {
-  /**
-   * Remove common mascots/nicknames from team name
-   * Comprehensive list based on college and professional sports teams
-   * IMPORTANT: Multi-word mascots must come BEFORE single-word mascots in the regex
-   */
-  const stripMascot = (name) => {
-    if (!name) return '';
-    const trimmed = name.trim(); // Trim first so $ anchor works correctly
-    // Multi-word mascots first, then single-word mascots
-    return trimmed.replace(/\s+(Red Raiders|Crimson Tide|Fighting Irish|Blue Devils|Tar Heels|Demon Deacons|Yellow Jackets|Black Knights|Golden Eagles|Red Storm|River Hawks|Mountain Hawks|Ragin Cajuns|Red Wolves|Golden Panthers|Mean Green|Trail Blazers|Nittany Lions|Scarlet Knights|Eagles|Bulldogs|Panthers|Tigers|Bears|Lions|Wildcats|Spartans|Trojans|Bruins|Huskies|Cardinals|Cowboys|Indians|Terrapins|Volunteers|Gators|Buckeyes|Wolverines|Sooners|Longhorns|Aggies|Rebels|Commodores|RedHawks|Rams|Falcons|Saints|Chiefs|49ers|Seahawks|Steelers|Ravens|Browns|Bengals|Texans|Colts|Jaguars|Titans|Patriots|Bills|Dolphins|Jets|Broncos|Raiders|Chargers|Packers|Vikings|Giants|Commanders|Buccaneers|76ers|Celtics|Nets|Knicks|Raptors|Warriors|Clippers|Lakers|Suns|Kings|Jazz|Nuggets|Timberwolves|Thunder|Mavericks|Rockets|Spurs|Grizzlies|Pelicans|Heat|Magic|Hawks|Hornets|Wizards|Pacers|Pistons|Bucks|Cavaliers|Hokies|Orange|Midshipmen|Friars|Pirates|Hoyas|Colonials|Minutemen|Leopards|Engineers|Dutchmen|Pride|Greyhounds|Mocs|Catamounts|Warhawks|Owls|Hilltoppers|Blazers|Knights|Phoenix|Roadrunners|Anteaters|Gauchos|Tritons|Highlanders|Matadors|Beach|Waves|Cougars|Hurricanes|Seminoles|Gamecocks|Badgers|Cornhuskers|Boilermakers|Illini|Hawkeyes)$/i, '').trim();
-  };
-  
-  /**
-   * Normalize abbreviations and standardize formatting
-   * Converts common abbreviations to full words and lowercases
-   */
-  const normalize = (name) => {
-    if (!name) return '';
-    return name
-      .replace(/\s+\(.*?\)/, '') // Remove parentheses (e.g., "Miami (OH)")
-      .replace(/\bSt\b\.?/gi, 'State') // St -> State
-      .replace(/\bN\b\.?/gi, 'North') // N -> North
-      .replace(/\bS\b\.?/gi, 'South') // S -> South
-      .replace(/\bE\b\.?/gi, 'East') // E -> East
-      .replace(/\bW\b\.?/gi, 'West') // W -> West
-      .replace(/\bCent\b\.?/gi, 'Central') // Cent -> Central
-      .replace(/\s+/g, ' ') // Normalize whitespace
-      .toLowerCase()
-      .trim();
-  };
-  
-  const awayStandardized = normalize(stripMascot(away));
-  const homeStandardized = normalize(stripMascot(home));
-  
-  return `${awayStandardized}|${homeStandardized}`;
-};
-
-/**
- * Helper to find matching odds for a game using exact match or fuzzy matching.
- * Uses bidirectional substring matching with minimum 3-char length check.
- * @param {object} oddsMap - Map of gameKeys to odds data
- * @param {string} awayTeam - Away team name from game
- * @param {string} homeTeam - Home team name from game
- * @returns {object|null} - Matched odds data or null
- */
-const findOddsForGame = (oddsMap, awayTeam, homeTeam) => {
-  if (!oddsMap) return null;
-  
-  // Use standardized key for consistent matching
-  const gameKey = getStandardizedKey(awayTeam, homeTeam);
-  let match = oddsMap[gameKey];
-  
-  // If exact match found, return it
-  if (match) return match;
-  
-  // Try fuzzy matching as fallback
-  for (const [key, value] of Object.entries(oddsMap)) {
-    const [oddsAway, oddsHome] = key.split('|');
-    const awayLower = awayTeam.toLowerCase();
-    const homeLower = homeTeam.toLowerCase();
-    const oddsAwayLower = oddsAway.toLowerCase();
-    const oddsHomeLower = oddsHome.toLowerCase();
-    
-    // Substring match with minimum length check (3 chars)
-    const awaySubstringMatch = (oddsAwayLower.length >= 3 && awayLower.includes(oddsAwayLower)) || 
-                                (awayLower.length >= 3 && oddsAwayLower.includes(awayLower));
-    const homeSubstringMatch = (oddsHomeLower.length >= 3 && homeLower.includes(oddsHomeLower)) || 
-                                (homeLower.length >= 3 && oddsHomeLower.includes(homeLower));
-    
-    if (awaySubstringMatch && homeSubstringMatch) {
-      return value;
-    }
-  }
-  
-  return null;
-};
-
 const ODDS_API_SPORT_KEYS = {
   'NFL': 'americanfootball_nfl',
   'NBA': 'basketball_nba',
@@ -4378,27 +4300,33 @@ const fetchDetailedOdds = async (sport, eventId) => {
                 });
                 
                 // Apply JsonOdds FirstHalf and FirstQuarter moneylines (OVERRIDE)
-                // Using reusable findOddsForGame helper for consistent fuzzy matching
+                // Use ID-based lookup for consistent matching
                 
                 // Apply FirstHalf odds (H1_)
-                const firstHalfOdds = findOddsForGame(jsonOddsFirstHalf, game.awayTeam, game.homeTeam);
-                if (firstHalfOdds) {
-                  if (firstHalfOdds.awayMoneyline && firstHalfOdds.awayMoneyline !== '-') {
-                    updatedGame.H1_awayMoneyline = firstHalfOdds.awayMoneyline;
-                  }
-                  if (firstHalfOdds.homeMoneyline && firstHalfOdds.homeMoneyline !== '-') {
-                    updatedGame.H1_homeMoneyline = firstHalfOdds.homeMoneyline;
+                if (jsonOddsFirstHalf && game.homeTeamId && game.awayTeamId) {
+                  const gameKey = `${game.homeTeamId}|${game.awayTeamId}`;
+                  const firstHalfOdds = jsonOddsFirstHalf[gameKey];
+                  if (firstHalfOdds) {
+                    if (firstHalfOdds.awayMoneyline && firstHalfOdds.awayMoneyline !== '-') {
+                      updatedGame.H1_awayMoneyline = firstHalfOdds.awayMoneyline;
+                    }
+                    if (firstHalfOdds.homeMoneyline && firstHalfOdds.homeMoneyline !== '-') {
+                      updatedGame.H1_homeMoneyline = firstHalfOdds.homeMoneyline;
+                    }
                   }
                 }
                 
                 // Apply FirstQuarter odds (Q1_)
-                const firstQuarterOdds = findOddsForGame(jsonOddsFirstQuarter, game.awayTeam, game.homeTeam);
-                if (firstQuarterOdds) {
-                  if (firstQuarterOdds.awayMoneyline && firstQuarterOdds.awayMoneyline !== '-') {
-                    updatedGame.Q1_awayMoneyline = firstQuarterOdds.awayMoneyline;
-                  }
-                  if (firstQuarterOdds.homeMoneyline && firstQuarterOdds.homeMoneyline !== '-') {
-                    updatedGame.Q1_homeMoneyline = firstQuarterOdds.homeMoneyline;
+                if (jsonOddsFirstQuarter && game.homeTeamId && game.awayTeamId) {
+                  const gameKey = `${game.homeTeamId}|${game.awayTeamId}`;
+                  const firstQuarterOdds = jsonOddsFirstQuarter[gameKey];
+                  if (firstQuarterOdds) {
+                    if (firstQuarterOdds.awayMoneyline && firstQuarterOdds.awayMoneyline !== '-') {
+                      updatedGame.Q1_awayMoneyline = firstQuarterOdds.awayMoneyline;
+                    }
+                    if (firstQuarterOdds.homeMoneyline && firstQuarterOdds.homeMoneyline !== '-') {
+                      updatedGame.Q1_homeMoneyline = firstQuarterOdds.homeMoneyline;
+                    }
                   }
                 }
                 
