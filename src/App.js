@@ -2511,6 +2511,7 @@ function App() {
     return null;
   };
   
+// eslint-disable-next-line no-unused-vars
 const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
   try {
     // CRITICAL: Check hard stop first - prevent any API calls if quota exhausted
@@ -3016,6 +3017,7 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
       if ((!localHomeTeamId || !localAwayTeamId) && sportKey) {
         console.log(`  ⚠️ SID extraction incomplete, falling back to name-based lookup...`);
         
+        // eslint-disable-next-line no-unused-vars
         const isNCAA_Basketball = sportKey === 'basketball_ncaab';
         
         if (!localHomeTeamId) {
@@ -3576,6 +3578,7 @@ const fetchMoneylineFromJsonOdds = async (sport, forceRefresh = false, oddType =
  * @param {string} sport - Sport name (e.g., 'NFL', 'NBA')
  * @returns {object} - Object with period keys: { Game: {...}, FirstHalf: {...}, FirstQuarter: {...} }
  */
+// eslint-disable-next-line no-unused-vars
 const fetchAllPeriodOdds = async (sport) => {
   try {
     // Only fetch period odds for US sports that have quarters/halves
@@ -4333,9 +4336,6 @@ const fetchDetailedOdds = async (sport, eventId) => {
             
             // OPERATION ZERO DASH: JsonOdds API DEACTIVATED
             // Focusing 100% on The Odds API with fuzzy matching
-            const jsonOddsMoneylines = null; // Deactivated
-            const jsonOddsFirstHalf = null; // Deactivated
-            const jsonOddsFirstQuarter = null; // Deactivated
             
             if (oddsMap && Object.keys(oddsMap).length > 0) {
               const finalFormattedGames = formattedGames.map(game => {
@@ -4375,7 +4375,6 @@ const fetchDetailedOdds = async (sport, eventId) => {
                 };
                 
                 // DIAGNOSTIC LOGGING: Show final moneyline sources
-                const source = odds.awayMoneyline && odds.awayMoneyline !== '-' ? 'The Odds API' : (game.awayMoneyline ? 'ESPN' : 'MISSING');
                 if (odds.awayMoneyline && odds.awayMoneyline !== '-') {
                   console.log(`    ✅ Using The Odds API for ${game.awayTeam} @ ${game.homeTeam}: ML ${odds.awayMoneyline}/${odds.homeMoneyline}, Source: ${odds.bookmaker || 'Unknown'}`);
                 } else if (!odds.awayMoneyline || odds.awayMoneyline === '-') {

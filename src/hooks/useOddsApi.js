@@ -52,7 +52,6 @@ export function useOddsApi() {
     
     try {
       // Determine markets based on sport type
-      const isSoccer = sport === 'World Cup' || sport === 'MLS';
       const isCombat = sport === 'Boxing' || sport === 'UFC';
       
       let markets;
