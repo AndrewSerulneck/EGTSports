@@ -1,75 +1,82 @@
 /**
  * Team Name Normalization Utility
  * 
- * Provides ID-based normalization for team names across different odds providers.
- * Uses the expanded nfl-teams.json mapping file to convert various team name
- * formats (abbreviations, full names, mascots) to standardized ESPN team IDs.
+ * Provides universal team identification across all sports and odds providers.
+ * Uses the consolidated master-teams.json mapping file to convert various team name
+ * formats (abbreviations, full names, mascots, ESPN IDs, The Odds API SIDs) to
+ * standardized team objects.
  * 
  * This solves the naming mismatch problem where:
  * - ESPN uses canonical names (e.g., "Los Angeles Rams")
  * - JsonOdds uses full names (e.g., "Los Angeles Rams")
  * - The Odds API uses various formats (e.g., "Rams", "LAR", "LA Rams")
+ * - The Odds API uses participant IDs (e.g., "par_01hqmkr1ybfmfb8mhz10drfe21")
  * 
- * By normalizing to ESPN IDs, we create a reliable key for storing and
- * retrieving odds data regardless of the source API's naming convention.
+ * By normalizing to a universal team object with multiple identifiers, we create
+ * a reliable system for storing and retrieving data regardless of the source API.
  */
 
-import nflTeams from '../data/nfl-teams.json';
+import masterTeams from '../data/master-teams.json';
 
 /**
- * Get the standardized ESPN team ID for a given team name
+ * Get the standardized team identifier for any team across all sports
  * 
- * This function performs robust matching to find the team in the mapping file:
+ * This function performs robust matching to find the team:
  * 1. Normalizes input (case-insensitive, trimmed)
- * 2. Checks canonical name for exact match
- * 3. Checks all aliases in the aliases array for exact match
- * 4. Returns the ESPN team ID when found
+ * 2. Searches specified sport or all sports if not specified
+ * 3. Checks canonical name for exact match
+ * 4. Checks all aliases for exact match (including SIDs)
+ * 5. Returns complete team object with sport key added
  * 
- * Note: This uses exact string matching (after normalization), not fuzzy matching algorithms.
- * The comprehensive alias list provides flexibility without needing fuzzy logic.
- * 
- * @param {string} teamName - Team name from any source (e.g., "Rams", "LAR", "Los Angeles Rams")
- * @returns {string|null} - ESPN team ID (e.g., "14") or null if no match found
+ * @param {string} identifier - Can be: team name, abbreviation, ESPN ID, The Odds API SID
+ * @param {string} [sport] - Optional: 'nfl', 'nba', 'nhl', 'ncaab'. If omitted, searches all sports.
+ * @returns {Object|null} - { id, espnId, canonical, aliases, sport } or null if not found
  * 
  * @example
- * getStandardId("Rams") // Returns "14"
- * getStandardId("LAR") // Returns "14"
- * getStandardId("Los Angeles Rams") // Returns "14"
- * getStandardId("  rams  ") // Returns "14" (trimmed and case-insensitive)
- * getStandardId("Invalid Team") // Returns null
+ * getStandardId("Rams") // Returns { id: "NFL-LAR", espnId: "14", canonical: "Los Angeles Rams", ... }
+ * getStandardId("LAR", "nfl") // Returns { id: "NFL-LAR", espnId: "14", ... }
+ * getStandardId("14", "nfl") // Returns { id: "NFL-LAR", espnId: "14", ... }
+ * getStandardId("par_01hqmkr1ybfmfb8mhz10drfe21") // Returns Rams team object
  */
-export function getStandardId(teamName) {
+export function getStandardId(identifier, sport = null) {
   // Validate input
-  if (!teamName || typeof teamName !== 'string') {
+  if (!identifier || typeof identifier !== 'string') {
     return null;
   }
   
   // Normalize input: trim whitespace and convert to lowercase for matching
-  const normalized = teamName.trim().toLowerCase();
+  const normalized = identifier.trim().toLowerCase();
   
   // If empty after trimming, return null
   if (normalized === '') {
     return null;
   }
   
-  // Search through all teams
-  for (const team of nflTeams) {
-    // Check canonical name (case-insensitive)
-    if (team.canonical.toLowerCase() === normalized) {
-      // CRITICAL: Return ESPN Integer ID from aliases array, not custom ID
-      // ESPN IDs are numeric strings in aliases (e.g., "1", "22", "34")
-      // This ensures oddsMap keys match what GridBettingLayout expects
-      const espnId = team.aliases && team.aliases.find(a => /^\d+$/.test(a));
-      return espnId || team.id; // Fallback to custom ID if ESPN ID not found
-    }
+  // Determine which sports to search
+  const sportsToSearch = sport ? [sport] : ['nfl', 'nba', 'nhl', 'ncaab'];
+  
+  // Search through specified sports
+  for (const sportKey of sportsToSearch) {
+    const teams = masterTeams[sportKey];
+    if (!teams) continue;
     
-    // Check all aliases (case-insensitive)
-    if (team.aliases) {
-      for (const alias of team.aliases) {
-        if (alias.toLowerCase() === normalized) {
-          // CRITICAL: Return ESPN Integer ID from aliases array
-          const espnId = team.aliases.find(a => /^\d+$/.test(a));
-          return espnId || team.id; // Fallback to custom ID if ESPN ID not found
+    for (const team of teams) {
+      // Check canonical name (case-insensitive)
+      if (team.canonical.toLowerCase() === normalized) {
+        return { ...team, sport: sportKey };
+      }
+      
+      // Check ESPN ID match
+      if (team.espnId && team.espnId.toLowerCase() === normalized) {
+        return { ...team, sport: sportKey };
+      }
+      
+      // Check all aliases (case-insensitive)
+      if (team.aliases) {
+        for (const alias of team.aliases) {
+          if (alias.toLowerCase() === normalized) {
+            return { ...team, sport: sportKey };
+          }
         }
       }
     }
@@ -80,33 +87,95 @@ export function getStandardId(teamName) {
 }
 
 /**
- * Validate if a team name can be normalized to an ESPN ID
+ * Get team by ESPN ID
  * 
- * @param {string} teamName - Team name to validate
- * @returns {boolean} - True if the team name can be normalized, false otherwise
+ * @param {string} espnId - ESPN integer ID (e.g., "14")
+ * @param {string} [sport] - Optional sport filter ('nfl', 'nba', 'nhl', 'ncaab')
+ * @returns {Object|null} - Team object with sport key or null if not found
+ * 
+ * @example
+ * getTeamByEspnId("14", "nfl") // Returns Los Angeles Rams team object
+ */
+export function getTeamByEspnId(espnId, sport = null) {
+  if (!espnId || typeof espnId !== 'string') {
+    return null;
+  }
+  
+  const normalized = espnId.trim();
+  const sportsToSearch = sport ? [sport] : ['nfl', 'nba', 'nhl', 'ncaab'];
+  
+  for (const sportKey of sportsToSearch) {
+    const teams = masterTeams[sportKey];
+    if (!teams) continue;
+    
+    const team = teams.find(t => t.espnId === normalized);
+    if (team) {
+      return { ...team, sport: sportKey };
+    }
+  }
+  
+  return null;
+}
+
+/**
+ * Get team by The Odds API SID (participant ID)
+ * 
+ * @param {string} sid - The Odds API participant ID (e.g., "par_01hqmkr1ybfmfb8mhz10drfe21")
+ * @param {string} [sport] - Optional sport filter
+ * @returns {Object|null} - Team object with sport key or null if not found
+ * 
+ * @example
+ * getTeamBySid("par_01hqmkr1ybfmfb8mhz10drfe21") // Returns Los Angeles Rams team object
+ */
+export function getTeamBySid(sid, sport = null) {
+  if (!sid || typeof sid !== 'string') {
+    return null;
+  }
+  
+  const normalized = sid.trim().toLowerCase();
+  const sportsToSearch = sport ? [sport] : ['nfl', 'nba', 'nhl', 'ncaab'];
+  
+  for (const sportKey of sportsToSearch) {
+    const teams = masterTeams[sportKey];
+    if (!teams) continue;
+    
+    for (const team of teams) {
+      if (team.aliases && team.aliases.some(alias => alias.toLowerCase() === normalized)) {
+        return { ...team, sport: sportKey };
+      }
+    }
+  }
+  
+  return null;
+}
+
+/**
+ * Validate if an identifier can be resolved to a team
+ * 
+ * @param {string} identifier - Any team identifier to validate
+ * @param {string} [sport] - Optional sport filter
+ * @returns {boolean} - True if the identifier can be resolved, false otherwise
  * 
  * @example
  * isValidTeamName("Rams") // Returns true
  * isValidTeamName("Invalid Team") // Returns false
  */
-export function isValidTeamName(teamName) {
-  return getStandardId(teamName) !== null;
+export function isValidTeamName(identifier, sport = null) {
+  return getStandardId(identifier, sport) !== null;
 }
 
 /**
- * Get team canonical name from ESPN ID
+ * Get canonical name from any identifier
  * 
- * @param {string} teamId - ESPN team ID
+ * @param {string} identifier - Any team identifier
+ * @param {string} [sport] - Optional sport filter
  * @returns {string|null} - Canonical team name or null if not found
  * 
  * @example
- * getCanonicalName("14") // Returns "Los Angeles Rams"
+ * getCanonicalName("LAR", "nfl") // Returns "Los Angeles Rams"
+ * getCanonicalName("14", "nfl") // Returns "Los Angeles Rams"
  */
-export function getCanonicalName(teamId) {
-  if (!teamId || typeof teamId !== 'string') {
-    return null;
-  }
-  
-  const team = nflTeams.find(t => t.id === teamId);
+export function getCanonicalName(identifier, sport = null) {
+  const team = getStandardId(identifier, sport);
   return team ? team.canonical : null;
 }

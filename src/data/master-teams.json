@@ -1,0 +1,4579 @@
+{
+  "nfl": [
+    {
+      "id": "NFL-ARI",
+      "espnId": "22",
+      "canonical": "Arizona Cardinals",
+      "aliases": [
+        "ARI",
+        "Cardinals",
+        "Arizona Cardinals",
+        "par_01hqmkr1xsfxmrj5pdq0f23asx"
+      ]
+    },
+    {
+      "id": "NFL-ATL",
+      "espnId": "1",
+      "canonical": "Atlanta Falcons",
+      "aliases": [
+        "ATL",
+        "Falcons",
+        "Atlanta Falcons",
+        "par_01hqmkr1xtexkbhkq7ct921rne"
+      ]
+    },
+    {
+      "id": "NFL-BAL",
+      "espnId": "33",
+      "canonical": "Baltimore Ravens",
+      "aliases": [
+        "BAL",
+        "Ravens",
+        "Baltimore Ravens",
+        "par_01hqmkr1xvev9rf557fy09k2cx"
+      ]
+    },
+    {
+      "id": "NFL-BUF",
+      "espnId": "2",
+      "canonical": "Buffalo Bills",
+      "aliases": [
+        "BUF",
+        "Bills",
+        "Buffalo Bills",
+        "par_01hqmkr1xwe6prjwr3j4gpqwx8"
+      ]
+    },
+    {
+      "id": "NFL-CAR",
+      "espnId": "29",
+      "canonical": "Carolina Panthers",
+      "aliases": [
+        "CAR",
+        "Panthers",
+        "Carolina Panthers",
+        "par_01hqmkr1xxf2ebbqzb95qzxxxm"
+      ]
+    },
+    {
+      "id": "NFL-CHI",
+      "espnId": "3",
+      "canonical": "Chicago Bears",
+      "aliases": [
+        "CHI",
+        "Bears",
+        "Chicago Bears",
+        "par_01hqmkr1xye20ahvp8fr2bvt74"
+      ]
+    },
+    {
+      "id": "NFL-CIN",
+      "espnId": "4",
+      "canonical": "Cincinnati Bengals",
+      "aliases": [
+        "CIN",
+        "Bengals",
+        "Cincinnati Bengals",
+        "par_01hqmkr1xze7xbceshy9tka512"
+      ]
+    },
+    {
+      "id": "NFL-CLE",
+      "espnId": "5",
+      "canonical": "Cleveland Browns",
+      "aliases": [
+        "CLE",
+        "Browns",
+        "Cleveland Browns",
+        "par_01hqmkr1y0ez5bem3gdncd8a0d"
+      ]
+    },
+    {
+      "id": "NFL-DAL",
+      "espnId": "6",
+      "canonical": "Dallas Cowboys",
+      "aliases": [
+        "DAL",
+        "Cowboys",
+        "Dallas Cowboys",
+        "par_01hqmkr1y1esas88pmaxe87by4"
+      ]
+    },
+    {
+      "id": "NFL-DEN",
+      "espnId": "7",
+      "canonical": "Denver Broncos",
+      "aliases": [
+        "DEN",
+        "Broncos",
+        "Denver Broncos",
+        "par_01hqmkr1y2e15tjsz9afcsj7da"
+      ]
+    },
+    {
+      "id": "NFL-DET",
+      "espnId": "8",
+      "canonical": "Detroit Lions",
+      "aliases": [
+        "DET",
+        "Lions",
+        "Detroit Lions",
+        "par_01hqmkr1y3fex9sq94dgg1107y"
+      ]
+    },
+    {
+      "id": "NFL-GB",
+      "espnId": "9",
+      "canonical": "Green Bay Packers",
+      "aliases": [
+        "GB",
+        "Packers",
+        "Green Bay Packers",
+        "par_01hqmkr1y4ez38hyananses4hq"
+      ]
+    },
+    {
+      "id": "NFL-HOU",
+      "espnId": "34",
+      "canonical": "Houston Texans",
+      "aliases": [
+        "HOU",
+        "Texans",
+        "Houston Texans",
+        "par_01hqmkr1y5f63reha26n71p2jx"
+      ]
+    },
+    {
+      "id": "NFL-IND",
+      "espnId": "11",
+      "canonical": "Indianapolis Colts",
+      "aliases": [
+        "IND",
+        "Colts",
+        "Indianapolis Colts",
+        "par_01hqmkr1y6f10rxbf8y2y2xthh"
+      ]
+    },
+    {
+      "id": "NFL-JAX",
+      "espnId": "30",
+      "canonical": "Jacksonville Jaguars",
+      "aliases": [
+        "JAX",
+        "Jaguars",
+        "Jacksonville Jaguars",
+        "par_01hqmkr1y7e2r9kcn2qe0dt1d5"
+      ]
+    },
+    {
+      "id": "NFL-KC",
+      "espnId": "12",
+      "canonical": "Kansas City Chiefs",
+      "aliases": [
+        "KC",
+        "Chiefs",
+        "Kansas City Chiefs",
+        "par_01hqmkr1y8e9gt2q2rhmv196pv"
+      ]
+    },
+    {
+      "id": "NFL-LV",
+      "espnId": "13",
+      "canonical": "Las Vegas Raiders",
+      "aliases": [
+        "LV",
+        "Raiders",
+        "Las Vegas Raiders",
+        "par_01hqmkr1y9fkaaeekn9w035jft"
+      ]
+    },
+    {
+      "id": "NFL-LAC",
+      "espnId": "24",
+      "canonical": "Los Angeles Chargers",
+      "aliases": [
+        "LAC",
+        "Chargers",
+        "Los Angeles Chargers",
+        "par_01hqmkr1yafvas6wtv3jfs9f7a"
+      ]
+    },
+    {
+      "id": "NFL-LAR",
+      "espnId": "14",
+      "canonical": "Los Angeles Rams",
+      "aliases": [
+        "LAR",
+        "Rams",
+        "Los Angeles Rams",
+        "par_01hqmkr1ybfmfb8mhz10drfe21"
+      ]
+    },
+    {
+      "id": "NFL-MIA",
+      "espnId": "15",
+      "canonical": "Miami Dolphins",
+      "aliases": [
+        "MIA",
+        "Dolphins",
+        "Miami Dolphins",
+        "par_01hqmkr1ycf7dsbr1997gz03y9"
+      ]
+    },
+    {
+      "id": "NFL-MIN",
+      "espnId": "16",
+      "canonical": "Minnesota Vikings",
+      "aliases": [
+        "MIN",
+        "Vikings",
+        "Minnesota Vikings",
+        "par_01hqmkr1ydf6vrfmd5f07caj88"
+      ]
+    },
+    {
+      "id": "NFL-NE",
+      "espnId": "17",
+      "canonical": "New England Patriots",
+      "aliases": [
+        "NE",
+        "Patriots",
+        "New England Patriots",
+        "par_01hqmkr1yeffz9y9spwv8bx3na"
+      ]
+    },
+    {
+      "id": "NFL-NO",
+      "espnId": "18",
+      "canonical": "New Orleans Saints",
+      "aliases": [
+        "NO",
+        "Saints",
+        "New Orleans Saints",
+        "par_01hqmkr1yfe62tp0rvy8bn2jyc"
+      ]
+    },
+    {
+      "id": "NFL-NYG",
+      "espnId": "19",
+      "canonical": "New York Giants",
+      "aliases": [
+        "NYG",
+        "Giants",
+        "New York Giants",
+        "par_01hqmkr1ygfzrv5sqe2v97c43e"
+      ]
+    },
+    {
+      "id": "NFL-NYJ",
+      "espnId": "20",
+      "canonical": "New York Jets",
+      "aliases": [
+        "NYJ",
+        "Jets",
+        "New York Jets",
+        "par_01hqmkr1yhe4sb3y0wfzga67tf"
+      ]
+    },
+    {
+      "id": "NFL-PHI",
+      "espnId": "21",
+      "canonical": "Philadelphia Eagles",
+      "aliases": [
+        "PHI",
+        "Eagles",
+        "Philadelphia Eagles",
+        "par_01hqmkr1yjedgakx37g743855e"
+      ]
+    },
+    {
+      "id": "NFL-PIT",
+      "espnId": "23",
+      "canonical": "Pittsburgh Steelers",
+      "aliases": [
+        "PIT",
+        "Steelers",
+        "Pittsburgh Steelers",
+        "par_01hqmkr1yker5bwcznt0b1jpj1"
+      ]
+    },
+    {
+      "id": "NFL-SF",
+      "espnId": "25",
+      "canonical": "San Francisco 49ers",
+      "aliases": [
+        "SF",
+        "49ers",
+        "San Francisco 49ers",
+        "par_01hqmkr1ymfv0a8kfg96ha10ag"
+      ]
+    },
+    {
+      "id": "NFL-SEA",
+      "espnId": "26",
+      "canonical": "Seattle Seahawks",
+      "aliases": [
+        "SEA",
+        "Seahawks",
+        "Seattle Seahawks",
+        "par_01hqmkr1ynfwaa91y9zvagkavd"
+      ]
+    },
+    {
+      "id": "NFL-TB",
+      "espnId": "27",
+      "canonical": "Tampa Bay Buccaneers",
+      "aliases": [
+        "TB",
+        "Buccaneers",
+        "Tampa Bay Buccaneers",
+        "par_01hqmkr1ypeszan8sq8dh7rqbg"
+      ]
+    },
+    {
+      "id": "NFL-TEN",
+      "espnId": "10",
+      "canonical": "Tennessee Titans",
+      "aliases": [
+        "TEN",
+        "Titans",
+        "Tennessee Titans",
+        "par_01hqmkr1yqexebpc06vyfwxqqm"
+      ]
+    },
+    {
+      "id": "NFL-WAS",
+      "espnId": "28",
+      "canonical": "Washington Commanders",
+      "aliases": [
+        "WAS",
+        "Commanders",
+        "Washington Commanders",
+        "par_01hqmkr1yrfsvbjjasn01a7xz4"
+      ]
+    }
+  ],
+  "nba": [
+    {
+      "id": "NBA-001",
+      "espnId": null,
+      "canonical": "Atlanta Hawks",
+      "aliases": [
+        "ATL",
+        "Atlanta",
+        "Hawks",
+        "Hotlanta",
+        "ATL Hawks",
+        "The Hawks",
+        "Atlanta GA",
+        "Peach State",
+        "Hawks NBA",
+        "Atla",
+        "par_01hqmkq6fceknv7cwebesgrx03"
+      ]
+    },
+    {
+      "id": "NBA-002",
+      "espnId": null,
+      "canonical": "Boston Celtics",
+      "aliases": [
+        "BOS",
+        "Boston",
+        "Celtics",
+        "C's",
+        "BOS Celtics",
+        "The Celtics",
+        "Shamrocks",
+        "Green Team",
+        "Boston MA",
+        "Beantown",
+        "par_01hqmkq6fdf1pvq7jgdd7hdmpf"
+      ]
+    },
+    {
+      "id": "NBA-003",
+      "espnId": null,
+      "canonical": "Brooklyn Nets",
+      "aliases": [
+        "BKN",
+        "BK",
+        "Brooklyn",
+        "Nets",
+        "BKN Nets",
+        "The Nets",
+        "NJ Nets",
+        "New Jersey Nets",
+        "Brooklyn NY",
+        "Bklyn",
+        "par_01hqmkq6fefp3r8597cv3wj3cr"
+      ]
+    },
+    {
+      "id": "NBA-004",
+      "espnId": null,
+      "canonical": "Charlotte Hornets",
+      "aliases": [
+        "CHA",
+        "CHL",
+        "Charlotte",
+        "Hornets",
+        "CHA Hornets",
+        "The Hornets",
+        "Buzz City",
+        "Queen City",
+        "Bobcats",
+        "Charlotte NC",
+        "par_01hqmkq6fffqq9gze9hqf1fwn6"
+      ]
+    },
+    {
+      "id": "NBA-005",
+      "espnId": null,
+      "canonical": "Chicago Bulls",
+      "aliases": [
+        "CHI",
+        "Chicago",
+        "Bulls",
+        "CHI Bulls",
+        "The Bulls",
+        "Chi-Town",
+        "Windy City",
+        "Chicago IL",
+        "Bulls NBA",
+        "Chic",
+        "par_01hqmkq6fgf7krk5evvjfy9mr1"
+      ]
+    },
+    {
+      "id": "NBA-006",
+      "espnId": null,
+      "canonical": "Cleveland Cavaliers",
+      "aliases": [
+        "CLE",
+        "CLV",
+        "Cleveland",
+        "Cavaliers",
+        "Cavs",
+        "CLE Cavs",
+        "The Land",
+        "Wine and Gold",
+        "Cleveland OH",
+        "Clev",
+        "par_01hqmkq6fhec0t7bezwtzqv0fq"
+      ]
+    },
+    {
+      "id": "NBA-007",
+      "espnId": null,
+      "canonical": "Dallas Mavericks",
+      "aliases": [
+        "DAL",
+        "Dallas",
+        "Mavericks",
+        "Mavs",
+        "DAL Mavs",
+        "The Mavericks",
+        "MFFL",
+        "Big D",
+        "Dallas TX",
+        "Dall",
+        "par_01hqmkq6fje5rrsbnbx97seg30"
+      ]
+    },
+    {
+      "id": "NBA-008",
+      "espnId": null,
+      "canonical": "Denver Nuggets",
+      "aliases": [
+        "DEN",
+        "Denver",
+        "Nuggets",
+        "DEN Nuggets",
+        "Nugs",
+        "The Nuggets",
+        "Mile High",
+        "Denver CO",
+        "Nuggets NBA",
+        "Denv",
+        "par_01hqmkq6fkf9r8wh7303b8hy40"
+      ]
+    },
+    {
+      "id": "NBA-009",
+      "espnId": null,
+      "canonical": "Detroit Pistons",
+      "aliases": [
+        "DET",
+        "Detroit",
+        "Pistons",
+        "DET Pistons",
+        "Motor City",
+        "Bad Boys",
+        "The Pistons",
+        "Detroit MI",
+        "Pistons NBA",
+        "D-Town",
+        "par_01hqmkq6fmfyjsnjtexnh7vdwm"
+      ]
+    },
+    {
+      "id": "NBA-010",
+      "espnId": null,
+      "canonical": "Golden State Warriors",
+      "aliases": [
+        "GSW",
+        "GS",
+        "Golden State",
+        "Warriors",
+        "Dubs",
+        "GS Warriors",
+        "The Warriors",
+        "Bay Area",
+        "San Francisco",
+        "Oakland",
+        "par_01hqmkq6fne7nsfvf365y98r0h"
+      ]
+    },
+    {
+      "id": "NBA-011",
+      "espnId": null,
+      "canonical": "Houston Rockets",
+      "aliases": [
+        "HOU",
+        "HST",
+        "Houston",
+        "Rockets",
+        "HOU Rockets",
+        "The Rockets",
+        "Clutch City",
+        "H-Town",
+        "Houston TX",
+        "Rocks",
+        "par_01hqmkq6fpetbrrcfrsgh982ed"
+      ]
+    },
+    {
+      "id": "NBA-012",
+      "espnId": null,
+      "canonical": "Indiana Pacers",
+      "aliases": [
+        "IND",
+        "Indiana",
+        "Pacers",
+        "IND Pacers",
+        "The Pacers",
+        "Indy",
+        "Hoosiers",
+        "Indianapolis",
+        "Pacers NBA",
+        "Indy Pacers",
+        "par_01hqmkq6fqfcgtzyhmce1m5g86"
+      ]
+    },
+    {
+      "id": "NBA-013",
+      "espnId": null,
+      "canonical": "LA Clippers",
+      "aliases": [
+        "LAC",
+        "CLIPS",
+        "Clippers",
+        "Los Angeles Clippers",
+        "L.A. Clippers",
+        "LAC Clippers",
+        "The Clippers",
+        "Clips",
+        "LA Clippers",
+        "LAC NBA",
+        "par_01hqmkq6frex7v4gfdda5g204q"
+      ]
+    },
+    {
+      "id": "NBA-014",
+      "espnId": null,
+      "canonical": "Los Angeles Lakers",
+      "aliases": [
+        "LAL",
+        "Lakers",
+        "L.A. Lakers",
+        "Los Angeles Lakers",
+        "LA Lakers",
+        "LAL Lakers",
+        "The Lakers",
+        "Purple and Gold",
+        "Showtime",
+        "Lal",
+        "par_01hqmkq6fser5vcxm0fprbrcjz"
+      ]
+    },
+    {
+      "id": "NBA-015",
+      "espnId": null,
+      "canonical": "Memphis Grizzlies",
+      "aliases": [
+        "MEM",
+        "Memphis",
+        "Grizzlies",
+        "Grizz",
+        "MEM Grizzlies",
+        "The Grizzlies",
+        "Grind City",
+        "Grit and Grind",
+        "Memphis TN",
+        "Grizzlies NBA",
+        "par_01hqmkq6ftf24avayqxfd8840c"
+      ]
+    },
+    {
+      "id": "NBA-016",
+      "espnId": null,
+      "canonical": "Miami Heat",
+      "aliases": [
+        "MIA",
+        "Miami",
+        "Heat",
+        "MIA Heat",
+        "The Heat",
+        "South Beach",
+        "Vice City",
+        "Miami FL",
+        "Heat NBA",
+        "Heat Culture",
+        "par_01hqmkq6fvemwsm7z5cv5d24q1"
+      ]
+    },
+    {
+      "id": "NBA-017",
+      "espnId": null,
+      "canonical": "Milwaukee Bucks",
+      "aliases": [
+        "MIL",
+        "Milwaukee",
+        "Bucks",
+        "MIL Bucks",
+        "Fear the Deer",
+        "The Bucks",
+        "Brew City",
+        "Milwaukee WI",
+        "Deer",
+        "Bucks NBA",
+        "par_01hqmkq6fwfsdt20kfva62r4t7"
+      ]
+    },
+    {
+      "id": "NBA-018",
+      "espnId": null,
+      "canonical": "Minnesota Timberwolves",
+      "aliases": [
+        "MIN",
+        "Minnesota",
+        "Timberwolves",
+        "Wolves",
+        "MIN Wolves",
+        "T-Wolves",
+        "The Wolves",
+        "Minnesota MN",
+        "Minny",
+        "Twolves",
+        "par_01hqmkq6fxfsca5pyfcqjjtaw9"
+      ]
+    },
+    {
+      "id": "NBA-019",
+      "espnId": null,
+      "canonical": "New Orleans Pelicans",
+      "aliases": [
+        "NOP",
+        "NO",
+        "New Orleans",
+        "Pelicans",
+        "Pels",
+        "NO Pelicans",
+        "The Pelicans",
+        "NOLA",
+        "NOLA Pelicans",
+        "New Orleans LA",
+        "par_01hqmkq6fyed09scyb5yv7xt2s"
+      ]
+    },
+    {
+      "id": "NBA-020",
+      "espnId": null,
+      "canonical": "New York Knicks",
+      "aliases": [
+        "NYK",
+        "NY",
+        "Knicks",
+        "New York",
+        "Knickerbockers",
+        "NY Knicks",
+        "The Knicks",
+        "MSG",
+        "Big Apple",
+        "New York NY",
+        "par_01hqmkq6fzfvyvrsb30jj85ade"
+      ]
+    },
+    {
+      "id": "NBA-021",
+      "espnId": null,
+      "canonical": "Oklahoma City Thunder",
+      "aliases": [
+        "OKC",
+        "OK",
+        "Thunder",
+        "OKC Thunder",
+        "The Thunder",
+        "OK City",
+        "Oklahoma City OK",
+        "Loud City",
+        "Thunder NBA",
+        "Okla",
+        "par_01hqmkq6g0f44vajb32zbpwnbr"
+      ]
+    },
+    {
+      "id": "NBA-022",
+      "espnId": null,
+      "canonical": "Orlando Magic",
+      "aliases": [
+        "ORL",
+        "Orlando",
+        "Magic",
+        "ORL Magic",
+        "The Magic",
+        "O-Town",
+        "Orlando FL",
+        "Disney",
+        "Magic NBA",
+        "Orla",
+        "par_01hqmkq6g1edytehr6s6fzpfzn"
+      ]
+    },
+    {
+      "id": "NBA-023",
+      "espnId": null,
+      "canonical": "Philadelphia 76ers",
+      "aliases": [
+        "PHI",
+        "PHL",
+        "76ers",
+        "Sixers",
+        "Philadelphia",
+        "PHI Sixers",
+        "The 76ers",
+        "The Process",
+        "Philadelphia PA",
+        "Philly",
+        "par_01hqmkq6g2egdt6asd59yp0vxp"
+      ]
+    },
+    {
+      "id": "NBA-024",
+      "espnId": null,
+      "canonical": "Phoenix Suns",
+      "aliases": [
+        "PHX",
+        "PHO",
+        "Phoenix",
+        "Suns",
+        "PHX Suns",
+        "The Suns",
+        "Valley",
+        "Phoenix AZ",
+        "Suns NBA",
+        "Phx Suns",
+        "par_01hqmkq6g3fnvve924dqwzxh90"
+      ]
+    },
+    {
+      "id": "NBA-025",
+      "espnId": null,
+      "canonical": "Portland Trail Blazers",
+      "aliases": [
+        "POR",
+        "Portland",
+        "Trail Blazers",
+        "Blazers",
+        "Rip City",
+        "POR Blazers",
+        "The Blazers",
+        "Portland OR",
+        "Zers",
+        "Blazers NBA",
+        "par_01hqmkq6g4fz3tkx3w1w30mxb8"
+      ]
+    },
+    {
+      "id": "NBA-026",
+      "espnId": null,
+      "canonical": "Sacramento Kings",
+      "aliases": [
+        "SAC",
+        "Sacramento",
+        "Kings",
+        "SAC Kings",
+        "The Kings",
+        "Beam Team",
+        "Light the Beam",
+        "Sacramento CA",
+        "Kings NBA",
+        "Sac",
+        "par_01hqmkq6g5f22am45k13jkjtn2"
+      ]
+    },
+    {
+      "id": "NBA-027",
+      "espnId": null,
+      "canonical": "San Antonio Spurs",
+      "aliases": [
+        "SAS",
+        "SA",
+        "San Antonio",
+        "Spurs",
+        "SAS Spurs",
+        "The Spurs",
+        "Alamo City",
+        "San Antonio TX",
+        "Spurs NBA",
+        "S.A. Spurs",
+        "par_01hqmkq6g6fzr95vwm0a66qmh5"
+      ]
+    },
+    {
+      "id": "NBA-028",
+      "espnId": null,
+      "canonical": "Toronto Raptors",
+      "aliases": [
+        "TOR",
+        "Toronto",
+        "Raptors",
+        "Raps",
+        "TOR Raptors",
+        "The Raptors",
+        "The North",
+        "We The North",
+        "Toronto ON",
+        "T-Dot",
+        "par_01hqmkq6g7ffc92tna8axq3t4s"
+      ]
+    },
+    {
+      "id": "NBA-029",
+      "espnId": null,
+      "canonical": "Utah Jazz",
+      "aliases": [
+        "UTA",
+        "Utah",
+        "Jazz",
+        "UTA Jazz",
+        "The Jazz",
+        "SLC",
+        "Salt Lake City",
+        "Utah UT",
+        "Jazz NBA",
+        "Salt Lake Jazz",
+        "par_01hqmkq6g8e11sj1g4zv9z9snc"
+      ]
+    },
+    {
+      "id": "NBA-030",
+      "espnId": null,
+      "canonical": "Washington Wizards",
+      "aliases": [
+        "WAS",
+        "WSH",
+        "Washington",
+        "Wizards",
+        "WAS Wizards",
+        "The Wizards",
+        "D.C. Wizards",
+        "Bullets",
+        "Washington DC",
+        "Wiz",
+        "par_01hqmkq6g9f0d9n781t7z01mn2"
+      ]
+    }
+  ],
+  "nhl": [
+    {
+      "id": "NHL-001",
+      "espnId": null,
+      "canonical": "Anaheim Ducks",
+      "aliases": [
+        "ANA",
+        "Anaheim",
+        "Ducks",
+        "ANA Ducks",
+        "The Ducks",
+        "Mighty Ducks",
+        "Anaheim CA",
+        "Ducks NHL",
+        "Quacks",
+        "Ana",
+        "par_01hqmkqsbdexkrajf9bpd7j731"
+      ]
+    },
+    {
+      "id": "NHL-002",
+      "espnId": null,
+      "canonical": "Arizona Coyotes",
+      "aliases": [
+        "ARI",
+        "ARZ",
+        "PHX",
+        "Arizona",
+        "Coyotes",
+        "Yotes",
+        "Arizona Coyotes",
+        "The Coyotes",
+        "Phoenix Coyotes",
+        "par_01hqmkqsbeemp921a35m7cc7ef"
+      ]
+    },
+    {
+      "id": "NHL-003",
+      "espnId": null,
+      "canonical": "Boston Bruins",
+      "aliases": [
+        "BOS",
+        "Boston",
+        "Bruins",
+        "B-s",
+        "The Bruins",
+        "Boston MA",
+        "Bruins NHL",
+        "Beantown",
+        "Big Bad Bruins",
+        "Bost",
+        "par_01hqmkqsbffa1r1vyhj0qj6hp0"
+      ]
+    },
+    {
+      "id": "NHL-004",
+      "espnId": null,
+      "canonical": "Buffalo Sabres",
+      "aliases": [
+        "BUF",
+        "Buffalo",
+        "Sabres",
+        "BUF Sabres",
+        "The Sabres",
+        "Buffalo NY",
+        "Sabres NHL",
+        "Buff",
+        "Bflo",
+        "Blue and Gold",
+        "par_01hqmkqsbgexss9gzq27ebm3xw"
+      ]
+    },
+    {
+      "id": "NHL-005",
+      "espnId": null,
+      "canonical": "Calgary Flames",
+      "aliases": [
+        "CGY",
+        "Calgary",
+        "Flames",
+        "CGY Flames",
+        "The Flames",
+        "Calgary AB",
+        "Flames NHL",
+        "C-of-Red",
+        "Cowtown",
+        "Calg",
+        "par_01hqmkqsbhfm5rvh126cktxgzp"
+      ]
+    },
+    {
+      "id": "NHL-006",
+      "espnId": null,
+      "canonical": "Carolina Hurricanes",
+      "aliases": [
+        "CAR",
+        "Carolina",
+        "Hurricanes",
+        "Canes",
+        "The Canes",
+        "The Hurricanes",
+        "CAR Canes",
+        "Raleigh",
+        "Carolina NC",
+        "Caro",
+        "par_01hqmkqsbjek1sjx942a60ad0w"
+      ]
+    },
+    {
+      "id": "NHL-007",
+      "espnId": null,
+      "canonical": "Chicago Blackhawks",
+      "aliases": [
+        "CHI",
+        "Chicago",
+        "Blackhawks",
+        "Hawks",
+        "CHI Hawks",
+        "The Blackhawks",
+        "Chi-Town",
+        "Windy City",
+        "Chicago IL",
+        "Chic",
+        "par_01hqmkqsbkecvbtwyp82y6ntwv"
+      ]
+    },
+    {
+      "id": "NHL-008",
+      "espnId": null,
+      "canonical": "Colorado Avalanche",
+      "aliases": [
+        "COL",
+        "Colorado",
+        "Avalanche",
+        "Avs",
+        "The Avs",
+        "The Avalanche",
+        "COL Avs",
+        "Denver",
+        "Colorado CO",
+        "Colo",
+        "par_01hqmkqsbmfx8tbbq6grt6cent"
+      ]
+    },
+    {
+      "id": "NHL-009",
+      "espnId": null,
+      "canonical": "Columbus Blue Jackets",
+      "aliases": [
+        "CBJ",
+        "Columbus",
+        "Blue Jackets",
+        "Jackets",
+        "CBJ Jackets",
+        "The Blue Jackets",
+        "Columbus OH",
+        "Jackets NHL",
+        "Lumbus",
+        "Colu",
+        "par_01hqmkqsbne6v94twqzb2hmx34"
+      ]
+    },
+    {
+      "id": "NHL-010",
+      "espnId": null,
+      "canonical": "Dallas Stars",
+      "aliases": [
+        "DAL",
+        "Dallas",
+        "Stars",
+        "DAL Stars",
+        "The Stars",
+        "Big D",
+        "Dallas TX",
+        "Stars NHL",
+        "Victory Green",
+        "Dall",
+        "par_01hqmkqsbpfk6ad1a7nf9fdaek"
+      ]
+    },
+    {
+      "id": "NHL-011",
+      "espnId": null,
+      "canonical": "Detroit Red Wings",
+      "aliases": [
+        "DET",
+        "Detroit",
+        "Red Wings",
+        "Wings",
+        "DET Wings",
+        "The Red Wings",
+        "Hockeytown",
+        "Motor City",
+        "Detroit MI",
+        "Detr",
+        "par_01hqmkqsbqfxyazqcpz2k00nyw"
+      ]
+    },
+    {
+      "id": "NHL-012",
+      "espnId": null,
+      "canonical": "Edmonton Oilers",
+      "aliases": [
+        "EDM",
+        "Edmonton",
+        "Oilers",
+        "EDM Oilers",
+        "The Oilers",
+        "Oil Country",
+        "Edmonton AB",
+        "Oil",
+        "Oilers NHL",
+        "Edmo",
+        "par_01hqmkqsbreavtmbk9frxrnrrg"
+      ]
+    },
+    {
+      "id": "NHL-013",
+      "espnId": null,
+      "canonical": "Florida Panthers",
+      "aliases": [
+        "FLA",
+        "Florida",
+        "Panthers",
+        "Cats",
+        "The Panthers",
+        "FLA Cats",
+        "Sunrise",
+        "Florida FL",
+        "Panthers NHL",
+        "Flor",
+        "par_01hqmkqsbse0ms0zpd4qn3vhkc"
+      ]
+    },
+    {
+      "id": "NHL-014",
+      "espnId": null,
+      "canonical": "Los Angeles Kings",
+      "aliases": [
+        "LAK",
+        "LA",
+        "Kings",
+        "LA Kings",
+        "LAK Kings",
+        "The Kings",
+        "L.A. Kings",
+        "Los Angeles CA",
+        "Kings NHL",
+        "LosA",
+        "par_01hqmkqsbtecktxxmzmm2s8tfn"
+      ]
+    },
+    {
+      "id": "NHL-015",
+      "espnId": null,
+      "canonical": "Minnesota Wild",
+      "aliases": [
+        "MIN",
+        "Minnesota",
+        "Wild",
+        "MIN Wild",
+        "The Wild",
+        "State of Hockey",
+        "Minnesota MN",
+        "Wild NHL",
+        "Minny",
+        "Minn",
+        "par_01hqmkqsbvf50b2r78ygdaqc9d"
+      ]
+    },
+    {
+      "id": "NHL-016",
+      "espnId": null,
+      "canonical": "Montreal Canadiens",
+      "aliases": [
+        "MTL",
+        "MON",
+        "Montreal",
+        "Canadiens",
+        "Habs",
+        "Les Habitants",
+        "Montreal QC",
+        "The Canadiens",
+        "Habs NHL",
+        "Mont",
+        "par_01hqmkqsbwfq39t33ddztd20ks",
+        "Montréal Canadiens"
+      ]
+    },
+    {
+      "id": "NHL-017",
+      "espnId": null,
+      "canonical": "Nashville Predators",
+      "aliases": [
+        "NSH",
+        "Nashville",
+        "Predators",
+        "Preds",
+        "NSH Preds",
+        "The Predators",
+        "Smashville",
+        "Music City",
+        "Nashville TN",
+        "Nash",
+        "par_01hqmkqsbxfxarp8w6rmay3675"
+      ]
+    },
+    {
+      "id": "NHL-018",
+      "espnId": null,
+      "canonical": "New Jersey Devils",
+      "aliases": [
+        "NJD",
+        "NJ",
+        "New Jersey",
+        "Devils",
+        "NJD Devils",
+        "The Devils",
+        "Jersey",
+        "New Jersey NJ",
+        "Devs",
+        "N.J. Devils",
+        "par_01hqmkqsbyfvyrtpf8xbhdsx8n"
+      ]
+    },
+    {
+      "id": "NHL-019",
+      "espnId": null,
+      "canonical": "New York Islanders",
+      "aliases": [
+        "NYI",
+        "Islanders",
+        "NY Islanders",
+        "Isles",
+        "The Isles",
+        "The Islanders",
+        "Long Island",
+        "NYI Isles",
+        "Islanders NHL",
+        "N.Y. Islanders",
+        "par_01hqmkqsbzenqbdnzr6hs8ygdn"
+      ]
+    },
+    {
+      "id": "NHL-020",
+      "espnId": null,
+      "canonical": "New York Rangers",
+      "aliases": [
+        "NYR",
+        "Rangers",
+        "NY Rangers",
+        "Blueshirts",
+        "The Rangers",
+        "Rags",
+        "Broadway Blueshirts",
+        "MSG",
+        "NYR Rangers",
+        "N.Y. Rangers",
+        "par_01hqmkqsc0fyrbkn8c2g2z4dy5"
+      ]
+    },
+    {
+      "id": "NHL-021",
+      "espnId": null,
+      "canonical": "Ottawa Senators",
+      "aliases": [
+        "OTT",
+        "Ottawa",
+        "Senators",
+        "Sens",
+        "OTT Sens",
+        "The Senators",
+        "Ottawa ON",
+        "Sens NHL",
+        "Ottaw",
+        "Otta",
+        "par_01hqmkqsc1e3x9xhg8zv5hsmzr"
+      ]
+    },
+    {
+      "id": "NHL-022",
+      "espnId": null,
+      "canonical": "Philadelphia Flyers",
+      "aliases": [
+        "PHI",
+        "PHL",
+        "Philadelphia",
+        "Flyers",
+        "PHI Flyers",
+        "The Flyers",
+        "Broad Street Bullies",
+        "Philly",
+        "Philadelphia PA",
+        "Phil",
+        "par_01hqmkqsc2e1t9v7mkta26q8w8"
+      ]
+    },
+    {
+      "id": "NHL-023",
+      "espnId": null,
+      "canonical": "Pittsburgh Penguins",
+      "aliases": [
+        "PIT",
+        "Pittsburgh",
+        "Penguins",
+        "Pens",
+        "PIT Pens",
+        "The Penguins",
+        "Steel City",
+        "Pittsburgh PA",
+        "Pens NHL",
+        "Pitt",
+        "par_01hqmkqsc3fbgse2vx8bswvctc"
+      ]
+    },
+    {
+      "id": "NHL-024",
+      "espnId": null,
+      "canonical": "San Jose Sharks",
+      "aliases": [
+        "SJS",
+        "SJ",
+        "San Jose",
+        "Sharks",
+        "SJS Sharks",
+        "The Sharks",
+        "Team Teal",
+        "San Jose CA",
+        "Sharks NHL",
+        "Sanj",
+        "par_01hqmkqsc4fg49q1hrg1argta4"
+      ]
+    },
+    {
+      "id": "NHL-025",
+      "espnId": null,
+      "canonical": "Seattle Kraken",
+      "aliases": [
+        "SEA",
+        "Seattle",
+        "Kraken",
+        "The Kraken",
+        "SEA Kraken",
+        "Release the Kraken",
+        "Seattle WA",
+        "Kraken NHL",
+        "Seat",
+        "Krak",
+        "par_01hqmkqsc5etevw3khyzvpa633"
+      ]
+    },
+    {
+      "id": "NHL-026",
+      "espnId": null,
+      "canonical": "St. Louis Blues",
+      "aliases": [
+        "STL",
+        "St. Louis",
+        "Blues",
+        "STL Blues",
+        "The Blues",
+        "Note",
+        "St Louis",
+        "St. Louis MO",
+        "Blues NHL",
+        "StL",
+        "par_01hqmkqsc6fk89xs56bk3d1zsq",
+        "St Louis Blues"
+      ]
+    },
+    {
+      "id": "NHL-027",
+      "espnId": null,
+      "canonical": "Tampa Bay Lightning",
+      "aliases": [
+        "TBL",
+        "TB",
+        "Tampa Bay",
+        "Lightning",
+        "Bolts",
+        "The Bolts",
+        "The Lightning",
+        "Tampa",
+        "TBL Bolts",
+        "Tampa FL",
+        "par_01hqmkqsc7frtteynpppq8ybqv"
+      ]
+    },
+    {
+      "id": "NHL-028",
+      "espnId": null,
+      "canonical": "Toronto Maple Leafs",
+      "aliases": [
+        "TOR",
+        "Toronto",
+        "Maple Leafs",
+        "Leafs",
+        "The Leafs",
+        "TOR Leafs",
+        "Buds",
+        "Toronto ON",
+        "TML",
+        "MapleLeafs",
+        "par_01hqmkqsc8f0js6yjsbqkadg4y"
+      ]
+    },
+    {
+      "id": "NHL-029",
+      "espnId": null,
+      "canonical": "Vancouver Canucks",
+      "aliases": [
+        "VAN",
+        "Vancouver",
+        "Canucks",
+        "Nucks",
+        "VAN Canucks",
+        "The Canucks",
+        "Vancouver BC",
+        "Canucks NHL",
+        "Vanc",
+        "Van",
+        "par_01hqmkqsc9e9m9v51jndng4ysv"
+      ]
+    },
+    {
+      "id": "NHL-030",
+      "espnId": null,
+      "canonical": "Vegas Golden Knights",
+      "aliases": [
+        "VGK",
+        "LV",
+        "Vegas",
+        "Golden Knights",
+        "Knights",
+        "VGK Knights",
+        "The Golden Knights",
+        "Las Vegas",
+        "Vegas NHL",
+        "Vgk",
+        "par_01hqmkqscae3ca8f2v9mya2zxg"
+      ]
+    },
+    {
+      "id": "NHL-031",
+      "espnId": null,
+      "canonical": "Washington Capitals",
+      "aliases": [
+        "WSH",
+        "WAS",
+        "Washington",
+        "Capitals",
+        "Caps",
+        "The Caps",
+        "The Capitals",
+        "DC Capitals",
+        "Washington DC",
+        "Wsh",
+        "par_01hqmkqscbfjprcaprjk5gr6kd"
+      ]
+    },
+    {
+      "id": "NHL-032",
+      "espnId": null,
+      "canonical": "Winnipeg Jets",
+      "aliases": [
+        "WPG",
+        "Winnipeg",
+        "Jets",
+        "WPG Jets",
+        "The Jets",
+        "Winnipeg MB",
+        "Jets NHL",
+        "Winnie",
+        "Winn",
+        "Wpg",
+        "par_01hqmkqsccf0pa5w5my4v96sb3"
+      ]
+    },
+    {
+      "id": "NHL-033",
+      "espnId": null,
+      "canonical": "Utah Mammoth",
+      "aliases": [
+        "UTA",
+        "Utah",
+        "Mammoth",
+        "Utah Hockey Club",
+        "par_01j1yccb9vew7atezxkgxp3qa0"
+      ]
+    }
+  ],
+  "ncaab": [
+    {
+      "id": "NCAAB-001",
+      "espnId": null,
+      "canonical": "Abilene Christian Wildcats",
+      "aliases": [
+        "par_01hqmkq8nwfphb97yww9yn0caa"
+      ]
+    },
+    {
+      "id": "NCAAB-002",
+      "espnId": null,
+      "canonical": "Air Force Falcons",
+      "aliases": [
+        "par_01hqmkq8nxewvsnexf3wsjjgv1"
+      ]
+    },
+    {
+      "id": "NCAAB-003",
+      "espnId": null,
+      "canonical": "Akron Zips",
+      "aliases": [
+        "par_01hqmkq8nyf99r47ahjg4v885g"
+      ]
+    },
+    {
+      "id": "NCAAB-004",
+      "espnId": null,
+      "canonical": "Alabama A&M Bulldogs",
+      "aliases": [
+        "par_01hqmkq8nzeastyarx6vbn5x9d"
+      ]
+    },
+    {
+      "id": "NCAAB-005",
+      "espnId": null,
+      "canonical": "Alabama Crimson Tide",
+      "aliases": [
+        "par_01hqmkq8p0fk6rrcvhesr0kx1h"
+      ]
+    },
+    {
+      "id": "NCAAB-006",
+      "espnId": null,
+      "canonical": "Alabama St Hornets",
+      "aliases": [
+        "par_01hqmkq8p1fmetyh3a61985ezv"
+      ]
+    },
+    {
+      "id": "NCAAB-007",
+      "espnId": null,
+      "canonical": "Albany Great Danes",
+      "aliases": [
+        "par_01hqmkq8p2ft1amdbbsxcb12aj"
+      ]
+    },
+    {
+      "id": "NCAAB-008",
+      "espnId": null,
+      "canonical": "Alcorn St Braves",
+      "aliases": [
+        "par_01hqmkq8p3fwxvdxr12s4a203m"
+      ]
+    },
+    {
+      "id": "NCAAB-009",
+      "espnId": null,
+      "canonical": "American Eagles",
+      "aliases": [
+        "par_01hqmkq8p4fn7txq5pgbg3hqpe"
+      ]
+    },
+    {
+      "id": "NCAAB-010",
+      "espnId": null,
+      "canonical": "Appalachian St Mountaineers",
+      "aliases": [
+        "par_01hqmkq8p5fz5rmvs4jvz7djv1"
+      ]
+    },
+    {
+      "id": "NCAAB-011",
+      "espnId": null,
+      "canonical": "Arizona St Sun Devils",
+      "aliases": [
+        "par_01hqmkq8p6fjr8wh8ds9exg7qy"
+      ]
+    },
+    {
+      "id": "NCAAB-012",
+      "espnId": null,
+      "canonical": "Arizona Wildcats",
+      "aliases": [
+        "par_01hqmkq8p7f3jtprvmcgha9bv6"
+      ]
+    },
+    {
+      "id": "NCAAB-013",
+      "espnId": null,
+      "canonical": "Arkansas Razorbacks",
+      "aliases": [
+        "par_01hqmkq8p8eztvdb8ajeza31py"
+      ]
+    },
+    {
+      "id": "NCAAB-014",
+      "espnId": null,
+      "canonical": "Arkansas St Red Wolves",
+      "aliases": [
+        "par_01hqmkq8p9fj9rdee4q89zrsbr"
+      ]
+    },
+    {
+      "id": "NCAAB-015",
+      "espnId": null,
+      "canonical": "Arkansas-Little Rock Trojans",
+      "aliases": [
+        "par_01hqmkq8pafb29ajnwwq6sk5qq"
+      ]
+    },
+    {
+      "id": "NCAAB-016",
+      "espnId": null,
+      "canonical": "Arkansas-Pine Bluff Golden Lions",
+      "aliases": [
+        "par_01hqmkq8pbfptbj6y8w6356a31"
+      ]
+    },
+    {
+      "id": "NCAAB-017",
+      "espnId": null,
+      "canonical": "Army Knights",
+      "aliases": [
+        "par_01hqmkq8pcfrps173bk3mjkc4y"
+      ]
+    },
+    {
+      "id": "NCAAB-018",
+      "espnId": null,
+      "canonical": "Auburn Tigers",
+      "aliases": [
+        "par_01hqmkq8pdfd0r2bq67hencgtg"
+      ]
+    },
+    {
+      "id": "NCAAB-019",
+      "espnId": null,
+      "canonical": "Austin Peay Governors",
+      "aliases": [
+        "par_01hqmkq8pefnv84kw5c6edxd5m"
+      ]
+    },
+    {
+      "id": "NCAAB-020",
+      "espnId": null,
+      "canonical": "BYU Cougars",
+      "aliases": [
+        "par_01hqmkq8pfeq4afpacb8y39vb7"
+      ]
+    },
+    {
+      "id": "NCAAB-021",
+      "espnId": null,
+      "canonical": "Baldwin Wallace Yellow Jackets",
+      "aliases": [
+        "par_01hqmkq8pgfxhrjzrez54n5x86"
+      ]
+    },
+    {
+      "id": "NCAAB-022",
+      "espnId": null,
+      "canonical": "Ball State Cardinals",
+      "aliases": [
+        "par_01hqmkq8phejtr3rmh9n7hpj72"
+      ]
+    },
+    {
+      "id": "NCAAB-023",
+      "espnId": null,
+      "canonical": "Baylor Bears",
+      "aliases": [
+        "par_01hqmkq8pjf3jbh54xvvd8fnkg"
+      ]
+    },
+    {
+      "id": "NCAAB-024",
+      "espnId": null,
+      "canonical": "Bellarmine Knights",
+      "aliases": [
+        "par_01hqmkq8pkf4f949zhk2w0rwbv"
+      ]
+    },
+    {
+      "id": "NCAAB-025",
+      "espnId": null,
+      "canonical": "Belmont Bruins",
+      "aliases": [
+        "par_01hqmkq8pme3s9t2n53730btcg"
+      ]
+    },
+    {
+      "id": "NCAAB-026",
+      "espnId": null,
+      "canonical": "Bethune-Cookman Wildcats",
+      "aliases": [
+        "par_01hqmkq8pnetrs3x5q1kejt6mz"
+      ]
+    },
+    {
+      "id": "NCAAB-027",
+      "espnId": null,
+      "canonical": "Binghamton Bearcats",
+      "aliases": [
+        "par_01hqmkq8ppejqrxee6qq4h7prr"
+      ]
+    },
+    {
+      "id": "NCAAB-028",
+      "espnId": null,
+      "canonical": "Boise State Broncos",
+      "aliases": [
+        "par_01hqmkq8pqftebzp8djwbcbmwd"
+      ]
+    },
+    {
+      "id": "NCAAB-029",
+      "espnId": null,
+      "canonical": "Boston College Eagles",
+      "aliases": [
+        "par_01hqmkq8pred8vpecy3n9p7xqh"
+      ]
+    },
+    {
+      "id": "NCAAB-030",
+      "espnId": null,
+      "canonical": "Boston Univ. Terriers",
+      "aliases": [
+        "par_01hqmkq8pseykbjyz8zcgmw6st"
+      ]
+    },
+    {
+      "id": "NCAAB-031",
+      "espnId": null,
+      "canonical": "Bowling Green Falcons",
+      "aliases": [
+        "par_01hqmkq8pten0vdrb3ew58fm4j"
+      ]
+    },
+    {
+      "id": "NCAAB-032",
+      "espnId": null,
+      "canonical": "Bradley Braves",
+      "aliases": [
+        "par_01hqmkq8pve09rhrj47hknqm4j"
+      ]
+    },
+    {
+      "id": "NCAAB-033",
+      "espnId": null,
+      "canonical": "Brescia Bearcats",
+      "aliases": [
+        "par_01hqmkq8pwfxa90gh6cnx555hh"
+      ]
+    },
+    {
+      "id": "NCAAB-034",
+      "espnId": null,
+      "canonical": "Brown Bears",
+      "aliases": [
+        "par_01hqmkq8pxe89sjb17qj4bp647"
+      ]
+    },
+    {
+      "id": "NCAAB-035",
+      "espnId": null,
+      "canonical": "Bryant Bulldogs",
+      "aliases": [
+        "par_01hqmkq8pyfe2azqapjs68evwr"
+      ]
+    },
+    {
+      "id": "NCAAB-036",
+      "espnId": null,
+      "canonical": "Bucknell Bison",
+      "aliases": [
+        "par_01hqmkq8pzf5jtcbmmwgwfebcw"
+      ]
+    },
+    {
+      "id": "NCAAB-037",
+      "espnId": null,
+      "canonical": "Buffalo Bulls",
+      "aliases": [
+        "par_01hqmkq8q0ev9r24ye6e5ysesh"
+      ]
+    },
+    {
+      "id": "NCAAB-038",
+      "espnId": null,
+      "canonical": "Butler Bulldogs",
+      "aliases": [
+        "par_01hqmkq8q1er8vaexpbzm4j5aa"
+      ]
+    },
+    {
+      "id": "NCAAB-039",
+      "espnId": null,
+      "canonical": "CSU Bakersfield Roadrunners",
+      "aliases": [
+        "par_01hqmkq8q2fqc8t1nh6x86gb4h"
+      ]
+    },
+    {
+      "id": "NCAAB-040",
+      "espnId": null,
+      "canonical": "CSU Fullerton Titans",
+      "aliases": [
+        "par_01hqmkq8q3e7msbp9sk3zgzrw7"
+      ]
+    },
+    {
+      "id": "NCAAB-041",
+      "espnId": null,
+      "canonical": "CSU Northridge Matadors",
+      "aliases": [
+        "par_01hqmkq8q4egsvts52bc6m1yta"
+      ]
+    },
+    {
+      "id": "NCAAB-042",
+      "espnId": null,
+      "canonical": "Cal Baptist Lancers",
+      "aliases": [
+        "par_01hqmkq8q5esftdfscytrma2hn"
+      ]
+    },
+    {
+      "id": "NCAAB-043",
+      "espnId": null,
+      "canonical": "Cal Poly Mustangs",
+      "aliases": [
+        "par_01hqmkq8q6e6jsspq5424azdn9"
+      ]
+    },
+    {
+      "id": "NCAAB-044",
+      "espnId": null,
+      "canonical": "California Golden Bears",
+      "aliases": [
+        "par_01hqmkq8q7frj8r43hbfb4yy3m"
+      ]
+    },
+    {
+      "id": "NCAAB-045",
+      "espnId": null,
+      "canonical": "Campbell Fighting Camels",
+      "aliases": [
+        "par_01hqmkq8q8ftsrmgz2qqd2fj2h"
+      ]
+    },
+    {
+      "id": "NCAAB-046",
+      "espnId": null,
+      "canonical": "Canisius Golden Griffins",
+      "aliases": [
+        "par_01hqmkq8q9er59j1h1r4rev2ht"
+      ]
+    },
+    {
+      "id": "NCAAB-047",
+      "espnId": null,
+      "canonical": "Central Arkansas Bears",
+      "aliases": [
+        "par_01hqmkq8qaf73tzpbv7hxqa7pn"
+      ]
+    },
+    {
+      "id": "NCAAB-048",
+      "espnId": null,
+      "canonical": "Central Connecticut St Blue Devils",
+      "aliases": [
+        "par_01hqmkq8qbesgbdhre8je34wtr"
+      ]
+    },
+    {
+      "id": "NCAAB-049",
+      "espnId": null,
+      "canonical": "Central Michigan Chippewas",
+      "aliases": [
+        "par_01hqmkq8qcexta4ze5tsggfn71"
+      ]
+    },
+    {
+      "id": "NCAAB-050",
+      "espnId": null,
+      "canonical": "Charleston Cougars",
+      "aliases": [
+        "par_01hqmkq8qdft9t8q6ex3j0ptbb"
+      ]
+    },
+    {
+      "id": "NCAAB-051",
+      "espnId": null,
+      "canonical": "Charleston Southern Buccaneers",
+      "aliases": [
+        "par_01hqmkq8qeffvbzk61h95bk8sc"
+      ]
+    },
+    {
+      "id": "NCAAB-052",
+      "espnId": null,
+      "canonical": "Charlotte 49ers",
+      "aliases": [
+        "par_01hqmkq8qffgbs1dh9nmctxm49"
+      ]
+    },
+    {
+      "id": "NCAAB-053",
+      "espnId": null,
+      "canonical": "Chattanooga Mocs",
+      "aliases": [
+        "par_01hqmkq8qgerxb5cbx0azz7q42"
+      ]
+    },
+    {
+      "id": "NCAAB-054",
+      "espnId": null,
+      "canonical": "Chicago St Cougars",
+      "aliases": [
+        "par_01hqmkq8qhfg6bea4nrrbbzzat"
+      ]
+    },
+    {
+      "id": "NCAAB-055",
+      "espnId": null,
+      "canonical": "Cincinnati Bearcats",
+      "aliases": [
+        "par_01hqmkq8qjevks4syx4jt27vc5"
+      ]
+    },
+    {
+      "id": "NCAAB-056",
+      "espnId": null,
+      "canonical": "Cincinnati Clermont",
+      "aliases": [
+        "par_01hqmkq8qke0dt2nvcbm7pg003"
+      ]
+    },
+    {
+      "id": "NCAAB-057",
+      "espnId": null,
+      "canonical": "Clemson Tigers",
+      "aliases": [
+        "par_01hqmkq8qmfryt1q9tjxzkg381"
+      ]
+    },
+    {
+      "id": "NCAAB-058",
+      "espnId": null,
+      "canonical": "Cleveland St Vikings",
+      "aliases": [
+        "par_01hqmkq8qnf69a9xjzve2n4gpa"
+      ]
+    },
+    {
+      "id": "NCAAB-059",
+      "espnId": null,
+      "canonical": "Clinton Bears",
+      "aliases": [
+        "par_01hqmkq8qpfsvag933h8qj2dy4"
+      ]
+    },
+    {
+      "id": "NCAAB-060",
+      "espnId": null,
+      "canonical": "Coastal Carolina Chanticleers",
+      "aliases": [
+        "par_01hqmkq8qqe6p86spkpb2w9w5q"
+      ]
+    },
+    {
+      "id": "NCAAB-061",
+      "espnId": null,
+      "canonical": "Colgate Raiders",
+      "aliases": [
+        "par_01hqmkq8qre80v8bzjemc621mx"
+      ]
+    },
+    {
+      "id": "NCAAB-062",
+      "espnId": null,
+      "canonical": "Colorado Buffaloes",
+      "aliases": [
+        "par_01hqmkq8qsf578e3rn7t4z387z"
+      ]
+    },
+    {
+      "id": "NCAAB-063",
+      "espnId": null,
+      "canonical": "Colorado St Rams",
+      "aliases": [
+        "par_01hqmkq8qtf2tsg18v0csm7fhs"
+      ]
+    },
+    {
+      "id": "NCAAB-064",
+      "espnId": null,
+      "canonical": "Columbia Lions",
+      "aliases": [
+        "par_01hqmkq8qvf7ca1q9vzb6yj4h5"
+      ]
+    },
+    {
+      "id": "NCAAB-065",
+      "espnId": null,
+      "canonical": "Coppin St Eagles",
+      "aliases": [
+        "par_01hqmkq8qwf4c82vtx4599788y"
+      ]
+    },
+    {
+      "id": "NCAAB-066",
+      "espnId": null,
+      "canonical": "Cornell Big Red",
+      "aliases": [
+        "par_01hqmkq8qxftxagrty2k1z2vzj"
+      ]
+    },
+    {
+      "id": "NCAAB-067",
+      "espnId": null,
+      "canonical": "Creighton Bluejays",
+      "aliases": [
+        "par_01hqmkq8qyfe499r913ze5yx87"
+      ]
+    },
+    {
+      "id": "NCAAB-068",
+      "espnId": null,
+      "canonical": "Dartmouth Big Green",
+      "aliases": [
+        "par_01hqmkq8qzf8896chw95ssxzzy"
+      ]
+    },
+    {
+      "id": "NCAAB-069",
+      "espnId": null,
+      "canonical": "Davidson Wildcats",
+      "aliases": [
+        "par_01hqmkq8r0f7bb74yw7s728vw9"
+      ]
+    },
+    {
+      "id": "NCAAB-070",
+      "espnId": null,
+      "canonical": "Dayton Flyers",
+      "aliases": [
+        "par_01hqmkq8r1fk7rhperyd27brkj"
+      ]
+    },
+    {
+      "id": "NCAAB-071",
+      "espnId": null,
+      "canonical": "DePaul Blue Demons",
+      "aliases": [
+        "par_01hqmkq8r2eqtsve7hwqgaeaqw"
+      ]
+    },
+    {
+      "id": "NCAAB-072",
+      "espnId": null,
+      "canonical": "Defiance College Yellow Jackets",
+      "aliases": [
+        "par_01hqmkq8r3edxvskbm2cqa11ht"
+      ]
+    },
+    {
+      "id": "NCAAB-073",
+      "espnId": null,
+      "canonical": "Delaware Blue Hens",
+      "aliases": [
+        "par_01hqmkq8r4f67vdyjj3rb2syb0"
+      ]
+    },
+    {
+      "id": "NCAAB-074",
+      "espnId": null,
+      "canonical": "Delaware St Hornets",
+      "aliases": [
+        "par_01hqmkq8r5fkx863cdkbsxsekq"
+      ]
+    },
+    {
+      "id": "NCAAB-075",
+      "espnId": null,
+      "canonical": "Denver Pioneers",
+      "aliases": [
+        "par_01hqmkq8r6fh7sn06680pba218"
+      ]
+    },
+    {
+      "id": "NCAAB-076",
+      "espnId": null,
+      "canonical": "Detroit Mercy Titans",
+      "aliases": [
+        "par_01hqmkq8r7fs7v48bae9xfd00q"
+      ]
+    },
+    {
+      "id": "NCAAB-077",
+      "espnId": null,
+      "canonical": "Dixie State Trailblazers",
+      "aliases": [
+        "par_01hqmkq8r8ephsttf8st4fz247"
+      ]
+    },
+    {
+      "id": "NCAAB-078",
+      "espnId": null,
+      "canonical": "Drake Bulldogs",
+      "aliases": [
+        "par_01hqmkq8r9e6es60tskcxtwvwc"
+      ]
+    },
+    {
+      "id": "NCAAB-079",
+      "espnId": null,
+      "canonical": "Drexel Dragons",
+      "aliases": [
+        "par_01hqmkq8rafej80hqrra706bq4"
+      ]
+    },
+    {
+      "id": "NCAAB-080",
+      "espnId": null,
+      "canonical": "Duke Blue Devils",
+      "aliases": [
+        "par_01hqmkq8rbf4zsnmw477n63jew"
+      ]
+    },
+    {
+      "id": "NCAAB-081",
+      "espnId": null,
+      "canonical": "Duquesne Dukes",
+      "aliases": [
+        "par_01hqmkq8rcej8aypddh7qjdbad"
+      ]
+    },
+    {
+      "id": "NCAAB-082",
+      "espnId": null,
+      "canonical": "East Carolina Pirates",
+      "aliases": [
+        "par_01hqmkq8rdftzbcjmgfy8szhrs"
+      ]
+    },
+    {
+      "id": "NCAAB-083",
+      "espnId": null,
+      "canonical": "East Tennessee St Buccaneers",
+      "aliases": [
+        "par_01hqmkq8reff78xcjy9mvgrngz"
+      ]
+    },
+    {
+      "id": "NCAAB-084",
+      "espnId": null,
+      "canonical": "East Texas A&M Lions",
+      "aliases": [
+        "par_01hqmkq8zrfg9rwp5jcdeqyqpn"
+      ]
+    },
+    {
+      "id": "NCAAB-085",
+      "espnId": null,
+      "canonical": "Eastern Illinois Panthers",
+      "aliases": [
+        "par_01hqmkq8rffrhrs4t4m6vkhr54"
+      ]
+    },
+    {
+      "id": "NCAAB-086",
+      "espnId": null,
+      "canonical": "Eastern Kentucky Colonels",
+      "aliases": [
+        "par_01hqmkq8rgegprg8hdhr5524h3"
+      ]
+    },
+    {
+      "id": "NCAAB-087",
+      "espnId": null,
+      "canonical": "Eastern Michigan Eagles",
+      "aliases": [
+        "par_01hqmkq8rheqqr7e6xwp836gpy"
+      ]
+    },
+    {
+      "id": "NCAAB-088",
+      "espnId": null,
+      "canonical": "Eastern Washington Eagles",
+      "aliases": [
+        "par_01hqmkq8rjfxjtbd8fpnjxqp7h"
+      ]
+    },
+    {
+      "id": "NCAAB-089",
+      "espnId": null,
+      "canonical": "Elon Phoenix",
+      "aliases": [
+        "par_01hqmkq8rke5j86dn0ca1my08t"
+      ]
+    },
+    {
+      "id": "NCAAB-090",
+      "espnId": null,
+      "canonical": "Evansville Purple Aces",
+      "aliases": [
+        "par_01hqmkq8rmf5ytjqdt32neeckn"
+      ]
+    },
+    {
+      "id": "NCAAB-091",
+      "espnId": null,
+      "canonical": "Fairfield Stags",
+      "aliases": [
+        "par_01hqmkq8rnf1erm57cw9qadx26"
+      ]
+    },
+    {
+      "id": "NCAAB-092",
+      "espnId": null,
+      "canonical": "Fairleigh Dickinson Knights",
+      "aliases": [
+        "par_01hqmkq8rpendtjn03pxe0pf31"
+      ]
+    },
+    {
+      "id": "NCAAB-093",
+      "espnId": null,
+      "canonical": "Florida A&M Rattlers",
+      "aliases": [
+        "par_01hqmkq8rqeb1vm4d4bgaj8zwa"
+      ]
+    },
+    {
+      "id": "NCAAB-094",
+      "espnId": null,
+      "canonical": "Florida Atlantic Owls",
+      "aliases": [
+        "par_01hqmkq8rreemt521d4k5qapjb"
+      ]
+    },
+    {
+      "id": "NCAAB-095",
+      "espnId": null,
+      "canonical": "Florida Gators",
+      "aliases": [
+        "par_01hqmkq8rser7a77fswjypjazq"
+      ]
+    },
+    {
+      "id": "NCAAB-096",
+      "espnId": null,
+      "canonical": "Florida Gulf Coast Eagles",
+      "aliases": [
+        "par_01hqmkq8rtfn9v4578gctq3ecq"
+      ]
+    },
+    {
+      "id": "NCAAB-097",
+      "espnId": null,
+      "canonical": "Florida Int'l Golden Panthers",
+      "aliases": [
+        "par_01hqmkq8rvf84rqpee0c27bnfr"
+      ]
+    },
+    {
+      "id": "NCAAB-098",
+      "espnId": null,
+      "canonical": "Florida St Seminoles",
+      "aliases": [
+        "par_01hqmkq8rwe1e9cps8w3j71efv"
+      ]
+    },
+    {
+      "id": "NCAAB-099",
+      "espnId": null,
+      "canonical": "Fordham Rams",
+      "aliases": [
+        "par_01hqmkq8rxexgsc6ydxvp81263"
+      ]
+    },
+    {
+      "id": "NCAAB-100",
+      "espnId": null,
+      "canonical": "Fort Wayne Mastodons",
+      "aliases": [
+        "par_01hqmkq8ryfyjbz6c3vsgztsz7"
+      ]
+    },
+    {
+      "id": "NCAAB-101",
+      "espnId": null,
+      "canonical": "Fresno St Bulldogs",
+      "aliases": [
+        "par_01hqmkq8rzf338fsp0t5h0m8z7"
+      ]
+    },
+    {
+      "id": "NCAAB-102",
+      "espnId": null,
+      "canonical": "Furman Paladins",
+      "aliases": [
+        "par_01hqmkq8s0fkcv7n8b80p34zry"
+      ]
+    },
+    {
+      "id": "NCAAB-103",
+      "espnId": null,
+      "canonical": "GW Revolutionaries",
+      "aliases": [
+        "par_01hqmkq8s1f7vb422bs8pnn9bd"
+      ]
+    },
+    {
+      "id": "NCAAB-104",
+      "espnId": null,
+      "canonical": "Gallaudet Bison",
+      "aliases": [
+        "par_01hqmkq8s2ezfayqvr1tgsxpcq"
+      ]
+    },
+    {
+      "id": "NCAAB-105",
+      "espnId": null,
+      "canonical": "Gardner-Webb Bulldogs",
+      "aliases": [
+        "par_01hqmkq8s3exc93vkqfrz0cp5a"
+      ]
+    },
+    {
+      "id": "NCAAB-106",
+      "espnId": null,
+      "canonical": "George Mason Patriots",
+      "aliases": [
+        "par_01hqmkq8s4e8asqh6ckpjqt9ye"
+      ]
+    },
+    {
+      "id": "NCAAB-107",
+      "espnId": null,
+      "canonical": "Georgetown Hoyas",
+      "aliases": [
+        "par_01hqmkq8s5esz9519nzbmc1ctw"
+      ]
+    },
+    {
+      "id": "NCAAB-108",
+      "espnId": null,
+      "canonical": "Georgia Bulldogs",
+      "aliases": [
+        "par_01hqmkq8s6fydt5af59g1r345n"
+      ]
+    },
+    {
+      "id": "NCAAB-109",
+      "espnId": null,
+      "canonical": "Georgia Southern Eagles",
+      "aliases": [
+        "par_01hqmkq8s7f36sn97xb6pzgrfv"
+      ]
+    },
+    {
+      "id": "NCAAB-110",
+      "espnId": null,
+      "canonical": "Georgia Southwestern State Hurricanes",
+      "aliases": [
+        "par_01hqmkq8s8fhzbj1dkaf7f8dg5"
+      ]
+    },
+    {
+      "id": "NCAAB-111",
+      "espnId": null,
+      "canonical": "Georgia St Panthers",
+      "aliases": [
+        "par_01hqmkq8s9ec2a1fndzm4mk4h7"
+      ]
+    },
+    {
+      "id": "NCAAB-112",
+      "espnId": null,
+      "canonical": "Georgia Tech Yellow Jackets",
+      "aliases": [
+        "par_01hqmkq8saep1t46vbbsnb18x5"
+      ]
+    },
+    {
+      "id": "NCAAB-113",
+      "espnId": null,
+      "canonical": "Gonzaga Bulldogs",
+      "aliases": [
+        "par_01hqmkq8sbfass7dkbcvkta3m3"
+      ]
+    },
+    {
+      "id": "NCAAB-114",
+      "espnId": null,
+      "canonical": "Grambling St Tigers",
+      "aliases": [
+        "par_01hqmkq8sce73aqndqj7rbhpbq"
+      ]
+    },
+    {
+      "id": "NCAAB-115",
+      "espnId": null,
+      "canonical": "Grand Canyon Antelopes",
+      "aliases": [
+        "par_01hqmkq8sde1xst9pqwc0j27m0"
+      ]
+    },
+    {
+      "id": "NCAAB-116",
+      "espnId": null,
+      "canonical": "Green Bay Phoenix",
+      "aliases": [
+        "par_01hqmkq8sefhsvv3fn9camxh1b"
+      ]
+    },
+    {
+      "id": "NCAAB-117",
+      "espnId": null,
+      "canonical": "Hampton Pirates",
+      "aliases": [
+        "par_01hqmkq8sffcgsk62se3qj23dq"
+      ]
+    },
+    {
+      "id": "NCAAB-118",
+      "espnId": null,
+      "canonical": "Hartford Hawks",
+      "aliases": [
+        "par_01hqmkq8sgeqyrgvw2s5p2z283"
+      ]
+    },
+    {
+      "id": "NCAAB-119",
+      "espnId": null,
+      "canonical": "Harvard Crimson",
+      "aliases": [
+        "par_01hqmkq8shfd8b1f3wv0hv59h1"
+      ]
+    },
+    {
+      "id": "NCAAB-120",
+      "espnId": null,
+      "canonical": "Hawai'i Rainbow Warriors",
+      "aliases": [
+        "par_01hqmkq8sjfezs5qabv0hv7nry"
+      ]
+    },
+    {
+      "id": "NCAAB-121",
+      "espnId": null,
+      "canonical": "High Point Panthers",
+      "aliases": [
+        "par_01hqmkq8skfvtsq3q9gh7a42qt"
+      ]
+    },
+    {
+      "id": "NCAAB-122",
+      "espnId": null,
+      "canonical": "Hofstra Pride",
+      "aliases": [
+        "par_01hqmkq8smf7ba9xxc9jhycvfy"
+      ]
+    },
+    {
+      "id": "NCAAB-123",
+      "espnId": null,
+      "canonical": "Holy Cross Crusaders",
+      "aliases": [
+        "par_01hqmkq8snerpvs7ptnaba7tt2"
+      ]
+    },
+    {
+      "id": "NCAAB-124",
+      "espnId": null,
+      "canonical": "Houston Christian Huskies",
+      "aliases": [
+        "par_01hqmkq8spfe1vvrd9w2nfjc6q"
+      ]
+    },
+    {
+      "id": "NCAAB-125",
+      "espnId": null,
+      "canonical": "Houston Cougars",
+      "aliases": [
+        "par_01hqmkq8sqeqhb140syrecqt2n"
+      ]
+    },
+    {
+      "id": "NCAAB-126",
+      "espnId": null,
+      "canonical": "Howard Bison",
+      "aliases": [
+        "par_01hqmkq8srf5mvsvgcjnbpdndk"
+      ]
+    },
+    {
+      "id": "NCAAB-127",
+      "espnId": null,
+      "canonical": "IUPUI Jaguars",
+      "aliases": [
+        "par_01hqmkq8sse7vt2y2ssfsdzgkp"
+      ]
+    },
+    {
+      "id": "NCAAB-128",
+      "espnId": null,
+      "canonical": "Idaho State Bengals",
+      "aliases": [
+        "par_01hqmkq8stee7tjdd5teh05bmj"
+      ]
+    },
+    {
+      "id": "NCAAB-129",
+      "espnId": null,
+      "canonical": "Idaho Vandals",
+      "aliases": [
+        "par_01hqmkq8svfzrbnq072cstmemk"
+      ]
+    },
+    {
+      "id": "NCAAB-130",
+      "espnId": null,
+      "canonical": "Illinois Fighting Illini",
+      "aliases": [
+        "par_01hqmkq8swf738evvtjq4e2jbn"
+      ]
+    },
+    {
+      "id": "NCAAB-131",
+      "espnId": null,
+      "canonical": "Illinois St Redbirds",
+      "aliases": [
+        "par_01hqmkq8sxempr836m3m5nwe90"
+      ]
+    },
+    {
+      "id": "NCAAB-132",
+      "espnId": null,
+      "canonical": "Immaculata Mighty Macs",
+      "aliases": [
+        "par_01hqmkq8syepqrfsp6n16sxtcd"
+      ]
+    },
+    {
+      "id": "NCAAB-133",
+      "espnId": null,
+      "canonical": "Incarnate Word Cardinals",
+      "aliases": [
+        "par_01hqmkq8szfx5vehr26b3hf5hd"
+      ]
+    },
+    {
+      "id": "NCAAB-134",
+      "espnId": null,
+      "canonical": "Indiana Hoosiers",
+      "aliases": [
+        "par_01hqmkq8t0fkxtknwmy95dh8nf"
+      ]
+    },
+    {
+      "id": "NCAAB-135",
+      "espnId": null,
+      "canonical": "Indiana St Sycamores",
+      "aliases": [
+        "par_01hqmkq8t1f7eskm7pctkcr65c"
+      ]
+    },
+    {
+      "id": "NCAAB-136",
+      "espnId": null,
+      "canonical": "Iona Gaels",
+      "aliases": [
+        "par_01hqmkq8t2fs6vnrnmq4k02t2d"
+      ]
+    },
+    {
+      "id": "NCAAB-137",
+      "espnId": null,
+      "canonical": "Iowa Hawkeyes",
+      "aliases": [
+        "par_01hqmkq8t3fh8atzw8cs00b1e0"
+      ]
+    },
+    {
+      "id": "NCAAB-138",
+      "espnId": null,
+      "canonical": "Iowa State Cyclones",
+      "aliases": [
+        "par_01hqmkq8t4e5bt1qd5zsw4qwfq"
+      ]
+    },
+    {
+      "id": "NCAAB-139",
+      "espnId": null,
+      "canonical": "Jackson St Tigers",
+      "aliases": [
+        "par_01hqmkq8t5e0nan6h0946jtj44"
+      ]
+    },
+    {
+      "id": "NCAAB-140",
+      "espnId": null,
+      "canonical": "Jacksonville Dolphins",
+      "aliases": [
+        "par_01hqmkq8t6fxpv8xdqgxrdtzdr"
+      ]
+    },
+    {
+      "id": "NCAAB-141",
+      "espnId": null,
+      "canonical": "Jacksonville St Gamecocks",
+      "aliases": [
+        "par_01hqmkq8t7fh6bgafpqhbybqth"
+      ]
+    },
+    {
+      "id": "NCAAB-142",
+      "espnId": null,
+      "canonical": "James Madison Dukes",
+      "aliases": [
+        "par_01hqmkq8t8excvvpb97pkpy8zs"
+      ]
+    },
+    {
+      "id": "NCAAB-143",
+      "espnId": null,
+      "canonical": "John Jay College Bloodhounds",
+      "aliases": [
+        "par_01hqmkq8t9f45tr7tb0j3waa9y"
+      ]
+    },
+    {
+      "id": "NCAAB-144",
+      "espnId": null,
+      "canonical": "Johnson And Wales (NC) Wildcats",
+      "aliases": [
+        "par_01hqmkq8taf8par5pk7js7m4sp"
+      ]
+    },
+    {
+      "id": "NCAAB-145",
+      "espnId": null,
+      "canonical": "Kansas Christian Falcons",
+      "aliases": [
+        "par_01hqmkq8tbffkvkhr83wptw71g"
+      ]
+    },
+    {
+      "id": "NCAAB-146",
+      "espnId": null,
+      "canonical": "Kansas Jayhawks",
+      "aliases": [
+        "par_01hqmkq8tcevq8ftv9bbszfdm7"
+      ]
+    },
+    {
+      "id": "NCAAB-147",
+      "espnId": null,
+      "canonical": "Kansas St Wildcats",
+      "aliases": [
+        "par_01hqmkq8tdej880kme6rbhk8dt"
+      ]
+    },
+    {
+      "id": "NCAAB-148",
+      "espnId": null,
+      "canonical": "Kennesaw St Owls",
+      "aliases": [
+        "par_01hqmkq8tef0kthgvpg1fd9dw2"
+      ]
+    },
+    {
+      "id": "NCAAB-149",
+      "espnId": null,
+      "canonical": "Kent State Golden Flashes",
+      "aliases": [
+        "par_01hqmkq8tffbssmffgpqwz2c80"
+      ]
+    },
+    {
+      "id": "NCAAB-150",
+      "espnId": null,
+      "canonical": "Kentucky Wildcats",
+      "aliases": [
+        "par_01hqmkq8tgex0bdrn4bfeva5ww"
+      ]
+    },
+    {
+      "id": "NCAAB-151",
+      "espnId": null,
+      "canonical": "LIU Sharks",
+      "aliases": [
+        "par_01hqmkq8thecqszkh9v1kmv229"
+      ]
+    },
+    {
+      "id": "NCAAB-152",
+      "espnId": null,
+      "canonical": "LSU Tigers",
+      "aliases": [
+        "par_01hqmkq8tjf3mthnf83c6pezvc"
+      ]
+    },
+    {
+      "id": "NCAAB-153",
+      "espnId": null,
+      "canonical": "La Salle Explorers",
+      "aliases": [
+        "par_01hqmkq8tkfh0tpsgsqvmk4dd2"
+      ]
+    },
+    {
+      "id": "NCAAB-154",
+      "espnId": null,
+      "canonical": "Lafayette Leopards",
+      "aliases": [
+        "par_01hqmkq8tmeae8nw1egjr9mhfj"
+      ]
+    },
+    {
+      "id": "NCAAB-155",
+      "espnId": null,
+      "canonical": "Lamar Cardinals",
+      "aliases": [
+        "par_01hqmkq8tnf8cskv4yffr6fvs0"
+      ]
+    },
+    {
+      "id": "NCAAB-156",
+      "espnId": null,
+      "canonical": "Le Moyne Dolphins",
+      "aliases": [
+        "par_01hqmkq8tpfs79qqepjwcnpnz0"
+      ]
+    },
+    {
+      "id": "NCAAB-157",
+      "espnId": null,
+      "canonical": "Lehigh Mountain Hawks",
+      "aliases": [
+        "par_01hqmkq8tqfhwbed2avn6weaw9"
+      ]
+    },
+    {
+      "id": "NCAAB-158",
+      "espnId": null,
+      "canonical": "Liberty Flames",
+      "aliases": [
+        "par_01hqmkq8trehxs26st1ra4edx7"
+      ]
+    },
+    {
+      "id": "NCAAB-159",
+      "espnId": null,
+      "canonical": "Lindenwood Lions",
+      "aliases": [
+        "par_01hqmkq8tsf6bv5nka07sqs6a8"
+      ]
+    },
+    {
+      "id": "NCAAB-160",
+      "espnId": null,
+      "canonical": "Lipscomb Bisons",
+      "aliases": [
+        "par_01hqmkq8ttfs8t535cg8zghhwq"
+      ]
+    },
+    {
+      "id": "NCAAB-161",
+      "espnId": null,
+      "canonical": "Long Beach St 49ers",
+      "aliases": [
+        "par_01hqmkq8tvfd3vmkcqdpc7yzmw"
+      ]
+    },
+    {
+      "id": "NCAAB-162",
+      "espnId": null,
+      "canonical": "Longwood Lancers",
+      "aliases": [
+        "par_01hqmkq8twfcz9xfapf8mhw8jt"
+      ]
+    },
+    {
+      "id": "NCAAB-163",
+      "espnId": null,
+      "canonical": "Louisiana Ragin' Cajuns",
+      "aliases": [
+        "par_01hqmkq8txe449samnc5h2wv7m"
+      ]
+    },
+    {
+      "id": "NCAAB-164",
+      "espnId": null,
+      "canonical": "Louisiana Tech Bulldogs",
+      "aliases": [
+        "par_01hqmkq8tyefwbwp8x9cc02s7j"
+      ]
+    },
+    {
+      "id": "NCAAB-165",
+      "espnId": null,
+      "canonical": "Louisville Cardinals",
+      "aliases": [
+        "par_01hqmkq8tzf3zsr4a9sgmed2fp"
+      ]
+    },
+    {
+      "id": "NCAAB-166",
+      "espnId": null,
+      "canonical": "Loyola (Chi) Ramblers",
+      "aliases": [
+        "par_01hqmkq8v0fr2ty7rp81afxqkx"
+      ]
+    },
+    {
+      "id": "NCAAB-167",
+      "espnId": null,
+      "canonical": "Loyola (MD) Greyhounds",
+      "aliases": [
+        "par_01hqmkq8v1e3pacva42dmv3wrq"
+      ]
+    },
+    {
+      "id": "NCAAB-168",
+      "espnId": null,
+      "canonical": "Loyola Marymount Lions",
+      "aliases": [
+        "par_01hqmkq8v2f7ktp2jwznratznd"
+      ]
+    },
+    {
+      "id": "NCAAB-169",
+      "espnId": null,
+      "canonical": "Maine Black Bears",
+      "aliases": [
+        "par_01hqmkq8v3eadry75xnzrt885e"
+      ]
+    },
+    {
+      "id": "NCAAB-170",
+      "espnId": null,
+      "canonical": "Manhattan Jaspers",
+      "aliases": [
+        "par_01hqmkq8v4fxsrethhhwpfeetx"
+      ]
+    },
+    {
+      "id": "NCAAB-171",
+      "espnId": null,
+      "canonical": "Marist Red Foxes",
+      "aliases": [
+        "par_01hqmkq8v5frxtt2zjsgnqry9g"
+      ]
+    },
+    {
+      "id": "NCAAB-172",
+      "espnId": null,
+      "canonical": "Marquette Golden Eagles",
+      "aliases": [
+        "par_01hqmkq8v6ea2r3rn4rk808fj3"
+      ]
+    },
+    {
+      "id": "NCAAB-173",
+      "espnId": null,
+      "canonical": "Marshall Thundering Herd",
+      "aliases": [
+        "par_01hqmkq8v7eg9vsy5k20qbzseh"
+      ]
+    },
+    {
+      "id": "NCAAB-174",
+      "espnId": null,
+      "canonical": "Maryland Terrapins",
+      "aliases": [
+        "par_01hqmkq8v8er9rntj9pkq4zrye"
+      ]
+    },
+    {
+      "id": "NCAAB-175",
+      "espnId": null,
+      "canonical": "Maryland-Eastern Shore Hawks",
+      "aliases": [
+        "par_01hqmkq8v9fgmaaczk91jms8s5"
+      ]
+    },
+    {
+      "id": "NCAAB-176",
+      "espnId": null,
+      "canonical": "Massachusetts Minutemen",
+      "aliases": [
+        "par_01hqmkq8vaf0tv88prjakhy47f"
+      ]
+    },
+    {
+      "id": "NCAAB-177",
+      "espnId": null,
+      "canonical": "McNeese Cowboys",
+      "aliases": [
+        "par_01hqmkq8vbexdrbs902kyzd9zg"
+      ]
+    },
+    {
+      "id": "NCAAB-178",
+      "espnId": null,
+      "canonical": "Memphis Tigers",
+      "aliases": [
+        "par_01hqmkq8vcehwbcqtk76cq400r"
+      ]
+    },
+    {
+      "id": "NCAAB-179",
+      "espnId": null,
+      "canonical": "Mercer Bears",
+      "aliases": [
+        "par_01hqmkq8vdeaerjnm8ve6ddfkp"
+      ]
+    },
+    {
+      "id": "NCAAB-180",
+      "espnId": null,
+      "canonical": "Mercyhurst Lakers",
+      "aliases": [
+        "par_01jbwg8q5gfbpbxrgpdycz3z0q"
+      ]
+    },
+    {
+      "id": "NCAAB-181",
+      "espnId": null,
+      "canonical": "Merrimack Warriors",
+      "aliases": [
+        "par_01hqmkq8vee1sbzzbq4ch01jxn"
+      ]
+    },
+    {
+      "id": "NCAAB-182",
+      "espnId": null,
+      "canonical": "Miami (OH) RedHawks",
+      "aliases": [
+        "par_01hqmkq8vfejrsdf4vnvtfnw3k"
+      ]
+    },
+    {
+      "id": "NCAAB-183",
+      "espnId": null,
+      "canonical": "Miami Hurricanes",
+      "aliases": [
+        "par_01hqmkq8vgfxcvr2c8gpp7722s"
+      ]
+    },
+    {
+      "id": "NCAAB-184",
+      "espnId": null,
+      "canonical": "Michigan St Spartans",
+      "aliases": [
+        "par_01hqmkq8vhey8tjfvfd4m5cg4k"
+      ]
+    },
+    {
+      "id": "NCAAB-185",
+      "espnId": null,
+      "canonical": "Michigan Wolverines",
+      "aliases": [
+        "par_01hqmkq8vje6qr2fj49jv76hjs"
+      ]
+    },
+    {
+      "id": "NCAAB-186",
+      "espnId": null,
+      "canonical": "Middle Tennessee Blue Raiders",
+      "aliases": [
+        "par_01hqmkq8vkfvzt09a3nynxes0s"
+      ]
+    },
+    {
+      "id": "NCAAB-187",
+      "espnId": null,
+      "canonical": "Milwaukee Panthers",
+      "aliases": [
+        "par_01hqmkq8vmeyebkzg26dymv2qs"
+      ]
+    },
+    {
+      "id": "NCAAB-188",
+      "espnId": null,
+      "canonical": "Minnesota Golden Gophers",
+      "aliases": [
+        "par_01hqmkq8vnfeereas868whs7b1"
+      ]
+    },
+    {
+      "id": "NCAAB-189",
+      "espnId": null,
+      "canonical": "Miss Valley St Delta Devils",
+      "aliases": [
+        "par_01hqmkq8vpe8dsn28mt9k91dss"
+      ]
+    },
+    {
+      "id": "NCAAB-190",
+      "espnId": null,
+      "canonical": "Mississippi St Bulldogs",
+      "aliases": [
+        "par_01hqmkq8vqejvrrzg8w3tdhrnj"
+      ]
+    },
+    {
+      "id": "NCAAB-191",
+      "espnId": null,
+      "canonical": "Missouri St Bears",
+      "aliases": [
+        "par_01hqmkq8vrer8an7ee93fk46nz"
+      ]
+    },
+    {
+      "id": "NCAAB-192",
+      "espnId": null,
+      "canonical": "Missouri Tigers",
+      "aliases": [
+        "par_01hqmkq8vsfgptp3s2q2zm866v"
+      ]
+    },
+    {
+      "id": "NCAAB-193",
+      "espnId": null,
+      "canonical": "Monmouth Hawks",
+      "aliases": [
+        "par_01hqmkq8vtedvsmxv3hq3cjj0g"
+      ]
+    },
+    {
+      "id": "NCAAB-194",
+      "espnId": null,
+      "canonical": "Montana Grizzlies",
+      "aliases": [
+        "par_01hqmkq8vveensyxwq06dt9g53"
+      ]
+    },
+    {
+      "id": "NCAAB-195",
+      "espnId": null,
+      "canonical": "Montana St Bobcats",
+      "aliases": [
+        "par_01hqmkq8vwegysm0r7gbvt79x5"
+      ]
+    },
+    {
+      "id": "NCAAB-196",
+      "espnId": null,
+      "canonical": "Morehead St Eagles",
+      "aliases": [
+        "par_01hqmkq8vxfthba0q62h3wety7"
+      ]
+    },
+    {
+      "id": "NCAAB-197",
+      "espnId": null,
+      "canonical": "Morgan St Bears",
+      "aliases": [
+        "par_01hqmkq8vyfe1bfrq0pz9awfq3"
+      ]
+    },
+    {
+      "id": "NCAAB-198",
+      "espnId": null,
+      "canonical": "Mt. St. Mary's Mountaineers",
+      "aliases": [
+        "par_01hqmkq8vzexjanzsrtj5yrp3f"
+      ]
+    },
+    {
+      "id": "NCAAB-199",
+      "espnId": null,
+      "canonical": "Murray St Racers",
+      "aliases": [
+        "par_01hqmkq8w0fzn9d7dq2evdrpgh"
+      ]
+    },
+    {
+      "id": "NCAAB-200",
+      "espnId": null,
+      "canonical": "N Colorado Bears",
+      "aliases": [
+        "par_01hqmkq8w1f9xrk246950xh42d"
+      ]
+    },
+    {
+      "id": "NCAAB-201",
+      "espnId": null,
+      "canonical": "NC State Wolfpack",
+      "aliases": [
+        "par_01hqmkq8w2f4dajcm07jfry2gp"
+      ]
+    },
+    {
+      "id": "NCAAB-202",
+      "espnId": null,
+      "canonical": "NJIT Highlanders",
+      "aliases": [
+        "par_01hqmkq8w3e2yt2bcpdzwgnx7a"
+      ]
+    },
+    {
+      "id": "NCAAB-203",
+      "espnId": null,
+      "canonical": "Navy Midshipmen",
+      "aliases": [
+        "par_01hqmkq8w4ffrrm4mvq4x98e2w"
+      ]
+    },
+    {
+      "id": "NCAAB-204",
+      "espnId": null,
+      "canonical": "Nebraska Cornhuskers",
+      "aliases": [
+        "par_01hqmkq8w5e3d9tjz5nz59c8jg"
+      ]
+    },
+    {
+      "id": "NCAAB-205",
+      "espnId": null,
+      "canonical": "Nevada Wolf Pack",
+      "aliases": [
+        "par_01hqmkq8w6f7aavgh8463w64rg"
+      ]
+    },
+    {
+      "id": "NCAAB-206",
+      "espnId": null,
+      "canonical": "New Hampshire Wildcats",
+      "aliases": [
+        "par_01hqmkq8w7fanspytbxnrge4qw"
+      ]
+    },
+    {
+      "id": "NCAAB-207",
+      "espnId": null,
+      "canonical": "New Haven Chargers",
+      "aliases": [
+        "par_01k954azk6fmqae8kmgvyjtysq"
+      ]
+    },
+    {
+      "id": "NCAAB-208",
+      "espnId": null,
+      "canonical": "New Mexico Lobos",
+      "aliases": [
+        "par_01hqmkq8w8exx9y2vyha2hdrkx"
+      ]
+    },
+    {
+      "id": "NCAAB-209",
+      "espnId": null,
+      "canonical": "New Mexico St Aggies",
+      "aliases": [
+        "par_01hqmkq8w9eqgbf905q235gdac"
+      ]
+    },
+    {
+      "id": "NCAAB-210",
+      "espnId": null,
+      "canonical": "New Orleans Privateers",
+      "aliases": [
+        "par_01hqmkq8waevc88a1n82p9hdqh"
+      ]
+    },
+    {
+      "id": "NCAAB-211",
+      "espnId": null,
+      "canonical": "Niagara Purple Eagles",
+      "aliases": [
+        "par_01hqmkq8wbe889za181e1kt5dw"
+      ]
+    },
+    {
+      "id": "NCAAB-212",
+      "espnId": null,
+      "canonical": "Nicholls St Colonels",
+      "aliases": [
+        "par_01hqmkq8wcff099j6bam5gankx"
+      ]
+    },
+    {
+      "id": "NCAAB-213",
+      "espnId": null,
+      "canonical": "Norfolk St Spartans",
+      "aliases": [
+        "par_01hqmkq8wde0qbjrq698kf1p6y"
+      ]
+    },
+    {
+      "id": "NCAAB-214",
+      "espnId": null,
+      "canonical": "North Alabama Lions",
+      "aliases": [
+        "par_01hqmkq8weet6t6m8w4c0md25m"
+      ]
+    },
+    {
+      "id": "NCAAB-215",
+      "espnId": null,
+      "canonical": "North American Stallions",
+      "aliases": [
+        "par_01hqmkq8wfetpt2r2h24192twk"
+      ]
+    },
+    {
+      "id": "NCAAB-216",
+      "espnId": null,
+      "canonical": "North Carolina A&T Aggies",
+      "aliases": [
+        "par_01hqmkq8wgfjtv3qv1twc0ast3"
+      ]
+    },
+    {
+      "id": "NCAAB-217",
+      "espnId": null,
+      "canonical": "North Carolina Central Eagles",
+      "aliases": [
+        "par_01hqmkq8whedr9sbwaj09cbysa"
+      ]
+    },
+    {
+      "id": "NCAAB-218",
+      "espnId": null,
+      "canonical": "North Carolina Tar Heels",
+      "aliases": [
+        "par_01hqmkq8wjem6vddmq0bfrxjwt"
+      ]
+    },
+    {
+      "id": "NCAAB-219",
+      "espnId": null,
+      "canonical": "North Dakota Fighting Hawks",
+      "aliases": [
+        "par_01hqmkq8wkey3as43zn8v52jzq"
+      ]
+    },
+    {
+      "id": "NCAAB-220",
+      "espnId": null,
+      "canonical": "North Dakota St Bison",
+      "aliases": [
+        "par_01hqmkq8wmffyrhczgy0t09fee"
+      ]
+    },
+    {
+      "id": "NCAAB-221",
+      "espnId": null,
+      "canonical": "North Florida Ospreys",
+      "aliases": [
+        "par_01hqmkq8wnegette48bjfyr2w0"
+      ]
+    },
+    {
+      "id": "NCAAB-222",
+      "espnId": null,
+      "canonical": "North Texas Mean Green",
+      "aliases": [
+        "par_01hqmkq8wpfhvsc95zcr7hk1jr"
+      ]
+    },
+    {
+      "id": "NCAAB-223",
+      "espnId": null,
+      "canonical": "Northeastern Huskies",
+      "aliases": [
+        "par_01hqmkq8wqfn1854nrey0ec4d2"
+      ]
+    },
+    {
+      "id": "NCAAB-224",
+      "espnId": null,
+      "canonical": "Northern Arizona Lumberjacks",
+      "aliases": [
+        "par_01hqmkq8wrf2at7f5nc5get57z"
+      ]
+    },
+    {
+      "id": "NCAAB-225",
+      "espnId": null,
+      "canonical": "Northern Illinois Huskies",
+      "aliases": [
+        "par_01hqmkq8wsfps8ckhj3tsxj31x"
+      ]
+    },
+    {
+      "id": "NCAAB-226",
+      "espnId": null,
+      "canonical": "Northern Iowa Panthers",
+      "aliases": [
+        "par_01hqmkq8wtfhb9cq4wb77mwg59"
+      ]
+    },
+    {
+      "id": "NCAAB-227",
+      "espnId": null,
+      "canonical": "Northern Kentucky Norse",
+      "aliases": [
+        "par_01hqmkq8wve7et6py744743ynz"
+      ]
+    },
+    {
+      "id": "NCAAB-228",
+      "espnId": null,
+      "canonical": "Northwestern St Demons",
+      "aliases": [
+        "par_01hqmkq8wwetktv93fhzvny00w"
+      ]
+    },
+    {
+      "id": "NCAAB-229",
+      "espnId": null,
+      "canonical": "Northwestern Wildcats",
+      "aliases": [
+        "par_01hqmkq8wxfpm8v8g57n2mbp6v"
+      ]
+    },
+    {
+      "id": "NCAAB-230",
+      "espnId": null,
+      "canonical": "Notre Dame Fighting Irish",
+      "aliases": [
+        "par_01hqmkq8wyevvrt70hvvjck13w"
+      ]
+    },
+    {
+      "id": "NCAAB-231",
+      "espnId": null,
+      "canonical": "Oakland Golden Grizzlies",
+      "aliases": [
+        "par_01hqmkq8wzfr2an0tgkcq5384w"
+      ]
+    },
+    {
+      "id": "NCAAB-232",
+      "espnId": null,
+      "canonical": "Ohio Bobcats",
+      "aliases": [
+        "par_01hqmkq8x0ehptcr7rmgg8fd9e"
+      ]
+    },
+    {
+      "id": "NCAAB-233",
+      "espnId": null,
+      "canonical": "Ohio State Buckeyes",
+      "aliases": [
+        "par_01hqmkq8x1f8dr0z0zfyng9twn"
+      ]
+    },
+    {
+      "id": "NCAAB-234",
+      "espnId": null,
+      "canonical": "Oklahoma Sooners",
+      "aliases": [
+        "par_01hqmkq8x2e1htk3jrp1yvnj5w"
+      ]
+    },
+    {
+      "id": "NCAAB-235",
+      "espnId": null,
+      "canonical": "Oklahoma St Cowboys",
+      "aliases": [
+        "par_01hqmkq8x3f63smqe3wnykxjxq"
+      ]
+    },
+    {
+      "id": "NCAAB-236",
+      "espnId": null,
+      "canonical": "Old Dominion Monarchs",
+      "aliases": [
+        "par_01hqmkq8x4etn8hmxr9hf8sc1a"
+      ]
+    },
+    {
+      "id": "NCAAB-237",
+      "espnId": null,
+      "canonical": "Ole Miss Rebels",
+      "aliases": [
+        "par_01hqmkq8x5eraatx0kj5hnk662"
+      ]
+    },
+    {
+      "id": "NCAAB-238",
+      "espnId": null,
+      "canonical": "Omaha Mavericks",
+      "aliases": [
+        "par_01hqmkq8x6f1cv7fd1mjw0gkv9"
+      ]
+    },
+    {
+      "id": "NCAAB-239",
+      "espnId": null,
+      "canonical": "Oral Roberts Golden Eagles",
+      "aliases": [
+        "par_01hqmkq8x7ebab4spx27srnxw3"
+      ]
+    },
+    {
+      "id": "NCAAB-240",
+      "espnId": null,
+      "canonical": "Oregon Ducks",
+      "aliases": [
+        "par_01hqmkq8x8ezes21d5xv4gpc54"
+      ]
+    },
+    {
+      "id": "NCAAB-241",
+      "espnId": null,
+      "canonical": "Oregon St Beavers",
+      "aliases": [
+        "par_01hqmkq8x9ecjsm6sftjv1rr3x"
+      ]
+    },
+    {
+      "id": "NCAAB-242",
+      "espnId": null,
+      "canonical": "Pacific Tigers",
+      "aliases": [
+        "par_01hqmkq8xae0zr2hm0k10brpev"
+      ]
+    },
+    {
+      "id": "NCAAB-243",
+      "espnId": null,
+      "canonical": "Penn State Nittany Lions",
+      "aliases": [
+        "par_01hqmkq8xbec2bwwsdszx9ttjc"
+      ]
+    },
+    {
+      "id": "NCAAB-244",
+      "espnId": null,
+      "canonical": "Pennsylvania Quakers",
+      "aliases": [
+        "par_01hqmkq8xcfqzsftptbvmedw3z"
+      ]
+    },
+    {
+      "id": "NCAAB-245",
+      "espnId": null,
+      "canonical": "Pepperdine Waves",
+      "aliases": [
+        "par_01hqmkq8xdfpat430tmg8pzgg8"
+      ]
+    },
+    {
+      "id": "NCAAB-246",
+      "espnId": null,
+      "canonical": "Pfeiffer Falcons",
+      "aliases": [
+        "par_01hqmkq8xee4ktaj0d30mt0gck"
+      ]
+    },
+    {
+      "id": "NCAAB-247",
+      "espnId": null,
+      "canonical": "Pittsburgh Panthers",
+      "aliases": [
+        "par_01hqmkq8xfednbmfc1jb7chdjp"
+      ]
+    },
+    {
+      "id": "NCAAB-248",
+      "espnId": null,
+      "canonical": "Portland Pilots",
+      "aliases": [
+        "par_01hqmkq8xgf89tkbfgmw1qhdp9"
+      ]
+    },
+    {
+      "id": "NCAAB-249",
+      "espnId": null,
+      "canonical": "Portland St Vikings",
+      "aliases": [
+        "par_01hqmkq8xhf7z9pd31p1yh0q0z"
+      ]
+    },
+    {
+      "id": "NCAAB-250",
+      "espnId": null,
+      "canonical": "Prairie View Panthers",
+      "aliases": [
+        "par_01hqmkq8xjekhapawxnj3903e2"
+      ]
+    },
+    {
+      "id": "NCAAB-251",
+      "espnId": null,
+      "canonical": "Presbyterian Blue Hose",
+      "aliases": [
+        "par_01hqmkq8xkfntad8r21c5kt299"
+      ]
+    },
+    {
+      "id": "NCAAB-252",
+      "espnId": null,
+      "canonical": "Princeton Tigers",
+      "aliases": [
+        "par_01hqmkq8xme4psceh299chj3am"
+      ]
+    },
+    {
+      "id": "NCAAB-253",
+      "espnId": null,
+      "canonical": "Providence Friars",
+      "aliases": [
+        "par_01hqmkq8xne3z99q93fgd22n6n"
+      ]
+    },
+    {
+      "id": "NCAAB-254",
+      "espnId": null,
+      "canonical": "Purdue Boilermakers",
+      "aliases": [
+        "par_01hqmkq8xpexxtvm22ybp7y225"
+      ]
+    },
+    {
+      "id": "NCAAB-255",
+      "espnId": null,
+      "canonical": "Queens University Royals",
+      "aliases": [
+        "par_01hqmkq8xqff4bwfvmp4v1rwg2"
+      ]
+    },
+    {
+      "id": "NCAAB-256",
+      "espnId": null,
+      "canonical": "Quinnipiac Bobcats",
+      "aliases": [
+        "par_01hqmkq8xrfgdsta1rgpjwedf3"
+      ]
+    },
+    {
+      "id": "NCAAB-257",
+      "espnId": null,
+      "canonical": "Radford Highlanders",
+      "aliases": [
+        "par_01hqmkq8xsf3d9w4j8z4p3bcp6"
+      ]
+    },
+    {
+      "id": "NCAAB-258",
+      "espnId": null,
+      "canonical": "Regent University Royals",
+      "aliases": [
+        "par_01hqmkq8xtfpp8nbgk4q9e0ckg"
+      ]
+    },
+    {
+      "id": "NCAAB-259",
+      "espnId": null,
+      "canonical": "Rhode Island Rams",
+      "aliases": [
+        "par_01hqmkq8xvea9szw1a7pqxq9cb"
+      ]
+    },
+    {
+      "id": "NCAAB-260",
+      "espnId": null,
+      "canonical": "Rice Owls",
+      "aliases": [
+        "par_01hqmkq8xwf9vvqr533rv7g54g"
+      ]
+    },
+    {
+      "id": "NCAAB-261",
+      "espnId": null,
+      "canonical": "Richmond Spiders",
+      "aliases": [
+        "par_01hqmkq8xxevs9a46zty1a5j5h"
+      ]
+    },
+    {
+      "id": "NCAAB-262",
+      "espnId": null,
+      "canonical": "Rider Broncs",
+      "aliases": [
+        "par_01hqmkq8xye6v8rtd7tewxn1y1"
+      ]
+    },
+    {
+      "id": "NCAAB-263",
+      "espnId": null,
+      "canonical": "Robert Morris Colonials",
+      "aliases": [
+        "par_01hqmkq8xzf8a9sspjx49bkcyj"
+      ]
+    },
+    {
+      "id": "NCAAB-264",
+      "espnId": null,
+      "canonical": "Rutgers Scarlet Knights",
+      "aliases": [
+        "par_01hqmkq8y0egzb5gh5k85c9b8m"
+      ]
+    },
+    {
+      "id": "NCAAB-265",
+      "espnId": null,
+      "canonical": "SE Louisiana Lions",
+      "aliases": [
+        "par_01hqmkq8y1evd9ca35mw1vmb13"
+      ]
+    },
+    {
+      "id": "NCAAB-266",
+      "espnId": null,
+      "canonical": "SE Missouri St Redhawks",
+      "aliases": [
+        "par_01hqmkq8y2e17b60tqmw164xw2"
+      ]
+    },
+    {
+      "id": "NCAAB-267",
+      "espnId": null,
+      "canonical": "SIU-Edwardsville Cougars",
+      "aliases": [
+        "par_01hqmkq8y3e9d8cgef306dw9jp"
+      ]
+    },
+    {
+      "id": "NCAAB-268",
+      "espnId": null,
+      "canonical": "SMU Mustangs",
+      "aliases": [
+        "par_01hqmkq8y4e488kass1vswk9wc"
+      ]
+    },
+    {
+      "id": "NCAAB-269",
+      "espnId": null,
+      "canonical": "Sacramento St Hornets",
+      "aliases": [
+        "par_01hqmkq8y5fqyba01jreb33mez"
+      ]
+    },
+    {
+      "id": "NCAAB-270",
+      "espnId": null,
+      "canonical": "Sacred Heart Pioneers",
+      "aliases": [
+        "par_01hqmkq8y6em594wsv19p48q4m"
+      ]
+    },
+    {
+      "id": "NCAAB-271",
+      "espnId": null,
+      "canonical": "Saint Joseph's Hawks",
+      "aliases": [
+        "par_01hqmkq8y7fgk8x7wrda9ydqjt"
+      ]
+    },
+    {
+      "id": "NCAAB-272",
+      "espnId": null,
+      "canonical": "Saint Louis Billikens",
+      "aliases": [
+        "par_01hqmkq8y8f3ntz4gyyk65tv9w"
+      ]
+    },
+    {
+      "id": "NCAAB-273",
+      "espnId": null,
+      "canonical": "Saint Mary's Gaels",
+      "aliases": [
+        "par_01hqmkq8y9emk8dyxs7e5cj191"
+      ]
+    },
+    {
+      "id": "NCAAB-274",
+      "espnId": null,
+      "canonical": "Saint Peter's Peacocks",
+      "aliases": [
+        "par_01hqmkq8yae02v0jx17d7xff2q"
+      ]
+    },
+    {
+      "id": "NCAAB-275",
+      "espnId": null,
+      "canonical": "Sam Houston St Bearkats",
+      "aliases": [
+        "par_01hqmkq8ybfkdt6p8ktcv7y20v"
+      ]
+    },
+    {
+      "id": "NCAAB-276",
+      "espnId": null,
+      "canonical": "Samford Bulldogs",
+      "aliases": [
+        "par_01hqmkq8ycenvvqq902tdrs13v"
+      ]
+    },
+    {
+      "id": "NCAAB-277",
+      "espnId": null,
+      "canonical": "San Diego St Aztecs",
+      "aliases": [
+        "par_01hqmkq8ydfm6s9v7nc32cj6r7"
+      ]
+    },
+    {
+      "id": "NCAAB-278",
+      "espnId": null,
+      "canonical": "San Diego Toreros",
+      "aliases": [
+        "par_01hqmkq8yeefk9bvdm1hzf1dzt"
+      ]
+    },
+    {
+      "id": "NCAAB-279",
+      "espnId": null,
+      "canonical": "San Francisco Dons",
+      "aliases": [
+        "par_01hqmkq8yfen4b285xwb8wytfd"
+      ]
+    },
+    {
+      "id": "NCAAB-280",
+      "espnId": null,
+      "canonical": "San José St Spartans",
+      "aliases": [
+        "par_01hqmkq8ygfxvva222gakdhyxg"
+      ]
+    },
+    {
+      "id": "NCAAB-281",
+      "espnId": null,
+      "canonical": "Santa Clara Broncos",
+      "aliases": [
+        "par_01hqmkq8yhe6xamwqp4fwg3g30"
+      ]
+    },
+    {
+      "id": "NCAAB-282",
+      "espnId": null,
+      "canonical": "Savannah St Tigers",
+      "aliases": [
+        "par_01hqmkq8yjfpja4xhes6dp77yc"
+      ]
+    },
+    {
+      "id": "NCAAB-283",
+      "espnId": null,
+      "canonical": "Seattle Redhawks",
+      "aliases": [
+        "par_01hqmkq8ykffa86seqjtjqs4vn"
+      ]
+    },
+    {
+      "id": "NCAAB-284",
+      "espnId": null,
+      "canonical": "Seton Hall Pirates",
+      "aliases": [
+        "par_01hqmkq8yme1srxychbp1dm56k"
+      ]
+    },
+    {
+      "id": "NCAAB-285",
+      "espnId": null,
+      "canonical": "Siena Saints",
+      "aliases": [
+        "par_01hqmkq8ynf19bpynqtf33dhw3"
+      ]
+    },
+    {
+      "id": "NCAAB-286",
+      "espnId": null,
+      "canonical": "Sonoma State Seawolves",
+      "aliases": [
+        "par_01hqmkq8ypfq78x5s0jrfvj3r7"
+      ]
+    },
+    {
+      "id": "NCAAB-287",
+      "espnId": null,
+      "canonical": "South Alabama Jaguars",
+      "aliases": [
+        "par_01hqmkq8yqf0psbm92aae94ms2"
+      ]
+    },
+    {
+      "id": "NCAAB-288",
+      "espnId": null,
+      "canonical": "South Carolina Gamecocks",
+      "aliases": [
+        "par_01hqmkq8yrebnvq0ehz52d2n2g"
+      ]
+    },
+    {
+      "id": "NCAAB-289",
+      "espnId": null,
+      "canonical": "South Carolina St Bulldogs",
+      "aliases": [
+        "par_01hqmkq8ysfrgvgs28zrht2ket"
+      ]
+    },
+    {
+      "id": "NCAAB-290",
+      "espnId": null,
+      "canonical": "South Carolina Upstate Spartans",
+      "aliases": [
+        "par_01hqmkq8ytesv85nma49976av0"
+      ]
+    },
+    {
+      "id": "NCAAB-291",
+      "espnId": null,
+      "canonical": "South Dakota Coyotes",
+      "aliases": [
+        "par_01hqmkq8yve29r4md88evt2ybd"
+      ]
+    },
+    {
+      "id": "NCAAB-292",
+      "espnId": null,
+      "canonical": "South Dakota St Jackrabbits",
+      "aliases": [
+        "par_01hqmkq8ywe3y9ra2cnqwbssr6"
+      ]
+    },
+    {
+      "id": "NCAAB-293",
+      "espnId": null,
+      "canonical": "South Florida Bulls",
+      "aliases": [
+        "par_01hqmkq8yxfmjt57csxk2awmtj"
+      ]
+    },
+    {
+      "id": "NCAAB-294",
+      "espnId": null,
+      "canonical": "Southern Illinois Salukis",
+      "aliases": [
+        "par_01hqmkq8yyf1srqjk6r6j3q7ec"
+      ]
+    },
+    {
+      "id": "NCAAB-295",
+      "espnId": null,
+      "canonical": "Southern Indiana Screaming Eagles",
+      "aliases": [
+        "par_01hqmkq8yzejhtg7b0kdzg4hza"
+      ]
+    },
+    {
+      "id": "NCAAB-296",
+      "espnId": null,
+      "canonical": "Southern Jaguars",
+      "aliases": [
+        "par_01hqmkq8z0e6ca3h0pampyeg9t"
+      ]
+    },
+    {
+      "id": "NCAAB-297",
+      "espnId": null,
+      "canonical": "Southern Miss Golden Eagles",
+      "aliases": [
+        "par_01hqmkq8z1ffbvnchhw9xcn3r9"
+      ]
+    },
+    {
+      "id": "NCAAB-298",
+      "espnId": null,
+      "canonical": "Southern Utah Thunderbirds",
+      "aliases": [
+        "par_01hqmkq8z2e2pv10hybwj15af8"
+      ]
+    },
+    {
+      "id": "NCAAB-299",
+      "espnId": null,
+      "canonical": "Spalding Golden Eagles",
+      "aliases": [
+        "par_01hqmkq8z3e3jvqe7nyjsyvb9k"
+      ]
+    },
+    {
+      "id": "NCAAB-300",
+      "espnId": null,
+      "canonical": "St. Bonaventure Bonnies",
+      "aliases": [
+        "par_01hqmkq8z4eg4apdpvz0j238jt"
+      ]
+    },
+    {
+      "id": "NCAAB-301",
+      "espnId": null,
+      "canonical": "St. Francis (PA) Red Flash",
+      "aliases": [
+        "par_01hqmkq8z5fwyr32pdyfp1trsh"
+      ]
+    },
+    {
+      "id": "NCAAB-302",
+      "espnId": null,
+      "canonical": "St. Francis BKN Terriers",
+      "aliases": [
+        "par_01hqmkq8z6eknthp5jhreanvfz"
+      ]
+    },
+    {
+      "id": "NCAAB-303",
+      "espnId": null,
+      "canonical": "St. John's Red Storm",
+      "aliases": [
+        "par_01hqmkq8z7ftx9t0ghehsnaf8s"
+      ]
+    },
+    {
+      "id": "NCAAB-304",
+      "espnId": null,
+      "canonical": "St. Thomas (MN) Tommies",
+      "aliases": [
+        "par_01hqmkq8z8ft6v53sq52a3ne8w"
+      ]
+    },
+    {
+      "id": "NCAAB-305",
+      "espnId": null,
+      "canonical": "Stanford Cardinal",
+      "aliases": [
+        "par_01hqmkq8z9fcz9xw1vknsxj7hj"
+      ]
+    },
+    {
+      "id": "NCAAB-306",
+      "espnId": null,
+      "canonical": "Stephen F. Austin Lumberjacks",
+      "aliases": [
+        "par_01hqmkq8zae73rhcnckaz1wpn9"
+      ]
+    },
+    {
+      "id": "NCAAB-307",
+      "espnId": null,
+      "canonical": "Stetson Hatters",
+      "aliases": [
+        "par_01hqmkq8zbe6ar7ear021zw1vz"
+      ]
+    },
+    {
+      "id": "NCAAB-308",
+      "espnId": null,
+      "canonical": "Stonehill Skyhawks",
+      "aliases": [
+        "par_01hqmkq8zcfq3by30p453sa28f"
+      ]
+    },
+    {
+      "id": "NCAAB-309",
+      "espnId": null,
+      "canonical": "Stony Brook Seawolves",
+      "aliases": [
+        "par_01hqmkq8zdepm931e8h6s0qfa0"
+      ]
+    },
+    {
+      "id": "NCAAB-310",
+      "espnId": null,
+      "canonical": "Syracuse Orange",
+      "aliases": [
+        "par_01hqmkq8zef8cb59gvn3mpdevn"
+      ]
+    },
+    {
+      "id": "NCAAB-311",
+      "espnId": null,
+      "canonical": "TCU Horned Frogs",
+      "aliases": [
+        "par_01hqmkq8zff5ss9g6459whnsvm"
+      ]
+    },
+    {
+      "id": "NCAAB-312",
+      "espnId": null,
+      "canonical": "Tarleton State Texans",
+      "aliases": [
+        "par_01hqmkq8zgfmfb784yf6e59d1n"
+      ]
+    },
+    {
+      "id": "NCAAB-313",
+      "espnId": null,
+      "canonical": "Temple Owls",
+      "aliases": [
+        "par_01hqmkq8zhe7b94j9gnse5q2bj"
+      ]
+    },
+    {
+      "id": "NCAAB-314",
+      "espnId": null,
+      "canonical": "Tenn-Martin Skyhawks",
+      "aliases": [
+        "par_01hqmkq8zjf01rc58mwra6kz4r"
+      ]
+    },
+    {
+      "id": "NCAAB-315",
+      "espnId": null,
+      "canonical": "Tennessee St Tigers",
+      "aliases": [
+        "par_01hqmkq8zkesb9yn0ar7scehbc"
+      ]
+    },
+    {
+      "id": "NCAAB-316",
+      "espnId": null,
+      "canonical": "Tennessee Tech Golden Eagles",
+      "aliases": [
+        "par_01hqmkq8zmfad9mz4920cv5ch4"
+      ]
+    },
+    {
+      "id": "NCAAB-317",
+      "espnId": null,
+      "canonical": "Tennessee Volunteers",
+      "aliases": [
+        "par_01hqmkq8znevgs1297cyxyeg97"
+      ]
+    },
+    {
+      "id": "NCAAB-318",
+      "espnId": null,
+      "canonical": "Texas A&M Aggies",
+      "aliases": [
+        "par_01hqmkq8zpeag8z4sqggtazr1r"
+      ]
+    },
+    {
+      "id": "NCAAB-319",
+      "espnId": null,
+      "canonical": "Texas A&M-CC Islanders",
+      "aliases": [
+        "par_01hqmkq8zqej3sq3ndaaht3sfr"
+      ]
+    },
+    {
+      "id": "NCAAB-320",
+      "espnId": null,
+      "canonical": "Texas Longhorns",
+      "aliases": [
+        "par_01hqmkq8zseec951s4esweq4mn"
+      ]
+    },
+    {
+      "id": "NCAAB-321",
+      "espnId": null,
+      "canonical": "Texas Southern Tigers",
+      "aliases": [
+        "par_01hqmkq8zteq0anfjywpeqk2va"
+      ]
+    },
+    {
+      "id": "NCAAB-322",
+      "espnId": null,
+      "canonical": "Texas State Bobcats",
+      "aliases": [
+        "par_01hqmkq8zvfnyt3g3kbn92bsb5"
+      ]
+    },
+    {
+      "id": "NCAAB-323",
+      "espnId": null,
+      "canonical": "Texas Tech Red Raiders",
+      "aliases": [
+        "par_01hqmkq8zwfggbhbm5e46hq701"
+      ]
+    },
+    {
+      "id": "NCAAB-324",
+      "espnId": null,
+      "canonical": "The Citadel Bulldogs",
+      "aliases": [
+        "par_01hqmkq8zxf688b5p46raaxfv4"
+      ]
+    },
+    {
+      "id": "NCAAB-325",
+      "espnId": null,
+      "canonical": "Toledo Rockets",
+      "aliases": [
+        "par_01hqmkq8zyf7p9vd03xt5dsv0j"
+      ]
+    },
+    {
+      "id": "NCAAB-326",
+      "espnId": null,
+      "canonical": "Towson Tigers",
+      "aliases": [
+        "par_01hqmkq8zzfmqvyjnsk6n09x5y"
+      ]
+    },
+    {
+      "id": "NCAAB-327",
+      "espnId": null,
+      "canonical": "Troy Trojans",
+      "aliases": [
+        "par_01hqmkq900ekcv4489atnyz940"
+      ]
+    },
+    {
+      "id": "NCAAB-328",
+      "espnId": null,
+      "canonical": "Tulane Green Wave",
+      "aliases": [
+        "par_01hqmkq901fcza7s3pa6170amh"
+      ]
+    },
+    {
+      "id": "NCAAB-329",
+      "espnId": null,
+      "canonical": "Tulsa Golden Hurricane",
+      "aliases": [
+        "par_01hqmkq902f4vtbhvdc70pjkex"
+      ]
+    },
+    {
+      "id": "NCAAB-330",
+      "espnId": null,
+      "canonical": "UAB Blazers",
+      "aliases": [
+        "par_01hqmkq903f0gt8jewbyt10swn"
+      ]
+    },
+    {
+      "id": "NCAAB-331",
+      "espnId": null,
+      "canonical": "UC Davis Aggies",
+      "aliases": [
+        "par_01hqmkq904estaqtnknk98enzm"
+      ]
+    },
+    {
+      "id": "NCAAB-332",
+      "espnId": null,
+      "canonical": "UC Irvine Anteaters",
+      "aliases": [
+        "par_01hqmkq905f2qa6krw3r3vak01"
+      ]
+    },
+    {
+      "id": "NCAAB-333",
+      "espnId": null,
+      "canonical": "UC Riverside Highlanders",
+      "aliases": [
+        "par_01hqmkq906fafs3cbbwz6qpd6r"
+      ]
+    },
+    {
+      "id": "NCAAB-334",
+      "espnId": null,
+      "canonical": "UC San Diego Tritons",
+      "aliases": [
+        "par_01hqmkq907fgeafttd7cygxy6k"
+      ]
+    },
+    {
+      "id": "NCAAB-335",
+      "espnId": null,
+      "canonical": "UC Santa Barbara Gauchos",
+      "aliases": [
+        "par_01hqmkq908e63t23qkqjs8zssf"
+      ]
+    },
+    {
+      "id": "NCAAB-336",
+      "espnId": null,
+      "canonical": "UCF Knights",
+      "aliases": [
+        "par_01hqmkq909f4zagkjnrw7c2rxn"
+      ]
+    },
+    {
+      "id": "NCAAB-337",
+      "espnId": null,
+      "canonical": "UCLA Bruins",
+      "aliases": [
+        "par_01hqmkq90aej0tyjja4c4yg23p"
+      ]
+    },
+    {
+      "id": "NCAAB-338",
+      "espnId": null,
+      "canonical": "UConn Huskies",
+      "aliases": [
+        "par_01hqmkq90bf1has6fhmjd38vjm"
+      ]
+    },
+    {
+      "id": "NCAAB-339",
+      "espnId": null,
+      "canonical": "UIC Flames",
+      "aliases": [
+        "par_01hqmkq90ce13r69krwy3tvzw3"
+      ]
+    },
+    {
+      "id": "NCAAB-340",
+      "espnId": null,
+      "canonical": "UL Monroe Warhawks",
+      "aliases": [
+        "par_01hqmkq90dfqk87448ypcw611p"
+      ]
+    },
+    {
+      "id": "NCAAB-341",
+      "espnId": null,
+      "canonical": "UMBC Retrievers",
+      "aliases": [
+        "par_01hqmkq90eez6tevc34rbe4dqb"
+      ]
+    },
+    {
+      "id": "NCAAB-342",
+      "espnId": null,
+      "canonical": "UMKC Kangaroos",
+      "aliases": [
+        "par_01hqmkq90ffecbtt5ef1e38kyr"
+      ]
+    },
+    {
+      "id": "NCAAB-343",
+      "espnId": null,
+      "canonical": "UMass Lowell River Hawks",
+      "aliases": [
+        "par_01hqmkq90gesws0vzx2mdmc985"
+      ]
+    },
+    {
+      "id": "NCAAB-344",
+      "espnId": null,
+      "canonical": "UNC Asheville Bulldogs",
+      "aliases": [
+        "par_01hqmkq90hezvbnfbqj5djj2p7"
+      ]
+    },
+    {
+      "id": "NCAAB-345",
+      "espnId": null,
+      "canonical": "UNC Greensboro Spartans",
+      "aliases": [
+        "par_01hqmkq90je25b4tbhzqx09nq3"
+      ]
+    },
+    {
+      "id": "NCAAB-346",
+      "espnId": null,
+      "canonical": "UNC Wilmington Seahawks",
+      "aliases": [
+        "par_01hqmkq90kfhgsykz9mj0qtmh3"
+      ]
+    },
+    {
+      "id": "NCAAB-347",
+      "espnId": null,
+      "canonical": "UNLV Rebels",
+      "aliases": [
+        "par_01hqmkq90menyace2gn3w5c5ee"
+      ]
+    },
+    {
+      "id": "NCAAB-348",
+      "espnId": null,
+      "canonical": "USC Trojans",
+      "aliases": [
+        "par_01hqmkq90nf08tcc7s0x1p80sx"
+      ]
+    },
+    {
+      "id": "NCAAB-349",
+      "espnId": null,
+      "canonical": "UT Rio Grande Valley Vaqueros",
+      "aliases": [
+        "par_01hqmkq90pe3tvkt5jrd9wmq2t"
+      ]
+    },
+    {
+      "id": "NCAAB-350",
+      "espnId": null,
+      "canonical": "UT-Arlington Mavericks",
+      "aliases": [
+        "par_01hqmkq90qf07vgx1cs5s39ez5"
+      ]
+    },
+    {
+      "id": "NCAAB-351",
+      "espnId": null,
+      "canonical": "UTEP Miners",
+      "aliases": [
+        "par_01hqmkq90re93bwtsby831fqcc"
+      ]
+    },
+    {
+      "id": "NCAAB-352",
+      "espnId": null,
+      "canonical": "UTSA Roadrunners",
+      "aliases": [
+        "par_01hqmkq90sfdwvfstq1t9p88t2"
+      ]
+    },
+    {
+      "id": "NCAAB-353",
+      "espnId": null,
+      "canonical": "Utah State Aggies",
+      "aliases": [
+        "par_01hqmkq90tf85t02v7kn5dp7zd"
+      ]
+    },
+    {
+      "id": "NCAAB-354",
+      "espnId": null,
+      "canonical": "Utah Tech Trailblazers",
+      "aliases": [
+        "par_01hqmkq90vf1fbqen90nfmk8hc"
+      ]
+    },
+    {
+      "id": "NCAAB-355",
+      "espnId": null,
+      "canonical": "Utah Utes",
+      "aliases": [
+        "par_01hqmkq90wfdwrm6d9q3h98xk3"
+      ]
+    },
+    {
+      "id": "NCAAB-356",
+      "espnId": null,
+      "canonical": "Utah Valley Wolverines",
+      "aliases": [
+        "par_01hqmkq90xfsyr02rt8b1127mr"
+      ]
+    },
+    {
+      "id": "NCAAB-357",
+      "espnId": null,
+      "canonical": "VCU Rams",
+      "aliases": [
+        "par_01hqmkq90yes0aekzm2h9a6nyy"
+      ]
+    },
+    {
+      "id": "NCAAB-358",
+      "espnId": null,
+      "canonical": "VMI Keydets",
+      "aliases": [
+        "par_01hqmkq90zewbt34vnbnbd4qe8"
+      ]
+    },
+    {
+      "id": "NCAAB-359",
+      "espnId": null,
+      "canonical": "Valparaiso Beacons",
+      "aliases": [
+        "par_01hqmkq910evzb20xhp7ensqs8"
+      ]
+    },
+    {
+      "id": "NCAAB-360",
+      "espnId": null,
+      "canonical": "Vanderbilt Commodores",
+      "aliases": [
+        "par_01hqmkq911fqw8dcys2rsnmywa"
+      ]
+    },
+    {
+      "id": "NCAAB-361",
+      "espnId": null,
+      "canonical": "Vermont Catamounts",
+      "aliases": [
+        "par_01hqmkq912f95sw1d7k8ke88mc"
+      ]
+    },
+    {
+      "id": "NCAAB-362",
+      "espnId": null,
+      "canonical": "Villanova Wildcats",
+      "aliases": [
+        "par_01hqmkq913ff1ssxn3e3wqjeye"
+      ]
+    },
+    {
+      "id": "NCAAB-363",
+      "espnId": null,
+      "canonical": "Virginia Cavaliers",
+      "aliases": [
+        "par_01hqmkq914f2vb2bb6dg0c63jq"
+      ]
+    },
+    {
+      "id": "NCAAB-364",
+      "espnId": null,
+      "canonical": "Virginia Tech Hokies",
+      "aliases": [
+        "par_01hqmkq915e8v9v83r44jzcx7d"
+      ]
+    },
+    {
+      "id": "NCAAB-365",
+      "espnId": null,
+      "canonical": "Wagner Seahawks",
+      "aliases": [
+        "par_01hqmkq916ebr8dmxax9wktnk1"
+      ]
+    },
+    {
+      "id": "NCAAB-366",
+      "espnId": null,
+      "canonical": "Wake Forest Demon Deacons",
+      "aliases": [
+        "par_01hqmkq917fh0t9b9ch0qfv62m"
+      ]
+    },
+    {
+      "id": "NCAAB-367",
+      "espnId": null,
+      "canonical": "Washington Huskies",
+      "aliases": [
+        "par_01hqmkq918eyha4eqz1y8hq5ve"
+      ]
+    },
+    {
+      "id": "NCAAB-368",
+      "espnId": null,
+      "canonical": "Washington St Cougars",
+      "aliases": [
+        "par_01hqmkq919f2kaeb3h53xhc7zx"
+      ]
+    },
+    {
+      "id": "NCAAB-369",
+      "espnId": null,
+      "canonical": "Weber State Wildcats",
+      "aliases": [
+        "par_01hqmkq91ae19bzqheadk6h9qr"
+      ]
+    },
+    {
+      "id": "NCAAB-370",
+      "espnId": null,
+      "canonical": "West Georgia Wolves",
+      "aliases": [
+        "par_01jbwgaxg4erpasgmw5fyxh8p0"
+      ]
+    },
+    {
+      "id": "NCAAB-371",
+      "espnId": null,
+      "canonical": "West Virginia Mountaineers",
+      "aliases": [
+        "par_01hqmkq91bfh89pjzaecsm9e7r"
+      ]
+    },
+    {
+      "id": "NCAAB-372",
+      "espnId": null,
+      "canonical": "Western Carolina Catamounts",
+      "aliases": [
+        "par_01hqmkq91cekk8kggbw62f4436"
+      ]
+    },
+    {
+      "id": "NCAAB-373",
+      "espnId": null,
+      "canonical": "Western Illinois Leathernecks",
+      "aliases": [
+        "par_01hqmkq91df4nrg5s6w9acvvvn"
+      ]
+    },
+    {
+      "id": "NCAAB-374",
+      "espnId": null,
+      "canonical": "Western Kentucky Hilltoppers",
+      "aliases": [
+        "par_01hqmkq91efsprnhcag9pkgg3h"
+      ]
+    },
+    {
+      "id": "NCAAB-375",
+      "espnId": null,
+      "canonical": "Western Michigan Broncos",
+      "aliases": [
+        "par_01hqmkq91ffk2s2qsj8fwtehkn"
+      ]
+    },
+    {
+      "id": "NCAAB-376",
+      "espnId": null,
+      "canonical": "Western State Colorado Mountaineers",
+      "aliases": [
+        "par_01hqmkq91gefcvks53kbqjh883"
+      ]
+    },
+    {
+      "id": "NCAAB-377",
+      "espnId": null,
+      "canonical": "Wichita St Shockers",
+      "aliases": [
+        "par_01hqmkq91hemtazjrt2ebq5faf"
+      ]
+    },
+    {
+      "id": "NCAAB-378",
+      "espnId": null,
+      "canonical": "William & Mary Tribe",
+      "aliases": [
+        "par_01hqmkq91jf1rs536786v5vjm7"
+      ]
+    },
+    {
+      "id": "NCAAB-379",
+      "espnId": null,
+      "canonical": "Winthrop Eagles",
+      "aliases": [
+        "par_01hqmkq91kff2r5ybbf2qra49a"
+      ]
+    },
+    {
+      "id": "NCAAB-380",
+      "espnId": null,
+      "canonical": "Wisconsin Badgers",
+      "aliases": [
+        "par_01hqmkq91mf6zvxmrnme2yxjwf"
+      ]
+    },
+    {
+      "id": "NCAAB-381",
+      "espnId": null,
+      "canonical": "Wofford Terriers",
+      "aliases": [
+        "par_01hqmkq91nebdvbh7yfnqpx9c1"
+      ]
+    },
+    {
+      "id": "NCAAB-382",
+      "espnId": null,
+      "canonical": "Wright St Raiders",
+      "aliases": [
+        "par_01hqmkq91pfg4vwyr3d472z9nd"
+      ]
+    },
+    {
+      "id": "NCAAB-383",
+      "espnId": null,
+      "canonical": "Wyoming Cowboys",
+      "aliases": [
+        "par_01hqmkq91qf0q8wt72hb8y9s1h"
+      ]
+    },
+    {
+      "id": "NCAAB-384",
+      "espnId": null,
+      "canonical": "Xavier Musketeers",
+      "aliases": [
+        "par_01hqmkq91re49bprgbpv4vcfry"
+      ]
+    },
+    {
+      "id": "NCAAB-385",
+      "espnId": null,
+      "canonical": "Yale Bulldogs",
+      "aliases": [
+        "par_01hqmkq91seytra09hc7ehhfyk"
+      ]
+    },
+    {
+      "id": "NCAAB-386",
+      "espnId": null,
+      "canonical": "Youngstown St Penguins",
+      "aliases": [
+        "par_01hqmkq91te688n4fvtrzfvhqa"
+      ]
+    }
+  ]
+}
