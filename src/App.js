@@ -19,6 +19,7 @@ import PropBetsView from './components/PropBetsView';
 import BettingSlip from './components/BettingSlip';
 import MemberContainer from './components/MemberContainer';
 import { getStandardId } from './utils/normalization';
+import { findBestMoneylinePrices, formatMoneylineForDisplay } from './utils/priceFinder';
 
 function SportsMenu({ currentSport, onSelectSport, allSportsGames, onSignOut, onManualRefresh, isRefreshing, onNavigateToDashboard }) {
     const sportOrder = ['NFL', 'College Football', 'NBA', 'College Basketball', 'Major League Baseball', 'NHL', 'World Cup', 'MLS', 'Boxing', 'UFC'];
@@ -2019,7 +2020,7 @@ const saveSubmission = async (submission) => {
       
       <div className={`container main-content ${allSportsGames && Object.keys(allSportsGames).length > 0 ? 'with-sidebar' : ''}`}>
         <GridBettingLayout
-          games={games}
+          games={allSportsGames[displaySport] || []}
           selectedPicks={selectedPicks}
           onSelectPick={handleGridPickSelection}
           betType={betType}
@@ -2899,128 +2900,39 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
         console.log(`  ❌ No totals market found in any bookmaker`);
       }
       
-      // 4. Find bookmaker with moneyline (h2h) market - THE CRITICAL FIX
+      // 4. Find bookmaker with moneyline (h2h) market using new Price Finder utility
       // CRITICAL: Soccer has 3 outcomes (Home, Away, Draw), Combat/Traditional have 2
       const gameName = `${awayTeam} @ ${homeTeam}`;
+      const sportKey = ODDS_API_SPORT_KEYS[sport];
       
-      const h2hResult = findBookmakerWithMarket(game.bookmakers, 'h2h', homeTeam, awayTeam);
-      if (h2hResult) {
-        const { market: h2hMarket, bookmaker: selectedBookmaker } = h2hResult;
-        console.log(`  💰 Moneyline (h2h) market found with ${h2hMarket.outcomes.length} outcomes`);
-        if (DEBUG_JSONODDS_FLOW) {
-          console.log(`    📚 Bookmaker: ${selectedBookmaker.title || selectedBookmaker.key}`);
-          console.log(`    📊 Market key: h2h`);
-        }
-        console.log(`    Raw outcomes:`, h2hMarket.outcomes.map(o => ({ name: o.name, price: o.price })));
-        console.log(`    🔍 Attempting to match against:`);
-        console.log(`       Home team from API: "${homeTeam}"`);
-        console.log(`       Away team from API: "${awayTeam}"`);
-        
-        // CRITICAL FIX: Strict matching with outcome tracking to prevent duplicate assignments
-        // First attempt EXACT matches for both teams, then fall back to fuzzy matching
-        // Track used outcomes to ensure home and away don't steal the same odd
-        
-        let homeOutcome = null;
-        let awayOutcome = null;
-        
-        // STEP 1: Try exact matches first (case-insensitive)
-        homeOutcome = h2hMarket.outcomes.find(o => 
-          o.name.toLowerCase() === homeTeam.toLowerCase()
-        );
-        awayOutcome = h2hMarket.outcomes.find(o => 
-          o.name.toLowerCase() === awayTeam.toLowerCase()
-        );
-        
-        // STEP 2: If exact matches failed, use fuzzy matching BUT prevent reuse
-        if (!homeOutcome) {
-          homeOutcome = h2hMarket.outcomes.find(o => {
-            // Skip if this outcome was already matched to away team
-            if (awayOutcome && o.name === awayOutcome.name) return false;
-            // Try fuzzy matching
-            return teamsMatchHelper(o.name, homeTeam).match;
-          });
+      // Use new Price Finder utility for robust moneyline extraction
+      // Note: The Odds API doesn't provide participant IDs in outcomes, only team names
+      // So we pass null for IDs and rely on name matching strategies
+      const moneylineResult = findBestMoneylinePrices(
+        game.bookmakers,
+        homeTeam,
+        awayTeam,
+        sportKey,
+        null, // homeTeamId - not used, The Odds API uses team names
+        null  // awayTeamId - not used, The Odds API uses team names
+      );
+      
+      if (moneylineResult) {
+        // Format prices to American odds
+        const formatted = formatMoneylineForDisplay(moneylineResult);
+        homeMoneyline = formatted.homeMoneyline;
+        awayMoneyline = formatted.awayMoneyline;
+        if (isSoccer && formatted.drawMoneyline !== undefined) {
+          drawMoneyline = formatted.drawMoneyline;
         }
         
-        if (!awayOutcome) {
-          awayOutcome = h2hMarket.outcomes.find(o => {
-            // Skip if this outcome was already matched to home team
-            if (homeOutcome && o.name === homeOutcome.name) return false;
-            // Try fuzzy matching
-            return teamsMatchHelper(o.name, awayTeam).match;
-          });
-        }
-        
-        if (homeOutcome) {
-          // Validate price exists and is a number
-          if (homeOutcome.price !== undefined && homeOutcome.price !== null && !isNaN(homeOutcome.price)) {
-            homeMoneyline = homeOutcome.price > 0 ? `+${homeOutcome.price}` : String(homeOutcome.price);
-            const matchType = homeOutcome.name.toLowerCase() === homeTeam.toLowerCase() ? 'exact' : 'fuzzy';
-            console.log(`    ✓ ${homeTeam} matched with "${homeOutcome.name}" (${matchType}): ${homeMoneyline}`);
-            console.log(`    🔍 API Raw Price for ${game.id} (home): ${homeOutcome.price}`);
-            if (DEBUG_JSONODDS_FLOW) {
-              console.log(`    🎯 The Odds API h2h extraction: Home team "${homeTeam}" -> ${homeMoneyline}`);
-            }
-            if (matchType === 'fuzzy') {
-              console.log(`    ✅ Successfully matched API name '${homeOutcome.name}' to Local name '${homeTeam}'`);
-            }
-          } else {
-            console.warn(`    ⚠️ ${homeTeam} outcome missing valid 'price' field: ${homeOutcome.price}`);
-            console.warn(`    ⚠️ Full outcome object:`, homeOutcome);
-          }
-        } else {
-          console.error(`    🔍 REASON 3 (Matching Failure): [${gameName}]: h2h exists, but couldn't match home team outcome.`);
-          console.error(`       API says outcomes: [${h2hMarket.outcomes.map(o => o.name).join(', ')}]`);
-          console.error(`       Local says Home: "${homeTeam}"`);
-        }
-        
-        if (awayOutcome) {
-          if (awayOutcome.price !== undefined && awayOutcome.price !== null && !isNaN(awayOutcome.price)) {
-            awayMoneyline = awayOutcome.price > 0 ? `+${awayOutcome.price}` : String(awayOutcome.price);
-            const matchType = awayOutcome.name.toLowerCase() === awayTeam.toLowerCase() ? 'exact' : 'fuzzy';
-            console.log(`    ✓ ${awayTeam} matched with "${awayOutcome.name}" (${matchType}): ${awayMoneyline}`);
-            console.log(`    🔍 API Raw Price for ${game.id} (away): ${awayOutcome.price}`);
-            if (DEBUG_JSONODDS_FLOW) {
-              console.log(`    🎯 The Odds API h2h extraction: Away team "${awayTeam}" -> ${awayMoneyline}`);
-            }
-            if (matchType === 'fuzzy') {
-              console.log(`    ✅ Successfully matched API name '${awayOutcome.name}' to Local name '${awayTeam}'`);
-            }
-          } else {
-            console.warn(`    ⚠️ ${awayTeam} outcome missing valid 'price' field: ${awayOutcome.price}`);
-            console.warn(`    ⚠️ Full outcome object:`, awayOutcome);
-          }
-        } else {
-          console.error(`    🔍 REASON 3 (Matching Failure): [${gameName}]: h2h exists, but couldn't match away team outcome.`);
-          console.error(`       API says outcomes: [${h2hMarket.outcomes.map(o => o.name).join(', ')}]`);
-          console.error(`       Local says Away: "${awayTeam}"`);
-        }
-        
-        // 5. SOCCER ONLY: Extract Draw outcome for 3-way market
-        if (isSoccer) {
-          const drawOutcome = h2hMarket.outcomes.find(o => o.name === 'Draw');
-          if (drawOutcome) {
-            if (drawOutcome.price !== undefined && drawOutcome.price !== null && !isNaN(drawOutcome.price)) {
-              drawMoneyline = drawOutcome.price > 0 ? `+${drawOutcome.price}` : String(drawOutcome.price);
-              console.log(`    ⚽ Draw: ${drawMoneyline}`);
-            } else {
-              console.warn(`    ⚠️ Draw outcome missing valid 'price' field: ${drawOutcome.price}`);
-            }
-          } else {
-            console.warn(`    ⚠️ No Draw outcome found (expected for soccer)`);
-          }
-        }
-        
-        // 6. COMBAT SPORTS: Verify 2-way market structure
-        if (isCombat) {
-          console.log(`    🥊 Combat sport detected - verifying 2-way market structure`);
-          if (h2hMarket.outcomes.length !== 2) {
-            console.warn(`    ⚠️ Expected 2 outcomes for combat sport, got ${h2hMarket.outcomes.length}`);
-          }
-        }
+        console.log(`  ✅ Moneyline prices found via ${moneylineResult.bookmakerName}`);
+        console.log(`     Away: ${awayMoneyline}, Home: ${homeMoneyline}${drawMoneyline !== undefined ? `, Draw: ${drawMoneyline}` : ''}`);
       } else {
-        // No h2h market found in any bookmaker
-        console.error(`  ❌ No 'h2h' (moneyline) market found in any bookmaker for [${gameName}]`);
-        console.log(`  ℹ️ All ${game.bookmakers.length} bookmaker(s) were checked`);
+        // No moneyline found - log for troubleshooting
+        console.error(`  ❌ No moneyline prices found for [${gameName}]`);
+        console.error(`     Checked ${game.bookmakers?.length || 0} bookmakers`);
+        // Values remain as '-' from initialization above
       }
       
       // 7. COMBAT SPORTS ONLY: Extract method of victory (h2h_method)
@@ -3197,7 +3109,7 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
       // ENHANCED DIAGNOSTIC LOGGING: Show which bookmaker provided each market
       const spreadBookmaker = spreadResult ? spreadResult.bookmaker.title : 'None';
       const totalBookmaker = totalResult ? totalResult.bookmaker.title : 'None';
-      const h2hBookmaker = h2hResult ? h2hResult.bookmaker.title : 'None';
+      const h2hBookmaker = moneylineResult ? moneylineResult.bookmakerName : 'None';
       
       // Check if we have at least one valid market
       const hasAnyMarket = (awaySpread !== '-' && homeSpread !== '-') || 

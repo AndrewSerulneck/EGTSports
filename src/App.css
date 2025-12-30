@@ -999,3 +999,20 @@ input[type="number"]:focus {
         display: none;
     }
 }
+
+/* Odds Board Styles */
+.odds-board-container {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+.odds-favorite {
+    color: #dc2626; /* Red for favorites */
+}
+
+.odds-underdog {
+    color: #16a34a; /* Green for underdogs */
+}
+
+.odds-unavailable {
+    color: #9ca3af; /* Gray for unavailable odds */
+}
