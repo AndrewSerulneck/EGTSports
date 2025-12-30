@@ -20,25 +20,10 @@ import { findTeamByName } from './teamMapper';
  * Follows the correct nested path: game.bookmakers[i].markets.find(m => m.key === 'h2h').outcomes
  * 
  * CRITICAL: Uses Source ID (sid) matching with local JSON team files
- * The sid from API outcomes (e.g., "par_01hqmkq6fzfvyvrsb30jj85ade") is stored differently by sport:
- * 
- * TWO-TIER MATCHING LOGIC:
- * - Pro Leagues (NFL, NBA, NHL): SID is in the aliases array
- *   Example: { "id": "NBA-020", "canonical": "New York Knicks", 
- *              "aliases": [..., "par_01hqmk..."] }
- * - NCAAB: SID is directly in the id field
- *   Example: { "id": "par_01hqmk...", "full_name": "Duke Blue Devils" }
- * 
- * This provides the MOST RELIABLE team identification without name-based guessing.
- * 
- * @param {Object} game - The game object from The Odds API
- * @param {string} teamId - The SID from API or our JSON files (e.g., "par_01hqmk...")
- * @param {string} teamName - The team name from The Odds API (fallback only)
- * @param {string} sportKey - Sport key for team mapper lookup (optional)
- * @returns {number|string} - The odds value (American format) or status string ('N/A', 'MISSING', 'ERR')
- */
+ * The sid from API outcomes (e.g., "par_01hqmkq6fzfvyvrsb30jj85ade") is stored in the aliases array:
  * Example: { "id": "NBA-020", "canonical": "New York Knicks", 
- *           "aliases": [..., "par_01hqmkq6fzfvyvrsb30jj85ade"] }
+ *            "aliases": [..., "par_01hqmkq6fzfvyvrsb30jj85ade"] }
+ * 
  * This provides the MOST RELIABLE team identification without name-based guessing.
  * 
  * @param {Object} game - The game object from The Odds API
