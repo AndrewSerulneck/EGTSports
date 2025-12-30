@@ -1,13 +1,10 @@
 /**
  * Team Mapper Utility
- * Maps The Odds API team names/IDs to canonical team names using local JSON files
+ * Maps The Odds API team names/IDs to canonical team names using master-teams.json
  */
 
-import nbaTeams from '../data/nba-teams.json';
-import nflTeams from '../data/nfl-teams.json';
-import nhlTeams from '../data/nhl-teams.json';
-import ncaaFootballTeams from '../data/ncaa_football-teams.json';
-import ncaaBasketballTeams from '../data/ncaa_basketball-teams.json';
+import masterTeams from '../data/master-teams.json';
+import { getStandardId, getTeamBySid } from './normalization';
 
 // Sport key mapping for The Odds API
 const SPORT_KEYS = {
@@ -15,7 +12,7 @@ const SPORT_KEYS = {
   'basketball_nba': 'nba',
   'icehockey_nhl': 'nhl',
   'americanfootball_ncaaf': 'ncaa_football',
-  'basketball_ncaab': 'ncaa_basketball',
+  'basketball_ncaab': 'ncaab',
 };
 
 /**
@@ -25,21 +22,7 @@ const SPORT_KEYS = {
  */
 export function getTeamsForSport(sportKey) {
   const normalizedSport = SPORT_KEYS[sportKey] || sportKey;
-  
-  switch (normalizedSport) {
-    case 'nfl':
-      return nflTeams;
-    case 'nba':
-      return nbaTeams;
-    case 'nhl':
-      return nhlTeams;
-    case 'ncaa_football':
-      return ncaaFootballTeams;
-    case 'ncaa_basketball':
-      return ncaaBasketballTeams;
-    default:
-      return [];
-  }
+  return masterTeams[normalizedSport] || [];
 }
 
 /**
@@ -51,107 +34,54 @@ export function getTeamsForSport(sportKey) {
 export function findTeamByName(teamName, sportKey) {
   if (!teamName) return null;
   
-  const teams = getTeamsForSport(sportKey);
-  if (!teams || teams.length === 0) return null;
-  
-  const normalizedSearchName = teamName.toLowerCase().trim();
-  
-  // For NCAA Basketball (slim schema), check full_name directly
   const normalizedSport = SPORT_KEYS[sportKey] || sportKey;
-  if (normalizedSport === 'ncaa_basketball') {
-    const match = teams.find(team => 
-      team.full_name?.toLowerCase() === normalizedSearchName
-    );
-    
-    if (match) {
-      return {
-        id: match.id,
-        canonical: match.full_name,
-        full_name: match.full_name,
-        // NCAAB teams don't have these fields, use optional chaining
-        city: undefined,
-        mascot: undefined,
-        logo: undefined
-      };
-    }
-  }
+  const team = getStandardId(teamName, normalizedSport);
   
-  // For other sports with full schema (canonical + aliases)
-  const match = teams.find(team => {
-    // Check canonical name
-    if (team.canonical?.toLowerCase() === normalizedSearchName) {
-      return true;
-    }
-    
-    // Check aliases array
-    if (team.aliases && Array.isArray(team.aliases)) {
-      return team.aliases.some(alias => 
-        alias.toLowerCase() === normalizedSearchName
-      );
-    }
-    
-    return false;
-  });
+  if (!team) return null;
   
-  if (match) {
-    return {
-      id: match.id,
-      canonical: match.canonical,
-      aliases: match.aliases,
-      // These fields may not exist in all schemas
-      city: match.city,
-      mascot: match.mascot,
-      logo: match.logo
-    };
-  }
-  
-  return null;
+  // Return in the expected format for compatibility
+  return {
+    id: team.id,
+    canonical: team.canonical,
+    aliases: team.aliases,
+    espnId: team.espnId,
+  };
 }
 
 /**
- * Find team by participant ID (The Odds API format)
- * @param {string} participantId - Participant ID from The Odds API (e.g., "par_01hqmk...")
+ * Find team by participant ID (The Odds API format) or internal ID
+ * @param {string} participantId - Participant ID from The Odds API (e.g., "par_01hqmk...") or internal ID
  * @param {string} sportKey - The Odds API sport key
  * @returns {Object|null} Team object
  */
 export function findTeamById(participantId, sportKey) {
   if (!participantId) return null;
   
-  const teams = getTeamsForSport(sportKey);
-  if (!teams || teams.length === 0) return null;
+  const normalizedSport = SPORT_KEYS[sportKey] || sportKey;
   
-  // Check if team's aliases array contains the participant ID
-  const match = teams.find(team => {
-    // For NCAAB, check the id field directly
-    if (team.id === participantId) {
-      return true;
-    }
-    
-    // For other sports, check in aliases
-    if (team.aliases && Array.isArray(team.aliases)) {
-      return team.aliases.includes(participantId);
-    }
-    
-    return false;
-  });
-  
-  if (match) {
-    const normalizedSport = SPORT_KEYS[sportKey] || sportKey;
-    if (normalizedSport === 'ncaa_basketball') {
+  // First try to find by The Odds API SID
+  if (participantId.startsWith('par_')) {
+    const team = getTeamBySid(participantId, normalizedSport);
+    if (team) {
       return {
-        id: match.id,
-        canonical: match.full_name,
-        full_name: match.full_name,
+        id: team.id,
+        canonical: team.canonical,
+        aliases: team.aliases,
+        espnId: team.espnId,
       };
     }
-    
+  }
+  
+  // Otherwise find by internal ID
+  const teams = getTeamsForSport(sportKey);
+  const match = teams.find(team => team.id === participantId);
+  
+  if (match) {
     return {
       id: match.id,
       canonical: match.canonical,
       aliases: match.aliases,
-      city: match.city,
-      mascot: match.mascot,
-      logo: match.logo
+      espnId: match.espnId,
     };
   }
   
@@ -167,16 +97,17 @@ export function findTeamById(participantId, sportKey) {
 export function getCanonicalName(identifier, sportKey) {
   if (!identifier) return '';
   
-  // Try finding by ID first
-  let team = findTeamById(identifier, sportKey);
+  const normalizedSport = SPORT_KEYS[sportKey] || sportKey;
   
-  // If not found by ID, try by name
-  if (!team) {
-    team = findTeamByName(identifier, sportKey);
+  // Try finding by ID first (if it's a SID)
+  if (identifier.startsWith('par_')) {
+    const team = getTeamBySid(identifier, normalizedSport);
+    if (team) return team.canonical;
   }
   
-  // Return canonical name or original identifier
-  return team?.canonical || team?.full_name || identifier;
+  // Try finding by name/alias
+  const team = getStandardId(identifier, normalizedSport);
+  return team?.canonical || identifier;
 }
 
 /**
@@ -190,7 +121,7 @@ export function getTeamLogo(identifier, sportKey) {
   
   const team = findTeamById(identifier, sportKey) || findTeamByName(identifier, sportKey);
   
-  // Use optional chaining as NCAAB teams don't have logos
+  // Logos are not stored in master-teams.json, return null
   return team?.logo || null;
 }
 
@@ -201,5 +132,5 @@ export function getTeamLogo(identifier, sportKey) {
  */
 export function isSlimSchema(sportKey) {
   const normalizedSport = SPORT_KEYS[sportKey] || sportKey;
-  return normalizedSport === 'ncaa_basketball';
+  return normalizedSport === 'ncaab';
 }

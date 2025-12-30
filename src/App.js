@@ -2804,10 +2804,13 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
       
       teams.forEach(team => {
         if (isNCAA_Basketball) {
-          // For NCAAB, the id field IS the SID
-          if (team.id && team.id.startsWith('par_')) {
-            sidToCustomIdMap[team.id] = team.id; // SID maps to itself
-            console.log(`  📌 NCAAB: ${team.id} → ${team.id} (${team.full_name})`);
+          // For NCAAB, the SID is in the aliases array (not the id field anymore)
+          if (team.aliases && Array.isArray(team.aliases)) {
+            const sid = team.aliases.find(a => a && a.startsWith('par_'));
+            if (sid) {
+              sidToCustomIdMap[sid] = team.id; // Map SID to custom ID
+              console.log(`  📌 NCAAB: ${sid} → ${team.id} (${team.canonical})`);
+            }
           }
         } else {
           // For Pro leagues, extract SID from aliases array
@@ -2835,8 +2838,10 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
         const awayTeam = game.away_team;
       
       // Normalize team names to ESPN IDs for consistent keying
-      const homeTeamId = getStandardId(homeTeam);
-      const awayTeamId = getStandardId(awayTeam);
+      const homeTeamResult = getStandardId(homeTeam, 'nfl');
+      const awayTeamResult = getStandardId(awayTeam, 'nfl');
+      const homeTeamId = homeTeamResult?.espnId || homeTeamResult?.id;
+      const awayTeamId = awayTeamResult?.espnId || awayTeamResult?.id;
       
       // Calculate time until game starts for diagnostic logging
       const commenceTime = new Date(game.commence_time);
@@ -3013,15 +3018,10 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
           const homeTeamData = findTeamByName(homeTeam, sportKey);
           if (homeTeamData) {
             localHomeTeamId = homeTeamData.id; // Always use the custom ID
-            if (isNCAA_Basketball) {
-              // For NCAAB, the id field IS the SID (e.g., "par_01hqmk...")
-              homeSid = homeTeamData.id;
-            } else {
-              // For pro leagues, extract SID from aliases array
-              if (homeTeamData.aliases) {
-                const sid = homeTeamData.aliases.find(a => a && a.startsWith('par_'));
-                homeSid = sid || null;
-              }
+            // For all leagues (including NCAAB), extract SID from aliases array
+            if (homeTeamData.aliases) {
+              const sid = homeTeamData.aliases.find(a => a && a.startsWith('par_'));
+              homeSid = sid || null;
             }
             console.log(`  [MAPPING] Fallback matched ${homeTeam} to Team ID ${localHomeTeamId}${homeSid ? ` (SID: ${homeSid})` : ''}`);
           }
@@ -3031,15 +3031,10 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
           const awayTeamData = findTeamByName(awayTeam, sportKey);
           if (awayTeamData) {
             localAwayTeamId = awayTeamData.id; // Always use the custom ID
-            if (isNCAA_Basketball) {
-              // For NCAAB, the id field IS the SID (e.g., "par_01hqmk...")
-              awaySid = awayTeamData.id;
-            } else {
-              // For pro leagues, extract SID from aliases array
-              if (awayTeamData.aliases) {
-                const sid = awayTeamData.aliases.find(a => a && a.startsWith('par_'));
-                awaySid = sid || null;
-              }
+            // For all leagues (including NCAAB), extract SID from aliases array
+            if (awayTeamData.aliases) {
+              const sid = awayTeamData.aliases.find(a => a && a.startsWith('par_'));
+              awaySid = sid || null;
             }
             console.log(`  [MAPPING] Fallback matched ${awayTeam} to Team ID ${localAwayTeamId}${awaySid ? ` (SID: ${awaySid})` : ''}`);
           }
@@ -3473,8 +3468,10 @@ const fetchMoneylineFromJsonOdds = async (sport, forceRefresh = false, oddType =
       console.log(`\n🎮 JsonOdds Match ${idx + 1}: ${awayTeam} @ ${homeTeam}`);
       
       // Normalize team names to ESPN IDs for consistent keying
-      const homeTeamId = getStandardId(homeTeam);
-      const awayTeamId = getStandardId(awayTeam);
+      const homeTeamResult = getStandardId(homeTeam, 'nfl');
+      const awayTeamResult = getStandardId(awayTeam, 'nfl');
+      const homeTeamId = homeTeamResult?.espnId || homeTeamResult?.id;
+      const awayTeamId = awayTeamResult?.espnId || awayTeamResult?.id;
       
       // Check if we can normalize both teams to IDs
       if (!homeTeamId || !awayTeamId) {
