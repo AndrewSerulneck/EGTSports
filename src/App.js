@@ -3765,6 +3765,27 @@ const fetchDetailedOdds = async (sport, eventId) => {
   }
 };
 
+  // Diagnostic logging function for odds matching
+  const logOddsMatchingDiagnostics = useCallback((espnGames, oddsMap) => {
+    console.log('\n📊 === ODDS MATCHING DIAGNOSTICS ===');
+    console.log(`ESPN Games: ${espnGames.length}`);
+    console.log(`Odds API Games: ${Object.keys(oddsMap).length}`);
+    
+    console.log('\n📺 ESPN Team Names (first 3):');
+    espnGames.slice(0, 3).forEach(g => console.log(`  "${g.awayTeam} @ ${g.homeTeam}"`));
+    
+    console.log('\n🎲 Odds API Keys (first 3):');
+    Object.keys(oddsMap).slice(0, 3).forEach(k => console.log(`  "${k}"`));
+    
+    console.log('\n✅ Match Results (first 3):');
+    espnGames.slice(0, 3).forEach(game => {
+      const hasOdds = game.awayMoneyline !== '-' && game.homeMoneyline !== '-';
+      const bookmaker = game.bookmaker ? ` (${game.bookmaker})` : '';
+      console.log(`  ${hasOdds ? '✅' : '❌'} ${game.awayTeam} @ ${game.homeTeam}: ${game.awayMoneyline} / ${game.homeMoneyline}${bookmaker}`);
+    });
+    console.log('');
+  }, []);
+
   // Helper function for fuzzy matching odds to games
   const matchOddsToGame = useCallback((game, oddsMap) => {
     // Default fallback with dash for missing odds
@@ -4390,6 +4411,10 @@ const fetchDetailedOdds = async (sport, eventId) => {
               });
               
               console.log(`\n✅ Processed ${finalFormattedGames.length} games for ${sport} with The Odds API data (fuzzy matching)`);
+              
+              // Log diagnostic information about matching
+              logOddsMatchingDiagnostics(finalFormattedGames, oddsMap);
+              
               sportsData[sport] = finalFormattedGames;
             } else {
               sportsData[sport] = formattedGames;
