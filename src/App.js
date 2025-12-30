@@ -3039,15 +3039,35 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
         }
       }
       
-      // Override the ESPN IDs with our custom IDs if we found them via SID matching
-      // This ensures odds are stored with the correct key format
-      let finalHomeTeamId = homeTeamId;  // Default to ESPN ID
-      let finalAwayTeamId = awayTeamId;  // Default to ESPN ID
+      // CRITICAL: Extract ESPN Integer IDs for game key matching
+      // The oddsMap must use the SAME keys that GridBettingLayout expects
+      // GridBettingLayout uses game.homeTeamId and game.awayTeamId (ESPN Integer IDs)
+      // So we need to extract ESPN IDs from team aliases and use those for the key
+      let finalHomeTeamId = homeTeamId;  // Default to original normalized ID
+      let finalAwayTeamId = awayTeamId;  // Default to original normalized ID
       
-      if (localHomeTeamId && localAwayTeamId) {
-        finalHomeTeamId = localHomeTeamId;
-        finalAwayTeamId = localAwayTeamId;
-        console.log(`  🔄 Using mapped Custom IDs: Home="${finalHomeTeamId}", Away="${finalAwayTeamId}"`);
+      if (localHomeTeamId && localAwayTeamId && sportKey && sportKey !== 'basketball_ncaab') {
+        // For pro leagues, extract ESPN Integer IDs from team aliases
+        const homeTeamData = findTeamById(localHomeTeamId, sportKey);
+        const awayTeamData = findTeamById(localAwayTeamId, sportKey);
+        
+        if (homeTeamData && homeTeamData.aliases) {
+          const homeEspnId = homeTeamData.aliases.find(a => /^\d+$/.test(a));
+          if (homeEspnId) {
+            finalHomeTeamId = homeEspnId;
+            console.log(`  🔍 ODDS API MATCH: Team: ${homeTeam} | SID: ${homeSid || 'N/A'} | Custom ID: ${localHomeTeamId} | ESPN ID: ${homeEspnId}`);
+          }
+        }
+        
+        if (awayTeamData && awayTeamData.aliases) {
+          const awayEspnId = awayTeamData.aliases.find(a => /^\d+$/.test(a));
+          if (awayEspnId) {
+            finalAwayTeamId = awayEspnId;
+            console.log(`  🔍 ODDS API MATCH: Team: ${awayTeam} | SID: ${awaySid || 'N/A'} | Custom ID: ${localAwayTeamId} | ESPN ID: ${awayEspnId}`);
+          }
+        }
+        
+        console.log(`  🔄 Using ESPN IDs for game key: Home="${finalHomeTeamId}", Away="${finalAwayTeamId}"`);
         console.log(`  📊 Game Key will be: "${finalHomeTeamId}|${finalAwayTeamId}"`);
       } else {
         console.warn(`  ⚠️ Mapping incomplete, using ESPN IDs: Home="${finalHomeTeamId}", Away="${finalAwayTeamId}"`);
@@ -4254,6 +4274,10 @@ const fetchDetailedOdds = async (sport, eventId) => {
             // STEP 1: Fetch spreads and totals from The Odds API
             const oddsMap = await fetchOddsFromTheOddsAPI(sport);
             
+            // OPERATION ZERO DASH: JsonOdds API DEACTIVATED
+            // Focusing 100% on The Odds API with SID-based matching
+            // JsonOdds logic commented out to eliminate confusion
+            /*
             // STEP 2: Fetch moneylines from JsonOdds (PRIMARY SOURCE for ML)
             // Now fetching Game, FirstHalf, and FirstQuarter odds
             const jsonOddsPeriodData = await fetchAllPeriodOdds(sport);
@@ -4268,6 +4292,11 @@ const fetchDetailedOdds = async (sport, eventId) => {
                 gameKeys: jsonOddsMoneylines ? Object.keys(jsonOddsMoneylines) : []
               });
             }
+            */
+            
+            const jsonOddsMoneylines = null; // Deactivated
+            const jsonOddsFirstHalf = null; // Deactivated
+            const jsonOddsFirstQuarter = null; // Deactivated
             
             if (oddsMap || jsonOddsMoneylines) {
               const finalFormattedGames = formattedGames.map(game => {
@@ -4278,9 +4307,17 @@ const fetchDetailedOdds = async (sport, eventId) => {
                   console.log(`📞 ESPN missing moneyline for ${game.awayTeam} @ ${game.homeTeam}`);
                 }
                 
-                // First, get spreads and totals from The Odds API
+                // OPERATION ZERO DASH: Get spreads, totals, AND moneylines from The Odds API
                 const odds = oddsMap ? matchOddsToGame(game, oddsMap) : {};
                 
+                // DIAGNOSTIC LOGGING: Track UI lookup key
+                console.log(`🏀 UI LOOKUP: Searching oddsMap for Key: "${game.homeTeamId}|${game.awayTeamId}"`);
+                if (oddsMap) {
+                  console.log(`📦 CURRENT MAP KEYS:`, Object.keys(oddsMap).slice(0, 10)); // Show first 10 keys
+                }
+                
+                // JsonOdds DEACTIVATED - Using The Odds API exclusively
+                /*
                 // Then, overlay JsonOdds moneylines (PRIORITY OVERRIDE)
                 let jsonOddsML = null;
                 if (jsonOddsMoneylines) {
@@ -4303,46 +4340,38 @@ const fetchDetailedOdds = async (sport, eventId) => {
                     }
                   }
                 }
+                */
                 
                 // Build updated game object with layered data:
                 // 1. Base game data (ESPN)
-                // 2. The Odds API (spreads, totals, fallback moneyline)
-                // 3. JsonOdds (moneyline OVERRIDE)
+                // 2. The Odds API (spreads, totals, moneylines)
                 const updatedGame = {
                   ...game,
                   // Spreads and totals from The Odds API
                   awaySpread: odds.awaySpread || game.awaySpread,
                   homeSpread: odds.homeSpread || game.homeSpread,
                   total: odds.total || game.total,
-                  // Moneyline PRIORITY: JsonOdds > The Odds API > ESPN
-                  awayMoneyline: (jsonOddsML && jsonOddsML.awayMoneyline !== '-') ? jsonOddsML.awayMoneyline : (odds.awayMoneyline || game.awayMoneyline),
-                  homeMoneyline: (jsonOddsML && jsonOddsML.homeMoneyline !== '-') ? jsonOddsML.homeMoneyline : (odds.homeMoneyline || game.homeMoneyline),
+                  // Moneyline PRIORITY: The Odds API > ESPN (JsonOdds deactivated)
+                  awayMoneyline: odds.awayMoneyline || game.awayMoneyline,
+                  homeMoneyline: odds.homeMoneyline || game.homeMoneyline,
                   oddsApiEventId: odds.oddsApiEventId
                 };
                 
-                if (DEBUG_JSONODDS_FLOW) {
-                  const source = jsonOddsML ? 'JsonOdds' : (odds.awayMoneyline ? 'OddsAPI' : 'ESPN');
-                  console.log(`📋 Final game object for ${game.awayTeam} @ ${game.homeTeam}:`, {
-                    awayMoneyline: updatedGame.awayMoneyline,
-                    homeMoneyline: updatedGame.homeMoneyline,
-                    source: source
-                  });
-                  
-                  // Log fallback chain
-                  if (!jsonOddsML && !odds.awayMoneyline && !game.awayMoneyline) {
-                    console.warn(`    ⚠️ No moneyline data found from any source (will display as "-")`);
-                  } else if (!jsonOddsML && odds.awayMoneyline) {
-                    console.log(`    ℹ️ Using The Odds API moneyline as fallback (JsonOdds not available)`);
-                  } else if (!jsonOddsML && !odds.awayMoneyline && game.awayMoneyline) {
-                    console.log(`    ℹ️ Using ESPN moneyline as fallback (JsonOdds and Odds API not available)`);
-                  }
-                }
+                // DIAGNOSTIC LOGGING: Show final moneyline sources
+                const source = odds.awayMoneyline ? 'The Odds API' : (game.awayMoneyline ? 'ESPN' : 'MISSING');
+                console.log(`📋 Final game object for ${game.awayTeam} @ ${game.homeTeam}:`, {
+                  awayMoneyline: updatedGame.awayMoneyline,
+                  homeMoneyline: updatedGame.homeMoneyline,
+                  source: source
+                });
                 
-                // Log source of moneyline data
-                if (jsonOddsML && jsonOddsML.awayMoneyline !== '-') {
-                  console.log(`✅ Applied JsonOdds moneyline: ${game.awayTeam} ${updatedGame.awayMoneyline}, ${game.homeTeam} ${updatedGame.homeMoneyline}`);
-                } else if (odds.awayMoneyline && !game.awayMoneyline) {
-                  console.log(`✅ Applied Odds API moneyline fallback: ${game.awayTeam} ${odds.awayMoneyline}`);
+                // Log fallback chain
+                if (!odds.awayMoneyline && !game.awayMoneyline) {
+                  console.warn(`    ⚠️ No moneyline data found from any source (will display as "MISSING")`);
+                } else if (odds.awayMoneyline) {
+                  console.log(`    ✅ Using The Odds API moneyline: ${game.awayTeam} ${odds.awayMoneyline}, ${game.homeTeam} ${odds.homeMoneyline}`);
+                } else if (!odds.awayMoneyline && game.awayMoneyline) {
+                  console.log(`    ℹ️ Using ESPN moneyline as fallback: ${game.awayTeam} ${game.awayMoneyline}`);
                 }
                 
                 // Add draw moneyline for soccer sports

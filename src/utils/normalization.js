@@ -56,14 +56,20 @@ export function getStandardId(teamName) {
   for (const team of nflTeams) {
     // Check canonical name (case-insensitive)
     if (team.canonical.toLowerCase() === normalized) {
-      return team.id;
+      // CRITICAL: Return ESPN Integer ID from aliases array, not custom ID
+      // ESPN IDs are numeric strings in aliases (e.g., "1", "22", "34")
+      // This ensures oddsMap keys match what GridBettingLayout expects
+      const espnId = team.aliases && team.aliases.find(a => /^\d+$/.test(a));
+      return espnId || team.id; // Fallback to custom ID if ESPN ID not found
     }
     
     // Check all aliases (case-insensitive)
     if (team.aliases) {
       for (const alias of team.aliases) {
         if (alias.toLowerCase() === normalized) {
-          return team.id;
+          // CRITICAL: Return ESPN Integer ID from aliases array
+          const espnId = team.aliases.find(a => /^\d+$/.test(a));
+          return espnId || team.id; // Fallback to custom ID if ESPN ID not found
         }
       }
     }
