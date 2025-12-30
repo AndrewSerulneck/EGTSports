@@ -20,6 +20,7 @@ import BettingSlip from './components/BettingSlip';
 import MemberContainer from './components/MemberContainer';
 import { getStandardId } from './utils/normalization';
 import { findBestMoneylinePrices, formatMoneylineForDisplay } from './utils/priceFinder';
+import { findTeamByName } from './utils/teamMapper';
 
 function SportsMenu({ currentSport, onSelectSport, allSportsGames, onSignOut, onManualRefresh, isRefreshing, onNavigateToDashboard }) {
     const sportOrder = ['NFL', 'College Football', 'NBA', 'College Basketball', 'Major League Baseball', 'NHL', 'World Cup', 'MLS', 'Boxing', 'UFC'];
@@ -2566,15 +2567,17 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
     const commenceTimeFrom = now.toISOString().split('.')[0] + 'Z';
     const commenceTimeTo = fourteenDaysFromNow.toISOString().split('.')[0] + 'Z';
     
-    // CRITICAL: Explicitly request 'american' odds format and include future games
-    const url = `${ODDS_API_BASE_URL}/sports/${sportKey}/odds/?apiKey=${ODDS_API_KEY}&regions=us&markets=${markets}&oddsFormat=american&commenceTimeFrom=${commenceTimeFrom}&commenceTimeTo=${commenceTimeTo}`;
+    // CRITICAL: Request 'american' odds format (no conversion needed)
+    // Also include source IDs (includeSids=true) for better team matching
+    const url = `${ODDS_API_BASE_URL}/sports/${sportKey}/odds/?apiKey=${ODDS_API_KEY}&regions=us&markets=${markets}&oddsFormat=american&includeSids=true&commenceTimeFrom=${commenceTimeFrom}&commenceTimeTo=${commenceTimeTo}`;
     
     // DEBUG: Log URL with masked API key for security
     const maskedUrl = url.replace(ODDS_API_KEY, '***KEY_HIDDEN***');
     console.log(`🔥 Making Odds API call for ${sport}...`);
     console.log(`📡 URL: ${maskedUrl}`);
     console.log(`📋 Markets requested: ${markets}`);
-    console.log(`📐 Odds format: american`);
+    console.log(`📐 Odds format: american (no conversion needed)`);
+    console.log(`🆔 Source IDs: enabled (includeSids=true)`);
     console.log(`📅 Time window: ${commenceTimeFrom} to ${commenceTimeTo} (14 days)`);
     
     const response = await fetch(url);
@@ -2628,7 +2631,7 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
         console.log(`🔄 Attempting fallback to 'upcoming' sport key...`);
         
         // FALLBACK: Try 'upcoming' sport key if specific sport returns 404
-        const fallbackUrl = `${ODDS_API_BASE_URL}/sports/upcoming/odds/?apiKey=${ODDS_API_KEY}&regions=us&markets=${markets}&oddsFormat=american`;
+        const fallbackUrl = `${ODDS_API_BASE_URL}/sports/upcoming/odds/?apiKey=${ODDS_API_KEY}&regions=us&markets=${markets}&oddsFormat=american&includeSids=true`;
         const fallbackResponse = await fetch(fallbackUrl);
         
         if (fallbackResponse.ok) {
@@ -2680,7 +2683,7 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
     if (data.length === 0 || (data.length < 5 && !isCombat)) {
       console.warn(`⚠️ Limited/no games found for ${sport} (got ${data.length}). Trying 'upcoming' fallback for additional games...`);
       
-      const fallbackUrl = `${ODDS_API_BASE_URL}/sports/upcoming/odds/?apiKey=${ODDS_API_KEY}&regions=us&markets=${markets}&oddsFormat=american`;
+      const fallbackUrl = `${ODDS_API_BASE_URL}/sports/upcoming/odds/?apiKey=${ODDS_API_KEY}&regions=us&markets=${markets}&oddsFormat=american&includeSids=true`;
       const fallbackResponse = await fetch(fallbackUrl);
       
       if (fallbackResponse.ok) {
@@ -2905,16 +2908,35 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
       const gameName = `${awayTeam} @ ${homeTeam}`;
       const sportKey = ODDS_API_SPORT_KEYS[sport];
       
+      // CRITICAL: Look up team IDs from local JSON files to enable SID matching
+      // The sid from API outcomes matches the id field in our src/data/*.json files
+      // This provides reliable team identification without name-based guessing
+      let localHomeTeamId = null;
+      let localAwayTeamId = null;
+      
+      if (sportKey) {
+        const homeTeamData = findTeamByName(homeTeam, sportKey);
+        const awayTeamData = findTeamByName(awayTeam, sportKey);
+        
+        localHomeTeamId = homeTeamData?.id || null;
+        localAwayTeamId = awayTeamData?.id || null;
+        
+        if (localHomeTeamId && localAwayTeamId) {
+          console.log(`  🆔 Local team IDs found: Home=${localHomeTeamId}, Away=${localAwayTeamId}`);
+        } else {
+          console.warn(`  ⚠️ Could not find local team IDs: Home=${localHomeTeamId || 'NOT_FOUND'}, Away=${localAwayTeamId || 'NOT_FOUND'}`);
+        }
+      }
+      
       // Use new Price Finder utility for robust moneyline extraction
-      // Note: The Odds API doesn't provide participant IDs in outcomes, only team names
-      // So we pass null for IDs and rely on name matching strategies
+      // Now passing local team IDs for SID-based matching (most reliable method)
       const moneylineResult = findBestMoneylinePrices(
         game.bookmakers,
         homeTeam,
         awayTeam,
         sportKey,
-        null, // homeTeamId - not used, The Odds API uses team names
-        null  // awayTeamId - not used, The Odds API uses team names
+        localHomeTeamId,  // homeTeamId - used for SID matching with API outcomes
+        localAwayTeamId   // awayTeamId - used for SID matching with API outcomes
       );
       
       if (moneylineResult) {
@@ -3458,8 +3480,8 @@ const fetchDetailedOdds = async (sport, eventId) => {
     // Request quarter and halftime markets
     const markets = 'h2h_q1,h2h_q2,h2h_q3,h2h_q4,h2h_h1,h2h_h2,spreads_q1,spreads_q2,spreads_q3,spreads_q4,spreads_h1,spreads_h2,totals_q1,totals_q2,totals_q3,totals_q4,totals_h1,totals_h2';
     
-    // Use per-event endpoint
-    const url = `${ODDS_API_BASE_URL}/sports/${sportKey}/events/${eventId}/odds?apiKey=${ODDS_API_KEY}&regions=us&markets=${markets}&oddsFormat=american`;
+    // Use per-event endpoint with american format and source IDs
+    const url = `${ODDS_API_BASE_URL}/sports/${sportKey}/events/${eventId}/odds?apiKey=${ODDS_API_KEY}&regions=us&markets=${markets}&oddsFormat=american&includeSids=true`;
     
     console.log(`🔍 Fetching detailed odds for event ${eventId}...`);
     const response = await fetch(url);
