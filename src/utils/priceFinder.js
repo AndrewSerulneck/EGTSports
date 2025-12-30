@@ -112,19 +112,24 @@ function isValidMarket(market, marketKey) {
  * 
  * CRITICAL: Now supports SID (Source ID) based matching with local JSON files
  * When includeSids=true is used in API requests, outcomes will have sid field
- * The sid (e.g., "par_01hqmkq6fzfvyvrsb30jj85ade") is stored in the aliases array
- * of our src/data/*.json files, providing the MOST RELIABLE team identification.
  * 
- * Example local JSON structure:
- * { "id": "NBA-020", "canonical": "New York Knicks", 
- *   "aliases": ["NYK", ..., "par_01hqmkq6fzfvyvrsb30jj85ade"] }
+ * TWO-TIER SID MATCHING:
+ * - Pro Leagues (NFL, NBA, NHL): The sid (e.g., "par_01hqmkq6fzfvyvrsb30jj85ade") 
+ *   is stored in the aliases array of src/data/*.json files
+ *   Example: { "id": "NBA-020", "canonical": "New York Knicks", 
+ *              "aliases": ["NYK", ..., "par_01hqmk..."] }
+ * 
+ * - NCAAB: The sid is stored directly in the id field
+ *   Example: { "id": "par_01hqmk...", "full_name": "Duke Blue Devils" }
+ * 
+ * This provides the MOST RELIABLE team identification.
  * 
  * @param {Array} bookmakers - Array of bookmaker objects from The Odds API
  * @param {string} homeTeam - Home team name from API
  * @param {string} awayTeam - Away team name from API
  * @param {string} sportKey - Sport key for team mapping (e.g., 'basketball_nba')
- * @param {string} homeTeamId - Home team SID from API outcomes (stored in JSON aliases)
- * @param {string} awayTeamId - Away team SID from API outcomes (stored in JSON aliases)
+ * @param {string} homeTeamId - Home team SID from API outcomes (e.g., "par_01hqmk...")
+ * @param {string} awayTeamId - Away team SID from API outcomes (e.g., "par_01hqmk...")
  * @returns {object|null} Object with awayPrice, homePrice, drawPrice, bookmakerName, or null
  */
 export function findBestMoneylinePrices(bookmakers, homeTeam, awayTeam, sportKey = null, homeTeamId = null, awayTeamId = null) {

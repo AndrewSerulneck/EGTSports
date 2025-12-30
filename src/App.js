@@ -2910,7 +2910,13 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
       
       // CRITICAL: Extract SIDs from API outcomes and use them to look up teams in local JSON
       // The Odds API returns sid in outcomes (e.g., "par_01hqmkq6fzfvyvrsb30jj85ade")
-      // This sid is stored in the aliases array of our local JSON files
+      // 
+      // TWO-TIER MATCHING LOGIC:
+      // - Pro Leagues (NFL, NBA, NHL): SID is stored in the aliases array
+      //   Example: { "id": "NBA-020", "aliases": [..., "par_01hqmk..."] }
+      // - NCAAB: SID is stored directly in the id field
+      //   Example: { "id": "par_01hqmk...", "full_name": "Duke Blue Devils" }
+      //
       // This provides the MOST RELIABLE team identification method
       let localHomeTeamId = null;
       let localAwayTeamId = null;
@@ -2952,21 +2958,37 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
       if ((!localHomeTeamId || !localAwayTeamId) && sportKey) {
         console.log(`  ⚠️ SID extraction incomplete, falling back to name-based lookup...`);
         
+        const isNCAA_Basketball = sportKey === 'basketball_ncaab';
+        
         if (!localHomeTeamId) {
           const homeTeamData = findTeamByName(homeTeam, sportKey);
-          // Extract the SID from aliases if available (last item that starts with "par_")
-          if (homeTeamData && homeTeamData.aliases) {
-            const sid = homeTeamData.aliases.find(a => a.startsWith('par_'));
-            localHomeTeamId = sid || null;
+          if (homeTeamData) {
+            if (isNCAA_Basketball) {
+              // For NCAAB, the id field IS the SID (e.g., "par_01hqmk...")
+              localHomeTeamId = homeTeamData.id || null;
+            } else {
+              // For pro leagues, extract SID from aliases array
+              if (homeTeamData.aliases) {
+                const sid = homeTeamData.aliases.find(a => a && a.startsWith('par_'));
+                localHomeTeamId = sid || null;
+              }
+            }
           }
         }
         
         if (!localAwayTeamId) {
           const awayTeamData = findTeamByName(awayTeam, sportKey);
-          // Extract the SID from aliases if available (last item that starts with "par_")
-          if (awayTeamData && awayTeamData.aliases) {
-            const sid = awayTeamData.aliases.find(a => a.startsWith('par_'));
-            localAwayTeamId = sid || null;
+          if (awayTeamData) {
+            if (isNCAA_Basketball) {
+              // For NCAAB, the id field IS the SID (e.g., "par_01hqmk...")
+              localAwayTeamId = awayTeamData.id || null;
+            } else {
+              // For pro leagues, extract SID from aliases array
+              if (awayTeamData.aliases) {
+                const sid = awayTeamData.aliases.find(a => a && a.startsWith('par_'));
+                localAwayTeamId = sid || null;
+              }
+            }
           }
         }
       }
