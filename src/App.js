@@ -3012,8 +3012,6 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
       if ((!localHomeTeamId || !localAwayTeamId) && sportKey) {
         console.log(`  ⚠️ SID extraction incomplete, falling back to name-based lookup...`);
         
-        const isNCAA_Basketball = sportKey === 'basketball_ncaab';
-        
         if (!localHomeTeamId) {
           const homeTeamData = findTeamByName(homeTeam, sportKey);
           if (homeTeamData) {
@@ -3071,12 +3069,32 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
         
         console.log(`  🔄 Using ESPN IDs for game key: Home="${finalHomeTeamId}", Away="${finalAwayTeamId}"`);
         console.log(`  📊 Game Key will be: "${finalHomeTeamId}|${finalAwayTeamId}"`);
+        
+        // CONSOLIDATED TEAM MATCH LOGGING
+        console.log(`✓ Matched teams:`, {
+          home: homeTeam,
+          away: awayTeam,
+          method: (homeSid && awaySid) ? 'sid' : 'name-based',
+          homeEspnId: finalHomeTeamId,
+          awayEspnId: finalAwayTeamId
+        });
       } else {
         console.warn(`  ⚠️ Mapping incomplete, using ESPN IDs: Home="${finalHomeTeamId}", Away="${finalAwayTeamId}"`);
       }
       
+      // CONFIDENCE LOGGING: Determine team matching method and confidence
+      let matchingMethod = 'none';
+      let confidence = '0%';
+      
       if (homeSid && awaySid) {
+        matchingMethod = 'sid';
+        confidence = '100%';
         console.log(`  ✅ Using SID-based matching for price lookup: Home SID=${homeSid}, Away SID=${awaySid}`);
+      } else if (localHomeTeamId && localAwayTeamId) {
+        matchingMethod = 'fuzzy';
+        confidence = 'fuzzy';
+        console.warn(`  ⚠️ SID-based matching incomplete, using name-based lookup`);
+        console.warn(`     Home SID=${homeSid || 'NONE'}, Away SID=${awaySid || 'NONE'}`);
       } else {
         console.warn(`  ⚠️ SID-based matching incomplete: Home SID=${homeSid || 'NONE'}, Away SID=${awaySid || 'NONE'}`);
       }
@@ -3100,6 +3118,15 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
         if (isSoccer && formatted.drawMoneyline !== undefined) {
           drawMoneyline = formatted.drawMoneyline;
         }
+        
+        // ENHANCED CONFIDENCE LOGGING: Show team match confidence with emoji
+        console.log(`🎯 Team Match Confidence:`, {
+          game: `${awayTeam} @ ${homeTeam}`,
+          confidence: confidence,
+          method: matchingMethod,
+          bookmaker: moneylineResult.bookmakerName,
+          source: 'The Odds API'
+        });
         
         console.log(`  ✅ Moneyline prices found via ${moneylineResult.bookmakerName}`);
         console.log(`     Away: ${awayMoneyline}, Home: ${homeMoneyline}${drawMoneyline !== undefined ? `, Draw: ${drawMoneyline}` : ''}`);
@@ -3255,12 +3282,23 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
       // Use finalHomeTeamId and finalAwayTeamId (mapped from SIDs if available)
       const gameKey = `${finalHomeTeamId}|${finalAwayTeamId}`;
       console.log(`  💾 Storing odds with key: "${gameKey}"`);
+      
+      // ODDS DATA STRUCTURE (matches useOddsApi.ts format):
+      // {
+      //   homeMoneyline: string (e.g., "-110", "+150"),
+      //   awayMoneyline: string,
+      //   drawMoneyline?: string (soccer only),
+      //   homeSpread: string (e.g., "-3.5", "+7"),
+      //   awaySpread: string,
+      //   total: string (e.g., "47.5"),
+      //   bookmaker: stored per-market in findBookmakerWithMarket results
+      // }
       const oddsData = { 
-        awaySpread, 
-        homeSpread, 
-        total, 
-        awayMoneyline, 
-        homeMoneyline,
+        awaySpread,       // e.g., "+3.5" or "-7" (includes +/- prefix)
+        homeSpread,       // e.g., "-3.5" or "+7" (includes +/- prefix)
+        total,            // e.g., "47.5" (just the number)
+        awayMoneyline,    // e.g., "+150" or "-110" (American odds format)
+        homeMoneyline,    // e.g., "-110" or "+200" (American odds format)
         oddsApiEventId: game.id // Store The Odds API event ID for prop betting
       };
       
@@ -3295,6 +3333,25 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
       
       if (hasAnyMarket) {
         console.log(`  ✅ ${gameName}: ML via ${h2hBookmaker}, Spread via ${spreadBookmaker}, Total via ${totalBookmaker}`);
+        
+        // BOOKMAKER SOURCE SUMMARY with structure matching expected format
+        console.log(`📊 Bookmaker Sources:`, {
+          game: gameName,
+          moneyline: {
+            bookmaker: h2hBookmaker,
+            away: awayMoneyline,
+            home: homeMoneyline
+          },
+          spread: {
+            bookmaker: spreadBookmaker,
+            away: awaySpread,
+            home: homeSpread
+          },
+          total: {
+            bookmaker: totalBookmaker,
+            line: total
+          }
+        });
       } else {
         console.log(`  ❌ ${gameName}: No Odds API match found - checking for naming discrepancies.`);
       }
@@ -3564,6 +3621,7 @@ const fetchMoneylineFromJsonOdds = async (sport, forceRefresh = false, oddType =
 };
 
 /**
+/**
  * fetchAllPeriodOdds - Fetch moneylines for all period types in parallel
  * Fetches Game, FirstHalf, and FirstQuarter odds from JsonOdds API
  * 
@@ -3572,6 +3630,7 @@ const fetchMoneylineFromJsonOdds = async (sport, forceRefresh = false, oddType =
  * @param {string} sport - Sport name (e.g., 'NFL', 'NBA')
  * @returns {object} - Object with period keys: { Game: {...}, FirstHalf: {...}, FirstQuarter: {...} }
  */
+// eslint-disable-next-line no-unused-vars
 const fetchAllPeriodOdds = async (sport) => {
   try {
     // Only fetch period odds for US sports that have quarters/halves
