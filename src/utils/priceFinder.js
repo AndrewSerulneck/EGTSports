@@ -34,8 +34,15 @@ function fuzzyMatchTeamName(apiName, localName) {
   
   if (apiMascot === localMascot) return true;
   
-  // Compare first words (city names)
-  if (apiWords[0] === localWords[0]) return true;
+  // Compare first words (city/school names)
+  if (apiWords[0] === localWords[0] && apiWords[0].length > 2) return true;
+  
+  // For College Basketball: Match if API name starts with any word in local name
+  // e.g., "Arizona" matches "Arizona Wildcats"
+  for (const word of localWords) {
+    if (word.length > 3 && apiNorm.startsWith(word)) return true;
+    if (word.length > 3 && localNorm.startsWith(apiWords[0])) return true;
+  }
   
   return false;
 }
@@ -107,13 +114,14 @@ function isValidMarket(market, marketKey) {
  * @param {string} homeTeam - Home team name from API
  * @param {string} awayTeam - Away team name from API
  * @param {string} sportKey - Sport key for team mapping (e.g., 'basketball_nba')
- * @param {string} homeTeamId - Optional home team participant ID
- * @param {string} awayTeamId - Optional away team participant ID
+ * @param {string} homeTeamId - Optional home team participant ID (not used - see implementation)
+ * @param {string} awayTeamId - Optional away team participant ID (not used - see implementation)
  * @returns {object|null} Object with awayPrice, homePrice, drawPrice, bookmakerName, or null
  */
 export function findBestMoneylinePrices(bookmakers, homeTeam, awayTeam, sportKey = null, homeTeamId = null, awayTeamId = null) {
   console.log(`\n🔍 Price Finder: Searching for moneyline (h2h) prices`);
   console.log(`   Teams: ${awayTeam} @ ${homeTeam}`);
+  console.log(`   Sport Key: ${sportKey || 'unknown'}`);
   console.log(`   Bookmakers available: ${bookmakers?.length || 0}`);
   
   if (!bookmakers || bookmakers.length === 0) {
@@ -174,64 +182,39 @@ export function findBestMoneylinePrices(bookmakers, homeTeam, awayTeam, sportKey
     }
     
     console.log(`    ✅ Found h2h market with ${h2hMarket.outcomes.length} outcomes`);
-    console.log(`    Raw outcomes:`, h2hMarket.outcomes.map(o => ({ name: o.name, price: o.price })));
+    console.log(`    Raw outcomes:`, h2hMarket.outcomes.map(o => ({ 
+      name: o.name, 
+      price: o.price,
+      description: o.description || 'N/A'
+    })));
     
     // Initialize result
     let homePrice = null;
     let awayPrice = null;
     let drawPrice = null;
     
-    // STEP 1: Try matching by participant ID (most reliable)
-    if (homeTeamId || awayTeamId) {
-      console.log(`    🆔 Attempting ID-based matching...`);
+    // STEP 1: Try exact name matching (case-insensitive) - most reliable for The Odds API
+    console.log(`    🔤 Attempting exact name matching...`);
+    for (const outcome of h2hMarket.outcomes) {
+      const outcomeName = outcome.name || '';
       
-      for (const outcome of h2hMarket.outcomes) {
-        // Check if outcome has participant_id or id field
-        const outcomeId = outcome.participant_id || outcome.id;
-        
-        if (outcomeId && homeTeamId && outcomeId === homeTeamId) {
-          homePrice = safeNumberConversion(outcome.price);
-          console.log(`    ✓ Home team matched by ID (${homeTeamId}): price = ${homePrice}`);
-        }
-        
-        if (outcomeId && awayTeamId && outcomeId === awayTeamId) {
-          awayPrice = safeNumberConversion(outcome.price);
-          console.log(`    ✓ Away team matched by ID (${awayTeamId}): price = ${awayPrice}`);
-        }
-        
-        // Check for Draw (soccer)
-        if (outcome.name === 'Draw') {
-          drawPrice = safeNumberConversion(outcome.price);
-          console.log(`    ✓ Draw matched: price = ${drawPrice}`);
-        }
+      if (homePrice === null && outcomeName.toLowerCase() === homeTeam.toLowerCase()) {
+        homePrice = safeNumberConversion(outcome.price);
+        console.log(`    ✓ Home team matched by exact name: "${outcomeName}" = ${homePrice}`);
+      }
+      
+      if (awayPrice === null && outcomeName.toLowerCase() === awayTeam.toLowerCase()) {
+        awayPrice = safeNumberConversion(outcome.price);
+        console.log(`    ✓ Away team matched by exact name: "${outcomeName}" = ${awayPrice}`);
+      }
+      
+      if (drawPrice === null && outcomeName === 'Draw') {
+        drawPrice = safeNumberConversion(outcome.price);
+        console.log(`    ✓ Draw matched: price = ${drawPrice}`);
       }
     }
     
-    // STEP 2: Try exact name matching (case-insensitive)
-    if (homePrice === null || awayPrice === null) {
-      console.log(`    🔤 Attempting exact name matching...`);
-      
-      for (const outcome of h2hMarket.outcomes) {
-        const outcomeName = outcome.name || '';
-        
-        if (homePrice === null && outcomeName.toLowerCase() === homeTeam.toLowerCase()) {
-          homePrice = safeNumberConversion(outcome.price);
-          console.log(`    ✓ Home team matched by exact name: ${outcomeName} = ${homePrice}`);
-        }
-        
-        if (awayPrice === null && outcomeName.toLowerCase() === awayTeam.toLowerCase()) {
-          awayPrice = safeNumberConversion(outcome.price);
-          console.log(`    ✓ Away team matched by exact name: ${outcomeName} = ${awayPrice}`);
-        }
-        
-        if (drawPrice === null && outcomeName === 'Draw') {
-          drawPrice = safeNumberConversion(outcome.price);
-          console.log(`    ✓ Draw matched: price = ${drawPrice}`);
-        }
-      }
-    }
-    
-    // STEP 3: Try fuzzy name matching
+    // STEP 2: Try fuzzy name matching
     if (homePrice === null || awayPrice === null) {
       console.log(`    🔍 Attempting fuzzy name matching...`);
       
@@ -258,7 +241,7 @@ export function findBestMoneylinePrices(bookmakers, homeTeam, awayTeam, sportKey
       }
     }
     
-    // STEP 4: Try team mapping if sport key provided
+    // STEP 3: Try team mapper lookup if sport key provided
     if ((homePrice === null || awayPrice === null) && sportKey) {
       console.log(`    🗺️ Attempting team mapper lookup with sport key: ${sportKey}...`);
       
@@ -267,26 +250,60 @@ export function findBestMoneylinePrices(bookmakers, homeTeam, awayTeam, sportKey
         
         if (homePrice === null) {
           const homeTeamData = findTeamByName(homeTeam, sportKey);
-          if (homeTeamData && homeTeamData.aliases) {
-            const aliasMatch = homeTeamData.aliases.some(alias => 
-              fuzzyMatchTeamName(outcomeName, alias)
-            );
-            if (aliasMatch) {
+          if (homeTeamData) {
+            // Try matching with canonical name
+            if (fuzzyMatchTeamName(outcomeName, homeTeamData.canonical || homeTeamData.full_name)) {
               homePrice = safeNumberConversion(outcome.price);
-              console.log(`    ✓ Home team matched via team mapper: "${outcomeName}" ~ alias of "${homeTeam}" = ${homePrice}`);
+              console.log(`    ✓ Home team matched via canonical: "${outcomeName}" ~ "${homeTeamData.canonical || homeTeamData.full_name}" = ${homePrice}`);
+            }
+            // Try matching with aliases
+            else if (homeTeamData.aliases) {
+              const aliasMatch = homeTeamData.aliases.find(alias => 
+                fuzzyMatchTeamName(outcomeName, alias)
+              );
+              if (aliasMatch) {
+                homePrice = safeNumberConversion(outcome.price);
+                console.log(`    ✓ Home team matched via alias: "${outcomeName}" ~ "${aliasMatch}" = ${homePrice}`);
+              }
+            }
+          }
+          
+          // Also try matching the API outcome name to our local data
+          if (homePrice === null) {
+            const outcomeTeamData = findTeamByName(outcomeName, sportKey);
+            if (outcomeTeamData && fuzzyMatchTeamName(homeTeam, outcomeTeamData.canonical || outcomeTeamData.full_name)) {
+              homePrice = safeNumberConversion(outcome.price);
+              console.log(`    ✓ Home team matched via reverse lookup: "${outcomeName}" matches canonical "${outcomeTeamData.canonical || outcomeTeamData.full_name}" = ${homePrice}`);
             }
           }
         }
         
         if (awayPrice === null) {
           const awayTeamData = findTeamByName(awayTeam, sportKey);
-          if (awayTeamData && awayTeamData.aliases) {
-            const aliasMatch = awayTeamData.aliases.some(alias => 
-              fuzzyMatchTeamName(outcomeName, alias)
-            );
-            if (aliasMatch) {
+          if (awayTeamData) {
+            // Try matching with canonical name
+            if (fuzzyMatchTeamName(outcomeName, awayTeamData.canonical || awayTeamData.full_name)) {
               awayPrice = safeNumberConversion(outcome.price);
-              console.log(`    ✓ Away team matched via team mapper: "${outcomeName}" ~ alias of "${awayTeam}" = ${awayPrice}`);
+              console.log(`    ✓ Away team matched via canonical: "${outcomeName}" ~ "${awayTeamData.canonical || awayTeamData.full_name}" = ${awayPrice}`);
+            }
+            // Try matching with aliases
+            else if (awayTeamData.aliases) {
+              const aliasMatch = awayTeamData.aliases.find(alias => 
+                fuzzyMatchTeamName(outcomeName, alias)
+              );
+              if (aliasMatch) {
+                awayPrice = safeNumberConversion(outcome.price);
+                console.log(`    ✓ Away team matched via alias: "${outcomeName}" ~ "${aliasMatch}" = ${awayPrice}`);
+              }
+            }
+          }
+          
+          // Also try matching the API outcome name to our local data
+          if (awayPrice === null) {
+            const outcomeTeamData = findTeamByName(outcomeName, sportKey);
+            if (outcomeTeamData && fuzzyMatchTeamName(awayTeam, outcomeTeamData.canonical || outcomeTeamData.full_name)) {
+              awayPrice = safeNumberConversion(outcome.price);
+              console.log(`    ✓ Away team matched via reverse lookup: "${outcomeName}" matches canonical "${outcomeTeamData.canonical || outcomeTeamData.full_name}" = ${awayPrice}`);
             }
           }
         }
@@ -312,9 +329,6 @@ export function findBestMoneylinePrices(bookmakers, homeTeam, awayTeam, sportKey
       console.error(`    ❌ Failed to match either team in ${bookmakerName}`);
       console.error(`       Available outcomes: [${h2hMarket.outcomes.map(o => o.name).join(', ')}]`);
       console.error(`       Looking for: Home="${homeTeam}", Away="${awayTeam}"`);
-      if (homeTeamId || awayTeamId) {
-        console.error(`       Team IDs: Home="${homeTeamId || 'N/A'}", Away="${awayTeamId || 'N/A'}"`);
-      }
     } else if (homePrice === null) {
       console.error(`    ⚠️ Partial match in ${bookmakerName}: Found away (${awayPrice}) but missing home`);
     } else if (awayPrice === null) {
@@ -326,11 +340,7 @@ export function findBestMoneylinePrices(bookmakers, homeTeam, awayTeam, sportKey
   console.error(`\n   ❌ FINAL FAILURE: Could not find moneyline prices in any of ${bookmakers.length} bookmakers`);
   console.error(`      Teams: ${awayTeam} @ ${homeTeam}`);
   console.error(`      Sport: ${sportKey || 'unknown'}`);
-  if (homeTeamId || awayTeamId) {
-    console.error(`      Missing participant_id mapping - Add these to team mapping files:`);
-    console.error(`         Home team ID: ${homeTeamId || 'N/A'}`);
-    console.error(`         Away team ID: ${awayTeamId || 'N/A'}`);
-  }
+  console.error(`      Suggestion: Check that team names in The Odds API match names in src/data/ JSON files`);
   
   return null;
 }

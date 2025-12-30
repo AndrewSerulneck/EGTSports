@@ -2020,7 +2020,7 @@ const saveSubmission = async (submission) => {
       
       <div className={`container main-content ${allSportsGames && Object.keys(allSportsGames).length > 0 ? 'with-sidebar' : ''}`}>
         <GridBettingLayout
-          games={games}
+          games={allSportsGames[displaySport] || []}
           selectedPicks={selectedPicks}
           onSelectPick={handleGridPickSelection}
           betType={betType}
@@ -2906,13 +2906,15 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
       const sportKey = ODDS_API_SPORT_KEYS[sport];
       
       // Use new Price Finder utility for robust moneyline extraction
+      // Note: The Odds API doesn't provide participant IDs in outcomes, only team names
+      // So we pass null for IDs and rely on name matching strategies
       const moneylineResult = findBestMoneylinePrices(
         game.bookmakers,
         homeTeam,
         awayTeam,
         sportKey,
-        homeTeamId,
-        awayTeamId
+        null, // homeTeamId - not used, The Odds API uses team names
+        null  // awayTeamId - not used, The Odds API uses team names
       );
       
       if (moneylineResult) {
