@@ -21,6 +21,7 @@ import MemberContainer from './components/MemberContainer';
 import { getStandardId } from './utils/normalization';
 import { findBestMoneylinePrices, formatMoneylineForDisplay } from './utils/priceFinder';
 import { findTeamByName, findTeamById, getTeamsForSport } from './utils/teamMapper';
+import nflTeamsData from './data/nfl-teams.json';
 
 function SportsMenu({ currentSport, onSelectSport, allSportsGames, onSignOut, onManualRefresh, isRefreshing, onNavigateToDashboard }) {
     const sportOrder = ['NFL', 'College Football', 'NBA', 'College Basketball', 'Major League Baseball', 'NHL', 'World Cup', 'MLS', 'Boxing', 'UFC'];
@@ -4444,6 +4445,90 @@ const fetchDetailedOdds = async (sport, eventId) => {
     setLastRefreshTime(Date.now());
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [parseESPNOdds, countMissingOdds, matchOddsToGame]);
+
+  // ESPN ID EXTRACTION UTILITY
+  // This function extracts ESPN team IDs from live game data and matches them to local JSON
+  // Usage: Call this function from browser console or temporarily in useEffect to generate mappings
+  const extractESPNTeamIds = useCallback((sportName = 'NFL') => {
+    console.log(`\n🔍 ===== ESPN TEAM ID EXTRACTION FOR ${sportName} =====\n`);
+    
+    const games = allSportsGames[sportName];
+    if (!games || games.length === 0) {
+      console.warn(`❌ No games found for ${sportName}. Make sure games are loaded first.`);
+      return;
+    }
+    
+    // Get local teams data based on sport
+    const localTeamsData = sportName === 'NFL' ? nflTeamsData : [];
+    if (localTeamsData.length === 0) {
+      console.warn(`❌ Local team data not available for ${sportName}`);
+      return;
+    }
+    
+    const teamMap = new Map(); // Map to store unique teams
+    
+    // Extract unique teams from all games
+    games.forEach(game => {
+      if (game.homeTeamId && game.homeTeam) {
+        teamMap.set(game.homeTeam, {
+          name: game.homeTeam,
+          espnId: game.homeTeamId
+        });
+      }
+      if (game.awayTeamId && game.awayTeam) {
+        teamMap.set(game.awayTeam, {
+          name: game.awayTeam,
+          espnId: game.awayTeamId
+        });
+      }
+    });
+    
+    console.log(`📊 Found ${teamMap.size} unique teams in ${games.length} games\n`);
+    console.log(`📋 COPY THE FOLLOWING OUTPUT:\n`);
+    console.log(`// ESPN Team IDs for ${sportName}`);
+    console.log(`// Format: 'Team Name': 'ESPN_ID'\n`);
+    
+    const sortedTeams = Array.from(teamMap.values()).sort((a, b) => 
+      a.name.localeCompare(b.name)
+    );
+    
+    // Print in the requested format with matching to local JSON
+    sortedTeams.forEach(team => {
+      // Try to find match in local JSON
+      const localTeam = localTeamsData.find(lt => 
+        lt.canonical === team.name || 
+        lt.aliases.some(alias => alias === team.name)
+      );
+      
+      if (localTeam) {
+        console.log(`'${team.name}': '${team.espnId}', // ✅ Matches JSON: ${localTeam.id}`);
+      } else {
+        console.log(`'${team.name}': '${team.espnId}', // ⚠️ NOT FOUND in local JSON`);
+      }
+    });
+    
+    console.log(`\n===== END OF ESPN TEAM ID EXTRACTION =====\n`);
+    
+    // Return the data for programmatic access
+    return {
+      teams: sortedTeams,
+      localMatches: sortedTeams.filter(team => 
+        localTeamsData.some(lt => 
+          lt.canonical === team.name || 
+          lt.aliases.some(alias => alias === team.name)
+        )
+      ).length,
+      totalTeams: sortedTeams.length
+    };
+  }, [allSportsGames]);
+  
+  // Make the function accessible from browser console for manual invocation
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      window.extractESPNTeamIds = extractESPNTeamIds;
+      console.log('💡 TIP: Run window.extractESPNTeamIds("NFL") in console to extract ESPN team IDs');
+    }
+  }, [extractESPNTeamIds]);
 
   // AUTO-MIGRATION: One-time check for orphaned data at /spreads root
   // Move any numeric IDs (orphaned games) into proper sport subfolders
