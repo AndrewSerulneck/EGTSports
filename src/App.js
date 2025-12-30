@@ -20,7 +20,7 @@ import BettingSlip from './components/BettingSlip';
 import MemberContainer from './components/MemberContainer';
 import { getStandardId } from './utils/normalization';
 import { findBestMoneylinePrices, formatMoneylineForDisplay } from './utils/priceFinder';
-import { findTeamByName } from './utils/teamMapper';
+import { findTeamByName, findTeamById } from './utils/teamMapper';
 
 function SportsMenu({ currentSport, onSelectSport, allSportsGames, onSignOut, onManualRefresh, isRefreshing, onNavigateToDashboard }) {
     const sportOrder = ['NFL', 'College Football', 'NBA', 'College Basketball', 'Major League Baseball', 'NHL', 'World Cup', 'MLS', 'Boxing', 'UFC'];
@@ -2908,35 +2908,84 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
       const gameName = `${awayTeam} @ ${homeTeam}`;
       const sportKey = ODDS_API_SPORT_KEYS[sport];
       
-      // CRITICAL: Look up team IDs from local JSON files to enable SID matching
-      // The sid from API outcomes matches the id field in our src/data/*.json files
-      // This provides reliable team identification without name-based guessing
+      // CRITICAL: Extract SIDs from API outcomes and use them to look up teams in local JSON
+      // The Odds API returns sid in outcomes (e.g., "par_01hqmkq6fzfvyvrsb30jj85ade")
+      // This sid is stored in the aliases array of our local JSON files
+      // This provides the MOST RELIABLE team identification method
       let localHomeTeamId = null;
       let localAwayTeamId = null;
       
-      if (sportKey) {
-        const homeTeamData = findTeamByName(homeTeam, sportKey);
-        const awayTeamData = findTeamByName(awayTeam, sportKey);
+      // First, try to extract SIDs directly from the first available bookmaker's outcomes
+      if (game.bookmakers && game.bookmakers.length > 0 && sportKey) {
+        const firstBookmaker = game.bookmakers[0];
+        const h2hMarket = firstBookmaker.markets?.find(m => m.key === 'h2h');
         
-        localHomeTeamId = homeTeamData?.id || null;
-        localAwayTeamId = awayTeamData?.id || null;
-        
-        if (localHomeTeamId && localAwayTeamId) {
-          console.log(`  🆔 Local team IDs found: Home=${localHomeTeamId}, Away=${localAwayTeamId}`);
-        } else {
-          console.warn(`  ⚠️ Could not find local team IDs: Home=${localHomeTeamId || 'NOT_FOUND'}, Away=${localAwayTeamId || 'NOT_FOUND'}`);
+        if (h2hMarket && h2hMarket.outcomes) {
+          // Look for outcomes that match our team names and extract their SIDs
+          for (const outcome of h2hMarket.outcomes) {
+            const outcomeName = outcome.name || '';
+            
+            // Check if this outcome matches home team (by name)
+            if (outcomeName.toLowerCase() === homeTeam.toLowerCase() && outcome.sid) {
+              // Use the SID to look up the team in our local JSON
+              const teamData = findTeamById(outcome.sid, sportKey);
+              if (teamData) {
+                localHomeTeamId = outcome.sid; // Use the SID itself for matching
+                console.log(`  🆔 Home team SID found: ${outcome.sid} → ${teamData.canonical || teamData.full_name}`);
+              }
+            }
+            
+            // Check if this outcome matches away team (by name)
+            if (outcomeName.toLowerCase() === awayTeam.toLowerCase() && outcome.sid) {
+              // Use the SID to look up the team in our local JSON
+              const teamData = findTeamById(outcome.sid, sportKey);
+              if (teamData) {
+                localAwayTeamId = outcome.sid; // Use the SID itself for matching
+                console.log(`  🆔 Away team SID found: ${outcome.sid} → ${teamData.canonical || teamData.full_name}`);
+              }
+            }
+          }
         }
       }
       
+      // Fallback: If SID extraction failed, try traditional team name lookup
+      if ((!localHomeTeamId || !localAwayTeamId) && sportKey) {
+        console.log(`  ⚠️ SID extraction incomplete, falling back to name-based lookup...`);
+        
+        if (!localHomeTeamId) {
+          const homeTeamData = findTeamByName(homeTeam, sportKey);
+          // Extract the SID from aliases if available (last item that starts with "par_")
+          if (homeTeamData && homeTeamData.aliases) {
+            const sid = homeTeamData.aliases.find(a => a.startsWith('par_'));
+            localHomeTeamId = sid || null;
+          }
+        }
+        
+        if (!localAwayTeamId) {
+          const awayTeamData = findTeamByName(awayTeam, sportKey);
+          // Extract the SID from aliases if available (last item that starts with "par_")
+          if (awayTeamData && awayTeamData.aliases) {
+            const sid = awayTeamData.aliases.find(a => a.startsWith('par_'));
+            localAwayTeamId = sid || null;
+          }
+        }
+      }
+      
+      if (localHomeTeamId && localAwayTeamId) {
+        console.log(`  ✅ Using SID-based matching: Home=${localHomeTeamId}, Away=${localAwayTeamId}`);
+      } else {
+        console.warn(`  ⚠️ SID-based matching incomplete: Home=${localHomeTeamId || 'NONE'}, Away=${localAwayTeamId || 'NONE'}`);
+      }
+      
       // Use new Price Finder utility for robust moneyline extraction
-      // Now passing local team IDs for SID-based matching (most reliable method)
+      // Now passing SIDs for exact matching with API outcomes
       const moneylineResult = findBestMoneylinePrices(
         game.bookmakers,
         homeTeam,
         awayTeam,
         sportKey,
-        localHomeTeamId,  // homeTeamId - used for SID matching with API outcomes
-        localAwayTeamId   // awayTeamId - used for SID matching with API outcomes
+        localHomeTeamId,  // homeTeamId - SID from aliases for exact matching
+        localAwayTeamId   // awayTeamId - SID from aliases for exact matching
       );
       
       if (moneylineResult) {

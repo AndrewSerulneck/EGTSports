@@ -26,11 +26,14 @@ import { findTeamByName } from './teamMapper';
  * Follows the correct nested path: game.bookmakers[i].markets.find(m => m.key === 'h2h').outcomes
  * 
  * CRITICAL: Uses Source ID (sid) matching with local JSON team files
- * The sid from API outcomes matches the id field in src/data/*.json files
- * This provides reliable team identification without name-based guessing
+ * The sid from API outcomes (e.g., "par_01hqmkq6fzfvyvrsb30jj85ade") is stored in the
+ * aliases array of our local JSON files (e.g., nba-teams.json).
+ * Example: { "id": "NBA-020", "canonical": "New York Knicks", 
+ *           "aliases": [..., "par_01hqmkq6fzfvyvrsb30jj85ade"] }
+ * This provides the MOST RELIABLE team identification without name-based guessing.
  * 
  * @param {Object} game - The game object from The Odds API
- * @param {string} teamId - The team ID from our JSON files (matches sid from API)
+ * @param {string} teamId - The SID from our JSON aliases (e.g., "par_01hqmk...")
  * @param {string} teamName - The team name from The Odds API (fallback only)
  * @param {string} sportKey - Sport key for team mapper lookup (optional)
  * @returns {number|string} - The odds value (American format) or status string ('N/A', 'MISSING', 'ERR')
@@ -200,10 +203,14 @@ export const convertToAmericanOdds = (decimal) => {
  * Extract and format moneyline odds for both teams
  * Returns American format odds (when using oddsFormat=american from API)
  * 
+ * CRITICAL: teamId parameters should be SIDs from API outcomes 
+ * (e.g., "par_01hqmkq6fzfvyvrsb30jj85ade") which are stored in the aliases 
+ * array of our local JSON files.
+ * 
  * @param {Object} game - The game object from The Odds API
- * @param {string} homeTeamId - Home team ID from JSON
+ * @param {string} homeTeamId - Home team SID from API/JSON aliases
  * @param {string} homeTeamName - Home team name from API
- * @param {string} awayTeamId - Away team ID from JSON
+ * @param {string} awayTeamId - Away team SID from API/JSON aliases
  * @param {string} awayTeamName - Away team name from API
  * @param {string} sportKey - Sport key for enhanced matching
  * @returns {Object} - { homeML: string, awayML: string, drawML: string|undefined }
