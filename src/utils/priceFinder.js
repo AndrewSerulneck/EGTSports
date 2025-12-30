@@ -4,7 +4,7 @@
  * Handles deep nesting, ID vs. Name lookups, and data type conversion
  */
 
-import { getCanonicalName, findTeamByName, findTeamById } from './teamMapper';
+import { findTeamByName } from './teamMapper';
 
 /**
  * Fuzzy name matching for team names
