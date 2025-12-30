@@ -2797,7 +2797,9 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
     const sidToCustomIdMap = {};
     
     if (sportKey) {
+      console.log(`  📂 Getting teams for sport key: ${sportKey}`);
       const teams = getTeamsForSport(sportKey);
+      console.log(`  ✅ Retrieved ${teams.length} teams`);
       const isNCAA_Basketball = sportKey === 'basketball_ncaab';
       
       teams.forEach(team => {
@@ -2822,9 +2824,15 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
       console.log(`✅ SID lookup map built with ${Object.keys(sidToCustomIdMap).length} entries\n`);
     }
     
+    // NFL-SPECIFIC TRY-CATCH WRAPPER
+    console.log(`\n🎯 Beginning game processing loop for ${data.length} games...\n`);
+    
     data.forEach((game, gameIndex) => {
-      const homeTeam = game.home_team;
-      const awayTeam = game.away_team;
+      try {
+        console.log(`\n🔍 === PROCESSING GAME ${gameIndex + 1}/${data.length} ===`);
+        
+        const homeTeam = game.home_team;
+        const awayTeam = game.away_team;
       
       // Normalize team names to ESPN IDs for consistent keying
       const homeTeamId = getStandardId(homeTeam);
@@ -3311,13 +3319,24 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
         console.log(`     🥊 Round Betting: ${roundBetting ? '✓ Available' : '-'}`);
         console.log(`     🥊 Go Distance: ${goDistance ? '✓ Available' : '-'}`);
       }
-    });
+      
+      console.log(`  ✅ Game ${gameIndex + 1} processing complete\n`);
+      
+    } catch (gameError) {
+      console.error(`\n❌ CRITICAL ERROR processing game ${gameIndex + 1}:`, gameError);
+      console.error(`   Game data:`, { home_team: game.home_team, away_team: game.away_team });
+      console.error(`   Error message:`, gameError.message);
+      console.error(`   Stack trace:`, gameError.stack);
+      // Continue to next game instead of failing entire batch
+    }
+  });
     
     console.log(`\n🎉 Successfully parsed ${Object.keys(oddsMap).length} games for ${sport}`);
     console.log(`📋 All game keys in oddsMap:`);
     Object.keys(oddsMap).forEach(key => {
       console.log(`   "${key}"`);
     });
+    console.log(`🏈 ===== END OF ${sport} FETCH =====\n`);
     
     oddsAPICache[sport] = {
       data: oddsMap,
@@ -3327,10 +3346,20 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
     return oddsMap;
     
   } catch (error) {
-    console.error(`\n❌ EXCEPTION in fetchOddsFromTheOddsAPI for ${sport}:`);
+    console.error(`\n❌❌❌ CRITICAL EXCEPTION in fetchOddsFromTheOddsAPI for ${sport} ❌❌❌`);
     console.error(`Error type: ${error.name}`);
     console.error(`Error message: ${error.message}`);
     console.error('Stack trace:', error.stack);
+    
+    // NFL-SPECIFIC ERROR REPORTING
+    if (sport === 'NFL') {
+      console.error(`\n🏈 NFL-SPECIFIC DIAGNOSTICS:`);
+      console.error(`   - Sport key exists: ${!!ODDS_API_SPORT_KEYS[sport]}`);
+      console.error(`   - Sport key value: ${ODDS_API_SPORT_KEYS[sport]}`);
+      console.error(`   - API key exists: ${!!ODDS_API_KEY}`);
+      console.error(`   - Cache exists: ${!!oddsAPICache[sport]}`);
+    }
+    
     return null;
   }
 };
