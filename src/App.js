@@ -20,7 +20,7 @@ import BettingSlip from './components/BettingSlip';
 import MemberContainer from './components/MemberContainer';
 import { getStandardId } from './utils/normalization';
 import { findBestMoneylinePrices, formatMoneylineForDisplay } from './utils/priceFinder';
-import { findTeamByName, findTeamById } from './utils/teamMapper';
+import { findTeamByName, findTeamById, getTeamsForSport } from './utils/teamMapper';
 
 function SportsMenu({ currentSport, onSelectSport, allSportsGames, onSignOut, onManualRefresh, isRefreshing, onNavigateToDashboard }) {
     const sportOrder = ['NFL', 'College Football', 'NBA', 'College Basketball', 'Major League Baseball', 'NHL', 'World Cup', 'MLS', 'Boxing', 'UFC'];
@@ -2790,6 +2790,38 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
     });
     console.log(`✅ Availability cache built for ${availabilityCache.size} games\n`);
     
+    // BUILD SID → CUSTOM ID LOOKUP MAP
+    // This maps every par_... SID to its corresponding custom team ID
+    // Handles both Pro leagues (SID in aliases) and NCAAB (SID as id)
+    console.log('🗺️ Building SID → Custom ID lookup map...');
+    const sidToCustomIdMap = {};
+    
+    if (sportKey) {
+      const teams = getTeamsForSport(sportKey);
+      const isNCAA_Basketball = sportKey === 'basketball_ncaab';
+      
+      teams.forEach(team => {
+        if (isNCAA_Basketball) {
+          // For NCAAB, the id field IS the SID
+          if (team.id && team.id.startsWith('par_')) {
+            sidToCustomIdMap[team.id] = team.id; // SID maps to itself
+            console.log(`  📌 NCAAB: ${team.id} → ${team.id} (${team.full_name})`);
+          }
+        } else {
+          // For Pro leagues, extract SID from aliases array
+          if (team.aliases && Array.isArray(team.aliases)) {
+            const sid = team.aliases.find(a => a && a.startsWith('par_'));
+            if (sid) {
+              sidToCustomIdMap[sid] = team.id; // Map SID to custom ID
+              console.log(`  📌 Pro: ${sid} → ${team.id} (${team.canonical})`);
+            }
+          }
+        }
+      });
+      
+      console.log(`✅ SID lookup map built with ${Object.keys(sidToCustomIdMap).length} entries\n`);
+    }
+    
     data.forEach((game, gameIndex) => {
       const homeTeam = game.home_team;
       const awayTeam = game.away_team;
@@ -2937,24 +2969,26 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
             // Check if this outcome matches home team (by name)
             if (outcomeName.toLowerCase() === homeTeam.toLowerCase() && outcome.sid) {
               homeSid = outcome.sid;
-              // Use the SID to look up the team in our local JSON
-              const teamData = findTeamById(outcome.sid, sportKey);
-              if (teamData) {
-                localHomeTeamId = teamData.id; // Use the custom ID (NFL-ARI, NBA-020, etc.)
-                console.log(`  🆔 Home team SID found: ${outcome.sid} → Custom ID: ${teamData.id} (${teamData.canonical || teamData.full_name})`);
-                console.log(`  [MAPPING] Matched Odds SID ${outcome.sid} to Team ID ${teamData.id}`);
+              // Use the lookup map to instantly find the custom ID
+              localHomeTeamId = sidToCustomIdMap[outcome.sid];
+              
+              if (localHomeTeamId) {
+                console.log(`  ✅ [MAPPING SUCCESS] API SID ${outcome.sid} -> Custom ID ${localHomeTeamId} -> ESPN Game Found`);
+              } else {
+                console.warn(`  ⚠️ [MAPPING FAILED] API SID ${outcome.sid} not found in lookup map`);
               }
             }
             
             // Check if this outcome matches away team (by name)
             if (outcomeName.toLowerCase() === awayTeam.toLowerCase() && outcome.sid) {
               awaySid = outcome.sid;
-              // Use the SID to look up the team in our local JSON
-              const teamData = findTeamById(outcome.sid, sportKey);
-              if (teamData) {
-                localAwayTeamId = teamData.id; // Use the custom ID (NFL-ARI, NBA-020, etc.)
-                console.log(`  🆔 Away team SID found: ${outcome.sid} → Custom ID: ${teamData.id} (${teamData.canonical || teamData.full_name})`);
-                console.log(`  [MAPPING] Matched Odds SID ${outcome.sid} to Team ID ${teamData.id}`);
+              // Use the lookup map to instantly find the custom ID
+              localAwayTeamId = sidToCustomIdMap[outcome.sid];
+              
+              if (localAwayTeamId) {
+                console.log(`  ✅ [MAPPING SUCCESS] API SID ${outcome.sid} -> Custom ID ${localAwayTeamId} -> ESPN Game Found`);
+              } else {
+                console.warn(`  ⚠️ [MAPPING FAILED] API SID ${outcome.sid} not found in lookup map`);
               }
             }
           }
@@ -3005,17 +3039,21 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
       }
       
       // Override the ESPN IDs with our custom IDs if we found them via SID matching
-      if (localHomeTeamId) {
-        console.log(`  🔄 Overriding ESPN homeTeamId "${homeTeamId}" with custom ID "${localHomeTeamId}"`);
-        // Don't actually override - we'll use localHomeTeamId for SID matching only
-      }
-      if (localAwayTeamId) {
-        console.log(`  🔄 Overriding ESPN awayTeamId "${awayTeamId}" with custom ID "${localAwayTeamId}"`);
-        // Don't actually override - we'll use localAwayTeamId for SID matching only
+      // This ensures odds are stored with the correct key format
+      let finalHomeTeamId = homeTeamId;  // Default to ESPN ID
+      let finalAwayTeamId = awayTeamId;  // Default to ESPN ID
+      
+      if (localHomeTeamId && localAwayTeamId) {
+        finalHomeTeamId = localHomeTeamId;
+        finalAwayTeamId = localAwayTeamId;
+        console.log(`  🔄 Using mapped Custom IDs: Home="${finalHomeTeamId}", Away="${finalAwayTeamId}"`);
+        console.log(`  📊 Game Key will be: "${finalHomeTeamId}|${finalAwayTeamId}"`);
+      } else {
+        console.warn(`  ⚠️ Mapping incomplete, using ESPN IDs: Home="${finalHomeTeamId}", Away="${finalAwayTeamId}"`);
       }
       
       if (homeSid && awaySid) {
-        console.log(`  ✅ Using SID-based matching: Home SID=${homeSid}, Away SID=${awaySid}`);
+        console.log(`  ✅ Using SID-based matching for price lookup: Home SID=${homeSid}, Away SID=${awaySid}`);
       } else {
         console.warn(`  ⚠️ SID-based matching incomplete: Home SID=${homeSid || 'NONE'}, Away SID=${awaySid || 'NONE'}`);
       }
@@ -3191,7 +3229,9 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
       
       // 11. Assemble final odds object for this game
       // Use ID-based key for consistent lookups
-      const gameKey = `${homeTeamId}|${awayTeamId}`;
+      // Use finalHomeTeamId and finalAwayTeamId (mapped from SIDs if available)
+      const gameKey = `${finalHomeTeamId}|${finalAwayTeamId}`;
+      console.log(`  💾 Storing odds with key: "${gameKey}"`);
       const oddsData = { 
         awaySpread, 
         homeSpread, 
