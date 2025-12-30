@@ -20,6 +20,7 @@ import BettingSlip from './components/BettingSlip';
 import MemberContainer from './components/MemberContainer';
 import { getStandardId } from './utils/normalization';
 import { findBestMoneylinePrices, formatMoneylineForDisplay } from './utils/priceFinder';
+import { findTeamByName, findTeamById, getTeamsForSport } from './utils/teamMapper';
 
 function SportsMenu({ currentSport, onSelectSport, allSportsGames, onSignOut, onManualRefresh, isRefreshing, onNavigateToDashboard }) {
     const sportOrder = ['NFL', 'College Football', 'NBA', 'College Basketball', 'Major League Baseball', 'NHL', 'World Cup', 'MLS', 'Boxing', 'UFC'];
@@ -2566,15 +2567,17 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
     const commenceTimeFrom = now.toISOString().split('.')[0] + 'Z';
     const commenceTimeTo = fourteenDaysFromNow.toISOString().split('.')[0] + 'Z';
     
-    // CRITICAL: Explicitly request 'american' odds format and include future games
-    const url = `${ODDS_API_BASE_URL}/sports/${sportKey}/odds/?apiKey=${ODDS_API_KEY}&regions=us&markets=${markets}&oddsFormat=american&commenceTimeFrom=${commenceTimeFrom}&commenceTimeTo=${commenceTimeTo}`;
+    // CRITICAL: Request 'american' odds format (no conversion needed)
+    // Also include source IDs (includeSids=true) for better team matching
+    const url = `${ODDS_API_BASE_URL}/sports/${sportKey}/odds/?apiKey=${ODDS_API_KEY}&regions=us&markets=${markets}&oddsFormat=american&includeSids=true&commenceTimeFrom=${commenceTimeFrom}&commenceTimeTo=${commenceTimeTo}`;
     
     // DEBUG: Log URL with masked API key for security
     const maskedUrl = url.replace(ODDS_API_KEY, '***KEY_HIDDEN***');
     console.log(`🔥 Making Odds API call for ${sport}...`);
     console.log(`📡 URL: ${maskedUrl}`);
     console.log(`📋 Markets requested: ${markets}`);
-    console.log(`📐 Odds format: american`);
+    console.log(`📐 Odds format: american (no conversion needed)`);
+    console.log(`🆔 Source IDs: enabled (includeSids=true)`);
     console.log(`📅 Time window: ${commenceTimeFrom} to ${commenceTimeTo} (14 days)`);
     
     const response = await fetch(url);
@@ -2628,7 +2631,7 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
         console.log(`🔄 Attempting fallback to 'upcoming' sport key...`);
         
         // FALLBACK: Try 'upcoming' sport key if specific sport returns 404
-        const fallbackUrl = `${ODDS_API_BASE_URL}/sports/upcoming/odds/?apiKey=${ODDS_API_KEY}&regions=us&markets=${markets}&oddsFormat=american`;
+        const fallbackUrl = `${ODDS_API_BASE_URL}/sports/upcoming/odds/?apiKey=${ODDS_API_KEY}&regions=us&markets=${markets}&oddsFormat=american&includeSids=true`;
         const fallbackResponse = await fetch(fallbackUrl);
         
         if (fallbackResponse.ok) {
@@ -2680,7 +2683,7 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
     if (data.length === 0 || (data.length < 5 && !isCombat)) {
       console.warn(`⚠️ Limited/no games found for ${sport} (got ${data.length}). Trying 'upcoming' fallback for additional games...`);
       
-      const fallbackUrl = `${ODDS_API_BASE_URL}/sports/upcoming/odds/?apiKey=${ODDS_API_KEY}&regions=us&markets=${markets}&oddsFormat=american`;
+      const fallbackUrl = `${ODDS_API_BASE_URL}/sports/upcoming/odds/?apiKey=${ODDS_API_KEY}&regions=us&markets=${markets}&oddsFormat=american&includeSids=true`;
       const fallbackResponse = await fetch(fallbackUrl);
       
       if (fallbackResponse.ok) {
@@ -2787,9 +2790,49 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
     });
     console.log(`✅ Availability cache built for ${availabilityCache.size} games\n`);
     
+    // BUILD SID → CUSTOM ID LOOKUP MAP
+    // This maps every par_... SID to its corresponding custom team ID
+    // Handles both Pro leagues (SID in aliases) and NCAAB (SID as id)
+    console.log('🗺️ Building SID → Custom ID lookup map...');
+    const sidToCustomIdMap = {};
+    
+    if (sportKey) {
+      console.log(`  📂 Getting teams for sport key: ${sportKey}`);
+      const teams = getTeamsForSport(sportKey);
+      console.log(`  ✅ Retrieved ${teams.length} teams`);
+      const isNCAA_Basketball = sportKey === 'basketball_ncaab';
+      
+      teams.forEach(team => {
+        if (isNCAA_Basketball) {
+          // For NCAAB, the id field IS the SID
+          if (team.id && team.id.startsWith('par_')) {
+            sidToCustomIdMap[team.id] = team.id; // SID maps to itself
+            console.log(`  📌 NCAAB: ${team.id} → ${team.id} (${team.full_name})`);
+          }
+        } else {
+          // For Pro leagues, extract SID from aliases array
+          if (team.aliases && Array.isArray(team.aliases)) {
+            const sid = team.aliases.find(a => a && a.startsWith('par_'));
+            if (sid) {
+              sidToCustomIdMap[sid] = team.id; // Map SID to custom ID
+              console.log(`  📌 Pro: ${sid} → ${team.id} (${team.canonical})`);
+            }
+          }
+        }
+      });
+      
+      console.log(`✅ SID lookup map built with ${Object.keys(sidToCustomIdMap).length} entries\n`);
+    }
+    
+    // NFL-SPECIFIC TRY-CATCH WRAPPER
+    console.log(`\n🎯 Beginning game processing loop for ${data.length} games...\n`);
+    
     data.forEach((game, gameIndex) => {
-      const homeTeam = game.home_team;
-      const awayTeam = game.away_team;
+      try {
+        console.log(`\n🔍 === PROCESSING GAME ${gameIndex + 1}/${data.length} ===`);
+        
+        const homeTeam = game.home_team;
+        const awayTeam = game.away_team;
       
       // Normalize team names to ESPN IDs for consistent keying
       const homeTeamId = getStandardId(homeTeam);
@@ -2905,16 +2948,153 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
       const gameName = `${awayTeam} @ ${homeTeam}`;
       const sportKey = ODDS_API_SPORT_KEYS[sport];
       
+      // CRITICAL: Extract SIDs from API outcomes and map them to our custom team IDs
+      // The Odds API returns sid in outcomes (e.g., "par_01hqmkq6fzfvyvrsb30jj85ade")
+      // 
+      // TWO-TIER MATCHING LOGIC:
+      // - Pro Leagues (NFL, NBA, NHL): SID is stored in the aliases array
+      //   Example: { "id": "NBA-020", "aliases": [..., "par_01hqmk..."] }
+      // - NCAAB: SID is stored directly in the id field
+      //   Example: { "id": "par_01hqmk...", "full_name": "Duke Blue Devils" }
+      //
+      // Goal: Map API SID → Custom Team ID (like "NFL-ARI", "NBA-020")
+      // This allows us to store odds with the same keys used by ESPN data
+      let localHomeTeamId = null;
+      let localAwayTeamId = null;
+      let homeSid = null;
+      let awaySid = null;
+      
+      // First, try to extract SIDs directly from the first available bookmaker's outcomes
+      if (game.bookmakers && game.bookmakers.length > 0 && sportKey) {
+        const firstBookmaker = game.bookmakers[0];
+        const h2hMarket = firstBookmaker.markets?.find(m => m.key === 'h2h');
+        
+        if (h2hMarket && h2hMarket.outcomes) {
+          // Look for outcomes that match our team names and extract their SIDs
+          for (const outcome of h2hMarket.outcomes) {
+            const outcomeName = outcome.name || '';
+            
+            // Check if this outcome matches home team (by name)
+            if (outcomeName.toLowerCase() === homeTeam.toLowerCase() && outcome.sid) {
+              homeSid = outcome.sid;
+              // Use the lookup map to instantly find the custom ID
+              localHomeTeamId = sidToCustomIdMap[outcome.sid];
+              
+              if (localHomeTeamId) {
+                console.log(`  ✅ [MAPPING SUCCESS] API SID ${outcome.sid} -> Custom ID ${localHomeTeamId} -> ESPN Game Found`);
+              } else {
+                console.warn(`  ⚠️ [MAPPING FAILED] API SID ${outcome.sid} not found in lookup map`);
+              }
+            }
+            
+            // Check if this outcome matches away team (by name)
+            if (outcomeName.toLowerCase() === awayTeam.toLowerCase() && outcome.sid) {
+              awaySid = outcome.sid;
+              // Use the lookup map to instantly find the custom ID
+              localAwayTeamId = sidToCustomIdMap[outcome.sid];
+              
+              if (localAwayTeamId) {
+                console.log(`  ✅ [MAPPING SUCCESS] API SID ${outcome.sid} -> Custom ID ${localAwayTeamId} -> ESPN Game Found`);
+              } else {
+                console.warn(`  ⚠️ [MAPPING FAILED] API SID ${outcome.sid} not found in lookup map`);
+              }
+            }
+          }
+        }
+      }
+      
+      // Fallback: If SID extraction failed, try traditional team name lookup
+      if ((!localHomeTeamId || !localAwayTeamId) && sportKey) {
+        console.log(`  ⚠️ SID extraction incomplete, falling back to name-based lookup...`);
+        
+        const isNCAA_Basketball = sportKey === 'basketball_ncaab';
+        
+        if (!localHomeTeamId) {
+          const homeTeamData = findTeamByName(homeTeam, sportKey);
+          if (homeTeamData) {
+            localHomeTeamId = homeTeamData.id; // Always use the custom ID
+            if (isNCAA_Basketball) {
+              // For NCAAB, the id field IS the SID (e.g., "par_01hqmk...")
+              homeSid = homeTeamData.id;
+            } else {
+              // For pro leagues, extract SID from aliases array
+              if (homeTeamData.aliases) {
+                const sid = homeTeamData.aliases.find(a => a && a.startsWith('par_'));
+                homeSid = sid || null;
+              }
+            }
+            console.log(`  [MAPPING] Fallback matched ${homeTeam} to Team ID ${localHomeTeamId}${homeSid ? ` (SID: ${homeSid})` : ''}`);
+          }
+        }
+        
+        if (!localAwayTeamId) {
+          const awayTeamData = findTeamByName(awayTeam, sportKey);
+          if (awayTeamData) {
+            localAwayTeamId = awayTeamData.id; // Always use the custom ID
+            if (isNCAA_Basketball) {
+              // For NCAAB, the id field IS the SID (e.g., "par_01hqmk...")
+              awaySid = awayTeamData.id;
+            } else {
+              // For pro leagues, extract SID from aliases array
+              if (awayTeamData.aliases) {
+                const sid = awayTeamData.aliases.find(a => a && a.startsWith('par_'));
+                awaySid = sid || null;
+              }
+            }
+            console.log(`  [MAPPING] Fallback matched ${awayTeam} to Team ID ${localAwayTeamId}${awaySid ? ` (SID: ${awaySid})` : ''}`);
+          }
+        }
+      }
+      
+      // CRITICAL: Extract ESPN Integer IDs for game key matching
+      // The oddsMap must use the SAME keys that GridBettingLayout expects
+      // GridBettingLayout uses game.homeTeamId and game.awayTeamId (ESPN Integer IDs)
+      // So we need to extract ESPN IDs from team aliases and use those for the key
+      let finalHomeTeamId = homeTeamId;  // Default to original normalized ID
+      let finalAwayTeamId = awayTeamId;  // Default to original normalized ID
+      
+      if (localHomeTeamId && localAwayTeamId && sportKey && sportKey !== 'basketball_ncaab') {
+        // For pro leagues, extract ESPN Integer IDs from team aliases
+        const homeTeamData = findTeamById(localHomeTeamId, sportKey);
+        const awayTeamData = findTeamById(localAwayTeamId, sportKey);
+        
+        if (homeTeamData && homeTeamData.aliases) {
+          const homeEspnId = homeTeamData.aliases.find(a => /^\d+$/.test(a));
+          if (homeEspnId) {
+            finalHomeTeamId = homeEspnId;
+            console.log(`  🔍 ODDS API MATCH: Team: ${homeTeam} | SID: ${homeSid || 'N/A'} | Custom ID: ${localHomeTeamId} | ESPN ID: ${homeEspnId}`);
+          }
+        }
+        
+        if (awayTeamData && awayTeamData.aliases) {
+          const awayEspnId = awayTeamData.aliases.find(a => /^\d+$/.test(a));
+          if (awayEspnId) {
+            finalAwayTeamId = awayEspnId;
+            console.log(`  🔍 ODDS API MATCH: Team: ${awayTeam} | SID: ${awaySid || 'N/A'} | Custom ID: ${localAwayTeamId} | ESPN ID: ${awayEspnId}`);
+          }
+        }
+        
+        console.log(`  🔄 Using ESPN IDs for game key: Home="${finalHomeTeamId}", Away="${finalAwayTeamId}"`);
+        console.log(`  📊 Game Key will be: "${finalHomeTeamId}|${finalAwayTeamId}"`);
+      } else {
+        console.warn(`  ⚠️ Mapping incomplete, using ESPN IDs: Home="${finalHomeTeamId}", Away="${finalAwayTeamId}"`);
+      }
+      
+      if (homeSid && awaySid) {
+        console.log(`  ✅ Using SID-based matching for price lookup: Home SID=${homeSid}, Away SID=${awaySid}`);
+      } else {
+        console.warn(`  ⚠️ SID-based matching incomplete: Home SID=${homeSid || 'NONE'}, Away SID=${awaySid || 'NONE'}`);
+      }
+      
       // Use new Price Finder utility for robust moneyline extraction
-      // Note: The Odds API doesn't provide participant IDs in outcomes, only team names
-      // So we pass null for IDs and rely on name matching strategies
+      // Pass SIDs for exact matching with API outcomes
       const moneylineResult = findBestMoneylinePrices(
         game.bookmakers,
         homeTeam,
         awayTeam,
         sportKey,
-        null, // homeTeamId - not used, The Odds API uses team names
-        null  // awayTeamId - not used, The Odds API uses team names
+        homeSid,  // homeTeamId - SID for matching with API outcomes
+        awaySid   // awayTeamId - SID for matching with API outcomes
       );
       
       if (moneylineResult) {
@@ -3077,7 +3257,9 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
       
       // 11. Assemble final odds object for this game
       // Use ID-based key for consistent lookups
-      const gameKey = `${homeTeamId}|${awayTeamId}`;
+      // Use finalHomeTeamId and finalAwayTeamId (mapped from SIDs if available)
+      const gameKey = `${finalHomeTeamId}|${finalAwayTeamId}`;
+      console.log(`  💾 Storing odds with key: "${gameKey}"`);
       const oddsData = { 
         awaySpread, 
         homeSpread, 
@@ -3137,13 +3319,24 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
         console.log(`     🥊 Round Betting: ${roundBetting ? '✓ Available' : '-'}`);
         console.log(`     🥊 Go Distance: ${goDistance ? '✓ Available' : '-'}`);
       }
-    });
+      
+      console.log(`  ✅ Game ${gameIndex + 1} processing complete\n`);
+      
+    } catch (gameError) {
+      console.error(`\n❌ CRITICAL ERROR processing game ${gameIndex + 1}:`, gameError);
+      console.error(`   Game data:`, { home_team: game.home_team, away_team: game.away_team });
+      console.error(`   Error message:`, gameError.message);
+      console.error(`   Stack trace:`, gameError.stack);
+      // Continue to next game instead of failing entire batch
+    }
+  });
     
     console.log(`\n🎉 Successfully parsed ${Object.keys(oddsMap).length} games for ${sport}`);
     console.log(`📋 All game keys in oddsMap:`);
     Object.keys(oddsMap).forEach(key => {
       console.log(`   "${key}"`);
     });
+    console.log(`🏈 ===== END OF ${sport} FETCH =====\n`);
     
     oddsAPICache[sport] = {
       data: oddsMap,
@@ -3153,10 +3346,20 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
     return oddsMap;
     
   } catch (error) {
-    console.error(`\n❌ EXCEPTION in fetchOddsFromTheOddsAPI for ${sport}:`);
+    console.error(`\n❌❌❌ CRITICAL EXCEPTION in fetchOddsFromTheOddsAPI for ${sport} ❌❌❌`);
     console.error(`Error type: ${error.name}`);
     console.error(`Error message: ${error.message}`);
     console.error('Stack trace:', error.stack);
+    
+    // NFL-SPECIFIC ERROR REPORTING
+    if (sport === 'NFL') {
+      console.error(`\n🏈 NFL-SPECIFIC DIAGNOSTICS:`);
+      console.error(`   - Sport key exists: ${!!ODDS_API_SPORT_KEYS[sport]}`);
+      console.error(`   - Sport key value: ${ODDS_API_SPORT_KEYS[sport]}`);
+      console.error(`   - API key exists: ${!!ODDS_API_KEY}`);
+      console.error(`   - Cache exists: ${!!oddsAPICache[sport]}`);
+    }
+    
     return null;
   }
 };
@@ -3458,8 +3661,8 @@ const fetchDetailedOdds = async (sport, eventId) => {
     // Request quarter and halftime markets
     const markets = 'h2h_q1,h2h_q2,h2h_q3,h2h_q4,h2h_h1,h2h_h2,spreads_q1,spreads_q2,spreads_q3,spreads_q4,spreads_h1,spreads_h2,totals_q1,totals_q2,totals_q3,totals_q4,totals_h1,totals_h2';
     
-    // Use per-event endpoint
-    const url = `${ODDS_API_BASE_URL}/sports/${sportKey}/events/${eventId}/odds?apiKey=${ODDS_API_KEY}&regions=us&markets=${markets}&oddsFormat=american`;
+    // Use per-event endpoint with american format and source IDs
+    const url = `${ODDS_API_BASE_URL}/sports/${sportKey}/events/${eventId}/odds?apiKey=${ODDS_API_KEY}&regions=us&markets=${markets}&oddsFormat=american&includeSids=true`;
     
     console.log(`🔍 Fetching detailed odds for event ${eventId}...`);
     const response = await fetch(url);
@@ -4099,6 +4302,10 @@ const fetchDetailedOdds = async (sport, eventId) => {
             // STEP 1: Fetch spreads and totals from The Odds API
             const oddsMap = await fetchOddsFromTheOddsAPI(sport);
             
+            // OPERATION ZERO DASH: JsonOdds API DEACTIVATED
+            // Focusing 100% on The Odds API with SID-based matching
+            // JsonOdds logic commented out to eliminate confusion
+            /*
             // STEP 2: Fetch moneylines from JsonOdds (PRIMARY SOURCE for ML)
             // Now fetching Game, FirstHalf, and FirstQuarter odds
             const jsonOddsPeriodData = await fetchAllPeriodOdds(sport);
@@ -4113,6 +4320,11 @@ const fetchDetailedOdds = async (sport, eventId) => {
                 gameKeys: jsonOddsMoneylines ? Object.keys(jsonOddsMoneylines) : []
               });
             }
+            */
+            
+            const jsonOddsMoneylines = null; // Deactivated
+            const jsonOddsFirstHalf = null; // Deactivated
+            const jsonOddsFirstQuarter = null; // Deactivated
             
             if (oddsMap || jsonOddsMoneylines) {
               const finalFormattedGames = formattedGames.map(game => {
@@ -4123,9 +4335,17 @@ const fetchDetailedOdds = async (sport, eventId) => {
                   console.log(`📞 ESPN missing moneyline for ${game.awayTeam} @ ${game.homeTeam}`);
                 }
                 
-                // First, get spreads and totals from The Odds API
+                // OPERATION ZERO DASH: Get spreads, totals, AND moneylines from The Odds API
                 const odds = oddsMap ? matchOddsToGame(game, oddsMap) : {};
                 
+                // DIAGNOSTIC LOGGING: Track UI lookup key
+                console.log(`🏀 UI LOOKUP: Searching oddsMap for Key: "${game.homeTeamId}|${game.awayTeamId}"`);
+                if (oddsMap) {
+                  console.log(`📦 CURRENT MAP KEYS:`, Object.keys(oddsMap).slice(0, 10)); // Show first 10 keys
+                }
+                
+                // JsonOdds DEACTIVATED - Using The Odds API exclusively
+                /*
                 // Then, overlay JsonOdds moneylines (PRIORITY OVERRIDE)
                 let jsonOddsML = null;
                 if (jsonOddsMoneylines) {
@@ -4148,46 +4368,38 @@ const fetchDetailedOdds = async (sport, eventId) => {
                     }
                   }
                 }
+                */
                 
                 // Build updated game object with layered data:
                 // 1. Base game data (ESPN)
-                // 2. The Odds API (spreads, totals, fallback moneyline)
-                // 3. JsonOdds (moneyline OVERRIDE)
+                // 2. The Odds API (spreads, totals, moneylines)
                 const updatedGame = {
                   ...game,
                   // Spreads and totals from The Odds API
                   awaySpread: odds.awaySpread || game.awaySpread,
                   homeSpread: odds.homeSpread || game.homeSpread,
                   total: odds.total || game.total,
-                  // Moneyline PRIORITY: JsonOdds > The Odds API > ESPN
-                  awayMoneyline: (jsonOddsML && jsonOddsML.awayMoneyline !== '-') ? jsonOddsML.awayMoneyline : (odds.awayMoneyline || game.awayMoneyline),
-                  homeMoneyline: (jsonOddsML && jsonOddsML.homeMoneyline !== '-') ? jsonOddsML.homeMoneyline : (odds.homeMoneyline || game.homeMoneyline),
+                  // Moneyline PRIORITY: The Odds API > ESPN (JsonOdds deactivated)
+                  awayMoneyline: odds.awayMoneyline || game.awayMoneyline,
+                  homeMoneyline: odds.homeMoneyline || game.homeMoneyline,
                   oddsApiEventId: odds.oddsApiEventId
                 };
                 
-                if (DEBUG_JSONODDS_FLOW) {
-                  const source = jsonOddsML ? 'JsonOdds' : (odds.awayMoneyline ? 'OddsAPI' : 'ESPN');
-                  console.log(`📋 Final game object for ${game.awayTeam} @ ${game.homeTeam}:`, {
-                    awayMoneyline: updatedGame.awayMoneyline,
-                    homeMoneyline: updatedGame.homeMoneyline,
-                    source: source
-                  });
-                  
-                  // Log fallback chain
-                  if (!jsonOddsML && !odds.awayMoneyline && !game.awayMoneyline) {
-                    console.warn(`    ⚠️ No moneyline data found from any source (will display as "-")`);
-                  } else if (!jsonOddsML && odds.awayMoneyline) {
-                    console.log(`    ℹ️ Using The Odds API moneyline as fallback (JsonOdds not available)`);
-                  } else if (!jsonOddsML && !odds.awayMoneyline && game.awayMoneyline) {
-                    console.log(`    ℹ️ Using ESPN moneyline as fallback (JsonOdds and Odds API not available)`);
-                  }
-                }
+                // DIAGNOSTIC LOGGING: Show final moneyline sources
+                const source = odds.awayMoneyline ? 'The Odds API' : (game.awayMoneyline ? 'ESPN' : 'MISSING');
+                console.log(`📋 Final game object for ${game.awayTeam} @ ${game.homeTeam}:`, {
+                  awayMoneyline: updatedGame.awayMoneyline,
+                  homeMoneyline: updatedGame.homeMoneyline,
+                  source: source
+                });
                 
-                // Log source of moneyline data
-                if (jsonOddsML && jsonOddsML.awayMoneyline !== '-') {
-                  console.log(`✅ Applied JsonOdds moneyline: ${game.awayTeam} ${updatedGame.awayMoneyline}, ${game.homeTeam} ${updatedGame.homeMoneyline}`);
-                } else if (odds.awayMoneyline && !game.awayMoneyline) {
-                  console.log(`✅ Applied Odds API moneyline fallback: ${game.awayTeam} ${odds.awayMoneyline}`);
+                // Log fallback chain
+                if (!odds.awayMoneyline && !game.awayMoneyline) {
+                  console.warn(`    ⚠️ No moneyline data found from any source (will display as "MISSING")`);
+                } else if (odds.awayMoneyline) {
+                  console.log(`    ✅ Using The Odds API moneyline: ${game.awayTeam} ${odds.awayMoneyline}, ${game.homeTeam} ${odds.homeMoneyline}`);
+                } else if (!odds.awayMoneyline && game.awayMoneyline) {
+                  console.log(`    ℹ️ Using ESPN moneyline as fallback: ${game.awayTeam} ${game.awayMoneyline}`);
                 }
                 
                 // Add draw moneyline for soccer sports
@@ -4290,6 +4502,9 @@ const fetchDetailedOdds = async (sport, eventId) => {
     setLastRefreshTime(Date.now());
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [parseESPNOdds, countMissingOdds, matchOddsToGame]);
+
+  // ESPN ID extraction utility removed to avoid console clutter
+  // This was a temporary tool for populating JSON files with ESPN IDs
 
   // AUTO-MIGRATION: One-time check for orphaned data at /spreads root
   // Move any numeric IDs (orphaned games) into proper sport subfolders

@@ -45,7 +45,7 @@ function OddsBoard({
       setLoading(true);
       setError(null);
 
-      const url = `${ODDS_API_BASE_URL}/sports/${sport}/odds/?apiKey=${ODDS_API_KEY}&regions=${region}&markets=h2h&oddsFormat=decimal`;
+      const url = `${ODDS_API_BASE_URL}/sports/${sport}/odds/?apiKey=${ODDS_API_KEY}&regions=${region}&markets=h2h&oddsFormat=american&includeSids=true`;
       
       console.log(`🔄 Fetching odds for ${sport}...`);
       

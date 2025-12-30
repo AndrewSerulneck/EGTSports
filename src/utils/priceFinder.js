@@ -110,17 +110,32 @@ function isValidMarket(market, marketKey) {
  * Find best price across multiple bookmakers for h2h market
  * Priority order: DraftKings, FanDuel, BetMGM, then any other available
  * 
+ * CRITICAL: Now supports SID (Source ID) based matching with local JSON files
+ * When includeSids=true is used in API requests, outcomes will have sid field
+ * 
+ * TWO-TIER SID MATCHING:
+ * - Pro Leagues (NFL, NBA, NHL): The sid (e.g., "par_01hqmkq6fzfvyvrsb30jj85ade") 
+ *   is stored in the aliases array of src/data/*.json files
+ *   Example: { "id": "NBA-020", "canonical": "New York Knicks", 
+ *              "aliases": ["NYK", ..., "par_01hqmk..."] }
+ * 
+ * - NCAAB: The sid is stored directly in the id field
+ *   Example: { "id": "par_01hqmk...", "full_name": "Duke Blue Devils" }
+ * 
+ * This provides the MOST RELIABLE team identification.
+ * 
  * @param {Array} bookmakers - Array of bookmaker objects from The Odds API
  * @param {string} homeTeam - Home team name from API
  * @param {string} awayTeam - Away team name from API
  * @param {string} sportKey - Sport key for team mapping (e.g., 'basketball_nba')
- * @param {string} homeTeamId - Optional home team participant ID (not used - see implementation)
- * @param {string} awayTeamId - Optional away team participant ID (not used - see implementation)
+ * @param {string} homeTeamId - Home team SID from API outcomes (e.g., "par_01hqmk...")
+ * @param {string} awayTeamId - Away team SID from API outcomes (e.g., "par_01hqmk...")
  * @returns {object|null} Object with awayPrice, homePrice, drawPrice, bookmakerName, or null
  */
 export function findBestMoneylinePrices(bookmakers, homeTeam, awayTeam, sportKey = null, homeTeamId = null, awayTeamId = null) {
   console.log(`\n🔍 Price Finder: Searching for moneyline (h2h) prices`);
   console.log(`   Teams: ${awayTeam} @ ${homeTeam}`);
+  console.log(`   Team IDs: Away=${awayTeamId || 'N/A'}, Home=${homeTeamId || 'N/A'}`);
   console.log(`   Sport Key: ${sportKey || 'unknown'}`);
   console.log(`   Bookmakers available: ${bookmakers?.length || 0}`);
   
@@ -185,7 +200,7 @@ export function findBestMoneylinePrices(bookmakers, homeTeam, awayTeam, sportKey
     console.log(`    Raw outcomes:`, h2hMarket.outcomes.map(o => ({ 
       name: o.name, 
       price: o.price,
-      description: o.description || 'N/A'
+      sid: o.sid || 'NO_SID'
     })));
     
     // Initialize result
@@ -193,24 +208,56 @@ export function findBestMoneylinePrices(bookmakers, homeTeam, awayTeam, sportKey
     let awayPrice = null;
     let drawPrice = null;
     
-    // STEP 1: Try exact name matching (case-insensitive) - most reliable for The Odds API
-    console.log(`    🔤 Attempting exact name matching...`);
-    for (const outcome of h2hMarket.outcomes) {
-      const outcomeName = outcome.name || '';
+    // STEP 0: PRIORITY METHOD - Try SID (Source ID) matching first
+    // This is the MOST RELIABLE method when includeSids=true is used in API request
+    // The sid from API outcomes matches the id field in our local JSON files
+    if (homeTeamId || awayTeamId) {
+      console.log(`    🆔 Attempting SID matching (most reliable)...`);
       
-      if (homePrice === null && outcomeName.toLowerCase() === homeTeam.toLowerCase()) {
-        homePrice = safeNumberConversion(outcome.price);
-        console.log(`    ✓ Home team matched by exact name: "${outcomeName}" = ${homePrice}`);
+      for (const outcome of h2hMarket.outcomes) {
+        if (!outcome.sid) continue; // Skip outcomes without SID
+        
+        if (homePrice === null && homeTeamId && outcome.sid === homeTeamId) {
+          homePrice = safeNumberConversion(outcome.price);
+          console.log(`    ✓✓✓ Home team matched by SID: ${homeTeamId} = ${homePrice} (${outcome.name})`);
+        }
+        
+        if (awayPrice === null && awayTeamId && outcome.sid === awayTeamId) {
+          awayPrice = safeNumberConversion(outcome.price);
+          console.log(`    ✓✓✓ Away team matched by SID: ${awayTeamId} = ${awayPrice} (${outcome.name})`);
+        }
       }
       
-      if (awayPrice === null && outcomeName.toLowerCase() === awayTeam.toLowerCase()) {
-        awayPrice = safeNumberConversion(outcome.price);
-        console.log(`    ✓ Away team matched by exact name: "${outcomeName}" = ${awayPrice}`);
+      // Check for Draw in soccer (no SID for draw, use name)
+      if (drawPrice === null) {
+        const drawOutcome = h2hMarket.outcomes.find(o => o.name === 'Draw');
+        if (drawOutcome) {
+          drawPrice = safeNumberConversion(drawOutcome.price);
+          console.log(`    ✓ Draw matched by name: price = ${drawPrice}`);
+        }
       }
-      
-      if (drawPrice === null && outcomeName === 'Draw') {
-        drawPrice = safeNumberConversion(outcome.price);
-        console.log(`    ✓ Draw matched: price = ${drawPrice}`);
+    }
+    
+    // STEP 1: Fallback - Try exact name matching (case-insensitive)
+    if (homePrice === null || awayPrice === null) {
+      console.log(`    🔤 Attempting exact name matching...`);
+      for (const outcome of h2hMarket.outcomes) {
+        const outcomeName = outcome.name || '';
+        
+        if (homePrice === null && outcomeName.toLowerCase() === homeTeam.toLowerCase()) {
+          homePrice = safeNumberConversion(outcome.price);
+          console.log(`    ✓ Home team matched by exact name: "${outcomeName}" = ${homePrice}`);
+        }
+        
+        if (awayPrice === null && outcomeName.toLowerCase() === awayTeam.toLowerCase()) {
+          awayPrice = safeNumberConversion(outcome.price);
+          console.log(`    ✓ Away team matched by exact name: "${outcomeName}" = ${awayPrice}`);
+        }
+        
+        if (drawPrice === null && outcomeName === 'Draw') {
+          drawPrice = safeNumberConversion(outcome.price);
+          console.log(`    ✓ Draw matched: price = ${drawPrice}`);
+        }
       }
     }
     
@@ -346,29 +393,45 @@ export function findBestMoneylinePrices(bookmakers, homeTeam, awayTeam, sportKey
 }
 
 /**
- * Convert decimal odds to American format with proper typing
- * @param {number} decimalPrice - Decimal odds (e.g., 1.91, 2.50)
+ * Format odds for display - handles both American (integers) and decimal formats
+ * When API returns American odds (as integers), just format with +/- prefix
+ * When API returns decimal odds, convert to American format
+ * @param {number} price - Odds value from API (American as integer or decimal)
  * @returns {string} American odds (e.g., "-110", "+150") or "-"
  */
-export function convertToAmericanOdds(decimalPrice) {
-  const price = safeNumberConversion(decimalPrice);
+export function convertToAmericanOdds(price) {
+  const numPrice = safeNumberConversion(price);
   
-  if (price === null || price === 1.0) {
+  if (numPrice === null) {
     return '-';
   }
   
   try {
-    if (price >= 2.0) {
+    // If the price is already in American format (magnitude >= 100 or <= -100)
+    // The Odds API returns American odds as integers like 150 or -110
+    if (Math.abs(numPrice) >= 100) {
+      // Positive odds need + prefix, negative already have -
+      return numPrice > 0 ? `+${Math.round(numPrice)}` : `${Math.round(numPrice)}`;
+    }
+    
+    // Handle decimal format (1.x to 99.x range) - convert to American
+    if (numPrice === 1.0) {
+      return '-';
+    }
+    
+    if (numPrice >= 2.0) {
       // Underdog: (decimal - 1) * 100
-      const american = Math.round((price - 1) * 100);
+      const american = Math.round((numPrice - 1) * 100);
       return `+${american}`;
-    } else {
+    } else if (numPrice > 1.0) {
       // Favorite: -100 / (decimal - 1)
-      const american = Math.round(-100 / (price - 1));
+      const american = Math.round(-100 / (numPrice - 1));
       return american.toString();
     }
+    
+    return '-';
   } catch (error) {
-    console.error(`    ⚠️ Error converting odds ${decimalPrice}:`, error);
+    console.error(`    ⚠️ Error formatting odds ${price}:`, error);
     return '-';
   }
 }
