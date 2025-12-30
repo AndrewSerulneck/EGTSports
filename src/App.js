@@ -2908,7 +2908,7 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
       const gameName = `${awayTeam} @ ${homeTeam}`;
       const sportKey = ODDS_API_SPORT_KEYS[sport];
       
-      // CRITICAL: Extract SIDs from API outcomes and use them to look up teams in local JSON
+      // CRITICAL: Extract SIDs from API outcomes and map them to our custom team IDs
       // The Odds API returns sid in outcomes (e.g., "par_01hqmkq6fzfvyvrsb30jj85ade")
       // 
       // TWO-TIER MATCHING LOGIC:
@@ -2917,9 +2917,12 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
       // - NCAAB: SID is stored directly in the id field
       //   Example: { "id": "par_01hqmk...", "full_name": "Duke Blue Devils" }
       //
-      // This provides the MOST RELIABLE team identification method
+      // Goal: Map API SID → Custom Team ID (like "NFL-ARI", "NBA-020")
+      // This allows us to store odds with the same keys used by ESPN data
       let localHomeTeamId = null;
       let localAwayTeamId = null;
+      let homeSid = null;
+      let awaySid = null;
       
       // First, try to extract SIDs directly from the first available bookmaker's outcomes
       if (game.bookmakers && game.bookmakers.length > 0 && sportKey) {
@@ -2933,21 +2936,25 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
             
             // Check if this outcome matches home team (by name)
             if (outcomeName.toLowerCase() === homeTeam.toLowerCase() && outcome.sid) {
+              homeSid = outcome.sid;
               // Use the SID to look up the team in our local JSON
               const teamData = findTeamById(outcome.sid, sportKey);
               if (teamData) {
-                localHomeTeamId = outcome.sid; // Use the SID itself for matching
-                console.log(`  🆔 Home team SID found: ${outcome.sid} → ${teamData.canonical || teamData.full_name}`);
+                localHomeTeamId = teamData.id; // Use the custom ID (NFL-ARI, NBA-020, etc.)
+                console.log(`  🆔 Home team SID found: ${outcome.sid} → Custom ID: ${teamData.id} (${teamData.canonical || teamData.full_name})`);
+                console.log(`  [MAPPING] Matched Odds SID ${outcome.sid} to Team ID ${teamData.id}`);
               }
             }
             
             // Check if this outcome matches away team (by name)
             if (outcomeName.toLowerCase() === awayTeam.toLowerCase() && outcome.sid) {
+              awaySid = outcome.sid;
               // Use the SID to look up the team in our local JSON
               const teamData = findTeamById(outcome.sid, sportKey);
               if (teamData) {
-                localAwayTeamId = outcome.sid; // Use the SID itself for matching
-                console.log(`  🆔 Away team SID found: ${outcome.sid} → ${teamData.canonical || teamData.full_name}`);
+                localAwayTeamId = teamData.id; // Use the custom ID (NFL-ARI, NBA-020, etc.)
+                console.log(`  🆔 Away team SID found: ${outcome.sid} → Custom ID: ${teamData.id} (${teamData.canonical || teamData.full_name})`);
+                console.log(`  [MAPPING] Matched Odds SID ${outcome.sid} to Team ID ${teamData.id}`);
               }
             }
           }
@@ -2963,51 +2970,65 @@ const fetchOddsFromTheOddsAPI = async (sport, forceRefresh = false) => {
         if (!localHomeTeamId) {
           const homeTeamData = findTeamByName(homeTeam, sportKey);
           if (homeTeamData) {
+            localHomeTeamId = homeTeamData.id; // Always use the custom ID
             if (isNCAA_Basketball) {
               // For NCAAB, the id field IS the SID (e.g., "par_01hqmk...")
-              localHomeTeamId = homeTeamData.id || null;
+              homeSid = homeTeamData.id;
             } else {
               // For pro leagues, extract SID from aliases array
               if (homeTeamData.aliases) {
                 const sid = homeTeamData.aliases.find(a => a && a.startsWith('par_'));
-                localHomeTeamId = sid || null;
+                homeSid = sid || null;
               }
             }
+            console.log(`  [MAPPING] Fallback matched ${homeTeam} to Team ID ${localHomeTeamId}${homeSid ? ` (SID: ${homeSid})` : ''}`);
           }
         }
         
         if (!localAwayTeamId) {
           const awayTeamData = findTeamByName(awayTeam, sportKey);
           if (awayTeamData) {
+            localAwayTeamId = awayTeamData.id; // Always use the custom ID
             if (isNCAA_Basketball) {
               // For NCAAB, the id field IS the SID (e.g., "par_01hqmk...")
-              localAwayTeamId = awayTeamData.id || null;
+              awaySid = awayTeamData.id;
             } else {
               // For pro leagues, extract SID from aliases array
               if (awayTeamData.aliases) {
                 const sid = awayTeamData.aliases.find(a => a && a.startsWith('par_'));
-                localAwayTeamId = sid || null;
+                awaySid = sid || null;
               }
             }
+            console.log(`  [MAPPING] Fallback matched ${awayTeam} to Team ID ${localAwayTeamId}${awaySid ? ` (SID: ${awaySid})` : ''}`);
           }
         }
       }
       
-      if (localHomeTeamId && localAwayTeamId) {
-        console.log(`  ✅ Using SID-based matching: Home=${localHomeTeamId}, Away=${localAwayTeamId}`);
+      // Override the ESPN IDs with our custom IDs if we found them via SID matching
+      if (localHomeTeamId) {
+        console.log(`  🔄 Overriding ESPN homeTeamId "${homeTeamId}" with custom ID "${localHomeTeamId}"`);
+        // Don't actually override - we'll use localHomeTeamId for SID matching only
+      }
+      if (localAwayTeamId) {
+        console.log(`  🔄 Overriding ESPN awayTeamId "${awayTeamId}" with custom ID "${localAwayTeamId}"`);
+        // Don't actually override - we'll use localAwayTeamId for SID matching only
+      }
+      
+      if (homeSid && awaySid) {
+        console.log(`  ✅ Using SID-based matching: Home SID=${homeSid}, Away SID=${awaySid}`);
       } else {
-        console.warn(`  ⚠️ SID-based matching incomplete: Home=${localHomeTeamId || 'NONE'}, Away=${localAwayTeamId || 'NONE'}`);
+        console.warn(`  ⚠️ SID-based matching incomplete: Home SID=${homeSid || 'NONE'}, Away SID=${awaySid || 'NONE'}`);
       }
       
       // Use new Price Finder utility for robust moneyline extraction
-      // Now passing SIDs for exact matching with API outcomes
+      // Pass SIDs for exact matching with API outcomes
       const moneylineResult = findBestMoneylinePrices(
         game.bookmakers,
         homeTeam,
         awayTeam,
         sportKey,
-        localHomeTeamId,  // homeTeamId - SID from aliases for exact matching
-        localAwayTeamId   // awayTeamId - SID from aliases for exact matching
+        homeSid,  // homeTeamId - SID for matching with API outcomes
+        awaySid   // awayTeamId - SID for matching with API outcomes
       );
       
       if (moneylineResult) {
