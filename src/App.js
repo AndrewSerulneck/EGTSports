@@ -19,8 +19,9 @@ import PropBetsView from './components/PropBetsView';
 import BettingSlip from './components/BettingSlip';
 import MemberContainer from './components/MemberContainer';
 import { getStandardId } from './utils/normalization';
-import { findBestMoneylinePrices, formatMoneylineForDisplay } from './utils/priceFinder';
+import { findBestMoneylinePrices, formatMoneylineForDisplay, fuzzyMatchTeamName } from './utils/priceFinder';
 import { findTeamByName, findTeamById, getTeamsForSport } from './utils/teamMapper';
+import { useOddsApi } from './hooks/useOddsApi';
 
 function SportsMenu({ currentSport, onSelectSport, allSportsGames, onSignOut, onManualRefresh, isRefreshing, onNavigateToDashboard }) {
     const sportOrder = ['NFL', 'College Football', 'NBA', 'College Basketball', 'Major League Baseball', 'NHL', 'World Cup', 'MLS', 'Boxing', 'UFC'];
@@ -2259,6 +2260,9 @@ function App() {
     hardStop: false
   });
   const apiQuotaRef = useRef({ remaining: null, used: null, hardStop: false });
+  
+  // Use the new Odds API hook for fetching with fuzzy matching
+  const { fetchOddsForSport } = useOddsApi();
 
   // Function to fetch user's credit info from Firebase
   const fetchUserCredit = useCallback(async (uid) => {
@@ -3758,7 +3762,7 @@ const fetchDetailedOdds = async (sport, eventId) => {
   }
 };
 
-  // Helper function for ID-based odds matching
+  // Helper function for fuzzy matching odds to games
   const matchOddsToGame = useCallback((game, oddsMap) => {
     // Default fallback with dash for missing odds
     const defaultOdds = { 
@@ -3774,24 +3778,43 @@ const fetchDetailedOdds = async (sport, eventId) => {
       return defaultOdds;
     }
     
-    // Use ID-based lookup for consistent matching
-    // Game object already has awayTeamId and homeTeamId from ESPN data
-    if (!game.homeTeamId || !game.awayTeamId) {
-      console.log(`[${game.awayTeam} @ ${game.homeTeam}] -> ML: No | Spread: No | Total: No | Match Method: Missing Team IDs`);
-      return defaultOdds;
+    // Use fuzzy matching to find odds in the oddsMap
+    // OddsMap keys are in format "awayTeam|homeTeam" from The Odds API
+    let foundMatch = false;
+    
+    for (const [oddsKey, oddsData] of Object.entries(oddsMap)) {
+      const [oddsAwayTeam, oddsHomeTeam] = oddsKey.split('|');
+      
+      // Try fuzzy matching on team names
+      const awayMatch = fuzzyMatchTeamName(oddsAwayTeam, game.awayTeam);
+      const homeMatch = fuzzyMatchTeamName(oddsHomeTeam, game.homeTeam);
+      
+      if (awayMatch && homeMatch) {
+        console.log(`  ✅ MATCHED: ESPN "${game.awayTeam} @ ${game.homeTeam}" ↔ Odds API "${oddsAwayTeam} @ ${oddsHomeTeam}"`);
+        console.log(`     ML: ${oddsData.awayMoneyline}/${oddsData.homeMoneyline} | Spread: ${oddsData.awaySpread}/${oddsData.homeSpread} | Total: ${oddsData.total}`);
+        
+        foundMatch = true;
+        return {
+          awayMoneyline: oddsData.awayMoneyline || '-',
+          homeMoneyline: oddsData.homeMoneyline || '-',
+          drawMoneyline: oddsData.drawMoneyline,
+          awaySpread: oddsData.awaySpread || '-',
+          homeSpread: oddsData.homeSpread || '-',
+          awaySpreadOdds: oddsData.awaySpreadOdds || '-',
+          homeSpreadOdds: oddsData.homeSpreadOdds || '-',
+          total: oddsData.total || '-',
+          overOdds: oddsData.overOdds || '-',
+          underOdds: oddsData.underOdds || '-',
+          bookmaker: oddsData.bookmaker || 'Unknown',
+        };
+      }
     }
     
-    const gameKey = `${game.homeTeamId}|${game.awayTeamId}`;
-    
-    if (oddsMap[gameKey]) {
-      const odds = oddsMap[gameKey];
-      // Concise diagnostic log
-      console.log(`[${game.awayTeam} @ ${game.homeTeam}] (IDs: ${game.awayTeamId}|${game.homeTeamId}) -> ML: ${odds.awayMoneyline !== '-' ? 'Yes' : 'No'} | Spread: ${odds.awaySpread !== '-' ? 'Yes' : 'No'} | Total: ${odds.total !== '-' ? 'Yes' : 'No'} | Match Method: ID-Based`);
-      return odds;
+    if (!foundMatch) {
+      console.warn(`  ⚠️ NO MATCH: Could not find odds for "${game.awayTeam} @ ${game.homeTeam}"`);
+      console.warn(`     Available odds keys:`, Object.keys(oddsMap).slice(0, 5).join(', '));
     }
     
-    // No match found - return defaults with diagnostic log
-    console.log(`[${game.awayTeam} @ ${game.homeTeam}] (IDs: ${game.awayTeamId}|${game.homeTeamId}) -> ML: No | Spread: No | Total: No | Match Method: None (No API data for these IDs)`);
     return defaultOdds;
   }, []);
 
@@ -4296,34 +4319,25 @@ const fetchDetailedOdds = async (sport, eventId) => {
           const missingCount = countMissingOdds(formattedGames);
           
           if (missingCount > 0) {
-            // STEP 1: Fetch spreads and totals from The Odds API
-            const oddsMap = await fetchOddsFromTheOddsAPI(sport);
+            // STEP 1: Fetch odds from The Odds API using new fuzzy matching hook
+            let oddsMap = {};
+            if (ODDS_API_KEY) {
+              try {
+                console.log(`\n🎲 Fetching odds from The Odds API for ${sport} using fuzzy matching...`);
+                oddsMap = await fetchOddsForSport(sport, ODDS_API_KEY);
+                console.log(`✅ Received odds for ${Object.keys(oddsMap).length} games`);
+              } catch (error) {
+                console.error('❌ Error fetching odds:', error);
+              }
+            }
             
             // OPERATION ZERO DASH: JsonOdds API DEACTIVATED
-            // Focusing 100% on The Odds API with SID-based matching
-            // JsonOdds logic commented out to eliminate confusion
-            /*
-            // STEP 2: Fetch moneylines from JsonOdds (PRIMARY SOURCE for ML)
-            // Now fetching Game, FirstHalf, and FirstQuarter odds
-            const jsonOddsPeriodData = await fetchAllPeriodOdds(sport);
-            const jsonOddsMoneylines = jsonOddsPeriodData?.Game || null;
-            const jsonOddsFirstHalf = jsonOddsPeriodData?.FirstHalf || null;
-            const jsonOddsFirstQuarter = jsonOddsPeriodData?.FirstQuarter || null;
-            
-            if (DEBUG_JSONODDS_FLOW) {
-              console.log(`\n📦 JsonOdds data received for ${sport}:`, {
-                hasGameOdds: !!jsonOddsMoneylines,
-                gameCount: jsonOddsMoneylines ? Object.keys(jsonOddsMoneylines).length : 0,
-                gameKeys: jsonOddsMoneylines ? Object.keys(jsonOddsMoneylines) : []
-              });
-            }
-            */
-            
+            // Focusing 100% on The Odds API with fuzzy matching
             const jsonOddsMoneylines = null; // Deactivated
             const jsonOddsFirstHalf = null; // Deactivated
             const jsonOddsFirstQuarter = null; // Deactivated
             
-            if (oddsMap || jsonOddsMoneylines) {
+            if (oddsMap && Object.keys(oddsMap).length > 0) {
               const finalFormattedGames = formattedGames.map(game => {
                 if (hasCompleteOddsData(game)) return game;
                 
@@ -4332,71 +4346,40 @@ const fetchDetailedOdds = async (sport, eventId) => {
                   console.log(`📞 ESPN missing moneyline for ${game.awayTeam} @ ${game.homeTeam}`);
                 }
                 
-                // OPERATION ZERO DASH: Get spreads, totals, AND moneylines from The Odds API
-                const odds = oddsMap ? matchOddsToGame(game, oddsMap) : {};
+                // Use fuzzy matching to find odds
+                const odds = matchOddsToGame(game, oddsMap);
                 
-                // DIAGNOSTIC LOGGING: Track UI lookup key
-                console.log(`🏀 UI LOOKUP: Searching oddsMap for Key: "${game.homeTeamId}|${game.awayTeamId}"`);
-                if (oddsMap) {
-                  console.log(`📦 CURRENT MAP KEYS:`, Object.keys(oddsMap).slice(0, 10)); // Show first 10 keys
+                // DIAGNOSTIC LOGGING: Show available odds keys
+                if (Object.keys(oddsMap).length > 0) {
+                  console.log(`📦 Sample odds keys:`, Object.keys(oddsMap).slice(0, 3));
                 }
                 
                 // JsonOdds DEACTIVATED - Using The Odds API exclusively
-                /*
-                // Then, overlay JsonOdds moneylines (PRIORITY OVERRIDE)
-                let jsonOddsML = null;
-                if (jsonOddsMoneylines) {
-                  // Use ID-based lookup for consistent matching
-                  if (game.homeTeamId && game.awayTeamId) {
-                    const gameKey = `${game.homeTeamId}|${game.awayTeamId}`;
-                    jsonOddsML = jsonOddsMoneylines[gameKey];
-                    
-                    if (DEBUG_JSONODDS_FLOW) {
-                      console.log(`🔍 Looking up JsonOdds for ID-based key: "${gameKey}"`, {
-                        originalTeams: `${game.awayTeam} @ ${game.homeTeam}`,
-                        teamIds: `Away=${game.awayTeamId}, Home=${game.homeTeamId}`,
-                        found: !!jsonOddsML,
-                        data: jsonOddsML || 'NOT FOUND'
-                      });
-                    }
-                  } else {
-                    if (DEBUG_JSONODDS_FLOW) {
-                      console.log(`⚠️ Missing team IDs for ${game.awayTeam} @ ${game.homeTeam}, cannot lookup JsonOdds`);
-                    }
-                  }
-                }
-                */
                 
                 // Build updated game object with layered data:
                 // 1. Base game data (ESPN)
-                // 2. The Odds API (spreads, totals, moneylines)
+                // 2. The Odds API (spreads, totals, moneylines) via fuzzy matching
                 const updatedGame = {
                   ...game,
-                  // Spreads and totals from The Odds API
+                  // All odds from The Odds API
                   awaySpread: odds.awaySpread || game.awaySpread,
                   homeSpread: odds.homeSpread || game.homeSpread,
+                  awaySpreadOdds: odds.awaySpreadOdds || '-',
+                  homeSpreadOdds: odds.homeSpreadOdds || '-',
                   total: odds.total || game.total,
-                  // Moneyline PRIORITY: The Odds API > ESPN (JsonOdds deactivated)
+                  overOdds: odds.overOdds || '-',
+                  underOdds: odds.underOdds || '-',
                   awayMoneyline: odds.awayMoneyline || game.awayMoneyline,
                   homeMoneyline: odds.homeMoneyline || game.homeMoneyline,
-                  oddsApiEventId: odds.oddsApiEventId
+                  bookmaker: odds.bookmaker || undefined
                 };
                 
                 // DIAGNOSTIC LOGGING: Show final moneyline sources
-                const source = odds.awayMoneyline ? 'The Odds API' : (game.awayMoneyline ? 'ESPN' : 'MISSING');
-                console.log(`📋 Final game object for ${game.awayTeam} @ ${game.homeTeam}:`, {
-                  awayMoneyline: updatedGame.awayMoneyline,
-                  homeMoneyline: updatedGame.homeMoneyline,
-                  source: source
-                });
-                
-                // Log fallback chain
-                if (!odds.awayMoneyline && !game.awayMoneyline) {
-                  console.warn(`    ⚠️ No moneyline data found from any source (will display as "MISSING")`);
-                } else if (odds.awayMoneyline) {
-                  console.log(`    ✅ Using The Odds API moneyline: ${game.awayTeam} ${odds.awayMoneyline}, ${game.homeTeam} ${odds.homeMoneyline}`);
-                } else if (!odds.awayMoneyline && game.awayMoneyline) {
-                  console.log(`    ℹ️ Using ESPN moneyline as fallback: ${game.awayTeam} ${game.awayMoneyline}`);
+                const source = odds.awayMoneyline && odds.awayMoneyline !== '-' ? 'The Odds API' : (game.awayMoneyline ? 'ESPN' : 'MISSING');
+                if (odds.awayMoneyline && odds.awayMoneyline !== '-') {
+                  console.log(`    ✅ Using The Odds API for ${game.awayTeam} @ ${game.homeTeam}: ML ${odds.awayMoneyline}/${odds.homeMoneyline}, Source: ${odds.bookmaker || 'Unknown'}`);
+                } else if (!odds.awayMoneyline || odds.awayMoneyline === '-') {
+                  console.warn(`    ⚠️ No The Odds API moneyline for ${game.awayTeam} @ ${game.homeTeam}, using ESPN: ${game.awayMoneyline || 'MISSING'}`);
                 }
                 
                 // Add draw moneyline for soccer sports
@@ -4404,57 +4387,10 @@ const fetchDetailedOdds = async (sport, eventId) => {
                   updatedGame.drawMoneyline = odds.drawMoneyline;
                 }
                 
-                // Add quarter/halftime markets if available
-                const quarterHalfKeys = [
-                  'Q1_homeMoneyline', 'Q1_awayMoneyline', 'Q1_homeSpread', 'Q1_awaySpread', 'Q1_total',
-                  'Q2_homeMoneyline', 'Q2_awayMoneyline', 'Q2_homeSpread', 'Q2_awaySpread', 'Q2_total',
-                  'Q3_homeMoneyline', 'Q3_awayMoneyline', 'Q3_homeSpread', 'Q3_awaySpread', 'Q3_total',
-                  'Q4_homeMoneyline', 'Q4_awayMoneyline', 'Q4_homeSpread', 'Q4_awaySpread', 'Q4_total',
-                  'H1_homeMoneyline', 'H1_awayMoneyline', 'H1_homeSpread', 'H1_awaySpread', 'H1_total',
-                  'H2_homeMoneyline', 'H2_awayMoneyline', 'H2_homeSpread', 'H2_awaySpread', 'H2_total'
-                ];
-                
-                quarterHalfKeys.forEach(key => {
-                  if (odds[key] !== undefined) {
-                    updatedGame[key] = odds[key];
-                  }
-                });
-                
-                // Apply JsonOdds FirstHalf and FirstQuarter moneylines (OVERRIDE)
-                // Use ID-based lookup for consistent matching
-                
-                // Apply FirstHalf odds (H1_)
-                if (jsonOddsFirstHalf && game.homeTeamId && game.awayTeamId) {
-                  const gameKey = `${game.homeTeamId}|${game.awayTeamId}`;
-                  const firstHalfOdds = jsonOddsFirstHalf[gameKey];
-                  if (firstHalfOdds) {
-                    if (firstHalfOdds.awayMoneyline && firstHalfOdds.awayMoneyline !== '-') {
-                      updatedGame.H1_awayMoneyline = firstHalfOdds.awayMoneyline;
-                    }
-                    if (firstHalfOdds.homeMoneyline && firstHalfOdds.homeMoneyline !== '-') {
-                      updatedGame.H1_homeMoneyline = firstHalfOdds.homeMoneyline;
-                    }
-                  }
-                }
-                
-                // Apply FirstQuarter odds (Q1_)
-                if (jsonOddsFirstQuarter && game.homeTeamId && game.awayTeamId) {
-                  const gameKey = `${game.homeTeamId}|${game.awayTeamId}`;
-                  const firstQuarterOdds = jsonOddsFirstQuarter[gameKey];
-                  if (firstQuarterOdds) {
-                    if (firstQuarterOdds.awayMoneyline && firstQuarterOdds.awayMoneyline !== '-') {
-                      updatedGame.Q1_awayMoneyline = firstQuarterOdds.awayMoneyline;
-                    }
-                    if (firstQuarterOdds.homeMoneyline && firstQuarterOdds.homeMoneyline !== '-') {
-                      updatedGame.Q1_homeMoneyline = firstQuarterOdds.homeMoneyline;
-                    }
-                  }
-                }
-                
                 return updatedGame;
               });
               
-              console.log(`\n✅ Processed ${finalFormattedGames.length} games for ${sport} with JsonOdds/OddsAPI data`);
+              console.log(`\n✅ Processed ${finalFormattedGames.length} games for ${sport} with The Odds API data (fuzzy matching)`);
               sportsData[sport] = finalFormattedGames;
             } else {
               sportsData[sport] = formattedGames;
