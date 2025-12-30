@@ -35,6 +35,12 @@ export function decimalToAmerican(decimalOdds) {
  */
 export function formatOdds(decimalOdds, teamName = '') {
   const americanOdds = decimalToAmerican(decimalOdds);
+  
+  // Don't add team name if odds are invalid
+  if (americanOdds === '-') {
+    return '-';
+  }
+  
   if (teamName) {
     return `${teamName} ${americanOdds}`;
   }
