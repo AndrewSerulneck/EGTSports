@@ -13,7 +13,7 @@ import { findTeamByName } from './teamMapper';
  * @param {string} localName - Team name from local data
  * @returns {boolean} True if names match
  */
-function fuzzyMatchTeamName(apiName, localName) {
+export function fuzzyMatchTeamName(apiName, localName) {
   if (!apiName || !localName) return false;
   
   const normalize = (str) => str.toLowerCase().trim();
